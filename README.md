@@ -1,5 +1,8 @@
 # viewkit
 
+[![GitHub release](https://img.shields.io/github/v/tag/codyconfer/viewkit?logo=github&label=latest)](https://github.com/codyconfer/viewkit/tags/latest)
+[![CI](https://github.com/codyconfer/viewkit/actions/workflows/ci.yml/badge.svg)](https://github.com/codyconfer/viewkit/actions/workflows/ci.yml)
+
 A small, dependency-light toolkit for building **terminal UIs** with
 [Bubble Tea](https://github.com/charmbracelet/bubbletea) /
 [Lip Gloss](https://github.com/charmbracelet/lipgloss). It gives you three
