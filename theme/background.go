@@ -8,6 +8,10 @@ import (
 
 const resetSeq = "\x1b[0m"
 
+func AppMargin(body string) string {
+	return lipgloss.NewStyle().Margin(0, AppMarginX).Render(body)
+}
+
 func Screen(body string, width, height int) string {
 	bg := Cur().Bg
 	if bg == "" {

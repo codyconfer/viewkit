@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 )
 
@@ -74,6 +75,27 @@ func TestScreenPaintsEveryCell(t *testing.T) {
 
 	if bad, ok := bgActiveEverywhere(out); !ok {
 		t.Fatalf("found unpainted cell %q in:\n%q", string(bad), out)
+	}
+}
+
+func TestAppMarginEvenInset(t *testing.T) {
+	const contentW = 20
+	body := strings.Join([]string{
+		strings.Repeat("A", contentW),
+		"short",
+		strings.Repeat("B", contentW),
+	}, "\n")
+
+	want := contentW + AppMarginX*2
+	for i, ln := range strings.Split(AppMargin(body), "\n") {
+		plain := ansi.Strip(ln)
+		if w := ansi.StringWidth(plain); w != want {
+			t.Errorf("line %d width = %d, want %d: %q", i, w, want, plain)
+		}
+		lead := len(plain) - len(strings.TrimLeft(plain, " "))
+		if lead != AppMarginX {
+			t.Errorf("line %d left inset = %d, want %d: %q", i, lead, AppMarginX, plain)
+		}
 	}
 }
 
