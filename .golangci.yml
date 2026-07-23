@@ -11,9 +11,20 @@ linters:
     - misspell
     - unconvert
     - bodyclose
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
   exclusions:
     generated: lax
     rules:
+      # Closing/rolling back in defer or error paths is idiomatic; the error is
+      # not actionable, so don't flag unchecked Close/Rollback.
+      - linters:
+          - errcheck
+        text: 'Error return value of `[^`]+\.(Close|Rollback)` is not checked'
       # Test files may ignore errors and use looser patterns.
       - path: _test\.go
         linters:

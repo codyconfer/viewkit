@@ -20,6 +20,9 @@ func NotificationCard(f layout.Frame, n notify.Notification) string {
 }
 
 func ProgressBar(frac float64, width int) string {
+	if width < 0 {
+		width = 0
+	}
 	if frac < 0 {
 		frac = 0
 	}
@@ -27,6 +30,9 @@ func ProgressBar(frac float64, width int) string {
 		frac = 1
 	}
 	filled := int(frac * float64(width))
+	if filled > width {
+		filled = width
+	}
 	return theme.Cur().Accent.Render(strings.Repeat("█", filled)) + theme.Cur().Dim.Render(strings.Repeat("░", width-filled))
 }
 
