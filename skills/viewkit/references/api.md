@@ -189,7 +189,7 @@ type Theme struct { Title, Accent, Dim, Val, Key, Can, Cant lipgloss.Style
                     TooNarrowTitle, TooNarrowNeed, TooNarrowBody string }
 
 func New(p Palette) Theme
-func Default() Theme          // "Munin"
+func Default() Theme          // "Default"
 func Cur() *Theme
 func Use(t Theme)             // installs + syncs exported style vars
 
@@ -200,6 +200,7 @@ func Use(t Theme)             // installs + syncs exported style vars
 func Keys() []string                       // named-palette keys
 func Named(key string) (Theme, bool)       // false ⇒ returns Default()
 func DisplayName(key string) string
+func Register(key, name string, p Palette) // add/replace a named palette
 func Screen(body string, width, height int) string  // paints background
 
 // layout-contract constants (NOT part of Theme):
@@ -224,6 +225,11 @@ func Cur() Scheme                 // value, not pointer
 func Use(s Scheme)
 func (s Scheme) Binding(a Action) Binding
 func (s Scheme) With(overrides ...Binding) Scheme
+
+func Register(key, name string, s Scheme)  // add/replace a named scheme
+func Keys() []string                       // named-scheme keys
+func Named(key string) (Scheme, bool)      // false ⇒ returns Default()
+func DisplayName(key string) string
 
 type Map
 func NewMap(bindings ...Binding) *Map
@@ -277,4 +283,10 @@ func (q *Queue) Beat()                       // tick one TTL step
 func (q *Queue) Current() (Notification, bool)
 func (q *Queue) Active() bool
 func (q *Queue) Len() int
+```
+
+## timefmt — `github.com/codyconfer/viewkit/timefmt`
+```go
+func Rel(t time.Time) string              // relative to time.Now(): "just now", "5m ago", "in 2h", "3d ago"
+func RelAt(t, now time.Time) string       // relative to an explicit now (deterministic / testable)
 ```

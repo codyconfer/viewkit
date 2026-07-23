@@ -62,3 +62,65 @@ func TestSchemeWithOverridesAreConfigurable(t *testing.T) {
 		t.Fatal("Default scheme mutated by With")
 	}
 }
+
+func TestNamedReturnsRegisteredScheme(t *testing.T) {
+	if _, ok := Named("default"); !ok {
+		t.Fatal("Named(default) not found")
+	}
+	if _, ok := Named("does-not-exist"); ok {
+		t.Fatal("Named(unknown) should report not found")
+	}
+}
+
+func TestKeysDefaultFirst(t *testing.T) {
+	keys := Keys()
+	if len(keys) == 0 || keys[0] != "default" {
+		t.Fatalf("Keys() = %v, want default first", keys)
+	}
+}
+
+func TestRegisterAddsNamedScheme(t *testing.T) {
+	orig := registry
+	defer func() { registry = orig }()
+
+	sc := Default().With(Binding{Keys: []string{"w"}, Action: Up, Glyph: "w"})
+	Register("wasd", "WASD", sc)
+
+	got, ok := Named("wasd")
+	if !ok {
+		t.Fatal("Named(wasd) not found after Register")
+	}
+	m := NewMap(got.Binding(Up))
+	if a, ok := m.Action("w"); !ok || a != Up {
+		t.Fatalf("registered scheme Action(w) = %q,%v; want %q,true", a, ok, Up)
+	}
+	if got := DisplayName("wasd"); got != "WASD" {
+		t.Fatalf("DisplayName(wasd) = %q, want %q", got, "WASD")
+	}
+
+	var found bool
+	for _, k := range Keys() {
+		if k == "wasd" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("Keys() does not include registered key")
+	}
+}
+
+func TestRegisterReplacesExistingKey(t *testing.T) {
+	orig := registry
+	defer func() { registry = orig }()
+
+	before := len(registry)
+	Register("dup", "First", Default())
+	Register("dup", "Second", Default())
+
+	if got := len(registry); got != before+1 {
+		t.Fatalf("registry len = %d, want %d (no duplicate entries)", got, before+1)
+	}
+	if got := DisplayName("dup"); got != "Second" {
+		t.Fatalf("DisplayName(dup) = %q, want %q", got, "Second")
+	}
+}

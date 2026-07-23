@@ -4,7 +4,7 @@ description: >-
   Work with viewkit themes, palettes, colors, and the screen background. Use when
   touching theme.Use / theme.Cur, the exported style vars (theme.DimSty,
   AccentSty, PanelSty, …), theme.Palette / theme.New, theme.Named / theme.Keys /
-  theme.DisplayName, theme.Screen, or the layout-contract constants
+  theme.DisplayName / theme.Register, theme.Screen, or the layout-contract constants
   (BodyWidth, MinScreenWidth, tiers). Covers the global-singleton model, adding a
   palette, painting the background, and the mandatory test restore.
 ---
@@ -65,8 +65,8 @@ theme.Use(th)
 
 ## Named palettes
 
-Built-in keys: `default` (Munin), `solarized-dark`, `solarized-light`,
-`one-dark-vivid`, `monokai`, `classic`.
+Built-in keys: `default` (Default), `solarized-dark`, `solarized-light`,
+`one-dark-vivid`, `monokai`, `classic`, `retro-dark`, `retro-light`.
 
 ```go
 keys := theme.Keys()                     // []string of keys
@@ -76,9 +76,23 @@ if t, ok := theme.Named("monokai"); ok { // false ⇒ returns Default()
 label := theme.DisplayName("monokai")    // "Monokai"
 ```
 
-To add a **new named** palette, edit the `registry` slice in
-`viewkit/theme/palettes.go` (it is package-private, so a consumer can't register a
-named theme from outside — for a one-off, just `theme.Use(theme.New(p))`).
+Register a **new named** palette from outside the package with `theme.Register`.
+It becomes resolvable by `theme.Named`, listed in `theme.Keys`, and titled by
+`theme.DisplayName`. Re-registering an existing key overwrites it. For a one-off
+look that needs no name, just `theme.Use(theme.New(p))`.
+
+```go
+theme.Register("dracula", "Dracula", theme.Palette{
+    Accent: lipgloss.Color("#bd93f9"),
+    // ...remaining roles
+})
+if t, ok := theme.Named("dracula"); ok {
+    theme.Use(t)
+}
+```
+
+The registry is a process-global, unsynchronized slice; call `theme.Register` at
+startup before concurrent access.
 
 ## Background
 

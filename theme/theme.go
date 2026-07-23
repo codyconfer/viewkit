@@ -134,7 +134,7 @@ type Theme struct {
 	TooNarrowBody  string
 }
 
-func Default() Theme { return New(muninPalette) }
+func Default() Theme { return New(defaultPalette) }
 
 var current = func() *Theme { t := Default(); syncExported(t); return &t }()
 

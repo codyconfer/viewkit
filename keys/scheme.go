@@ -60,3 +60,50 @@ var current = Default()
 func Cur() Scheme { return current }
 
 func Use(s Scheme) { current = s }
+
+type registryEntry struct {
+	key    string
+	name   string
+	scheme Scheme
+}
+
+var registry = []registryEntry{
+	{key: "default", name: "Default", scheme: Default()},
+}
+
+func Register(key, name string, s Scheme) {
+	for i := range registry {
+		if registry[i].key == key {
+			registry[i].name = name
+			registry[i].scheme = s
+			return
+		}
+	}
+	registry = append(registry, registryEntry{key: key, name: name, scheme: s})
+}
+
+func Keys() []string {
+	out := make([]string, len(registry))
+	for i, e := range registry {
+		out[i] = e.key
+	}
+	return out
+}
+
+func Named(key string) (Scheme, bool) {
+	for _, e := range registry {
+		if e.key == key {
+			return e.scheme, true
+		}
+	}
+	return Default(), false
+}
+
+func DisplayName(key string) string {
+	for _, e := range registry {
+		if e.key == key {
+			return e.name
+		}
+	}
+	return key
+}

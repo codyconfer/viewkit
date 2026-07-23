@@ -3,7 +3,7 @@ package theme
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	muninPalette = Palette{
+	defaultPalette = Palette{
 		Accent:   lipgloss.Color("#6e9fff"),
 		Border:   lipgloss.Color("#44474e"),
 		Muted:    lipgloss.Color("#9c9fa3"),
@@ -123,7 +123,7 @@ type registryEntry struct {
 }
 
 var registry = []registryEntry{
-	{key: "default", name: "Munin Default", palette: muninPalette},
+	{key: "default", name: "Default", palette: defaultPalette},
 	{key: "solarized-dark", name: "Solarized Dark", palette: solarizedDarkPalette},
 	{key: "solarized-light", name: "Solarized Light", palette: solarizedLightPalette},
 	{key: "one-dark-vivid", name: "One Dark Vivid", palette: oneDarkVividPalette},
@@ -131,6 +131,17 @@ var registry = []registryEntry{
 	{key: "classic", name: "Classic", palette: classicPalette},
 	{key: "retro-dark", name: "Retro Dark", palette: retroDarkPalette},
 	{key: "retro-light", name: "Retro Light", palette: retroLightPalette},
+}
+
+func Register(key, name string, p Palette) {
+	for i := range registry {
+		if registry[i].key == key {
+			registry[i].name = name
+			registry[i].palette = p
+			return
+		}
+	}
+	registry = append(registry, registryEntry{key: key, name: name, palette: p})
 }
 
 func Keys() []string {

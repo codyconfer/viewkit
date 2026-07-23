@@ -3,7 +3,8 @@ name: viewkit-keys
 description: >-
   Define keybindings and footer hint legends with viewkit's keys package. Use
   when working with keys.Action, keys.Binding, keys.NewMap / Map.Action,
-  keys.Cur / keys.Use / Scheme, or generating hints with Map.Hint / HintLabeled /
+  keys.Cur / keys.Use / Scheme, keys.Register / keys.Named / keys.Keys /
+  keys.DisplayName, or generating hints with Map.Hint / HintLabeled /
   Hints for layout.HintLine. Covers semantic actions, the glyph/label grouping
   rule, and how hints feed the footer legend.
 ---
@@ -90,6 +91,26 @@ empty.
 To change global defaults, install a scheme once at startup with `keys.Use(...)`
 (`Scheme.With(overrides...)` for tweaks). Like theme, this is global — restore it
 in tests with `defer keys.Use(keys.Default())`.
+
+## Named schemes
+
+Register a named scheme from outside the package with `keys.Register`. It becomes
+resolvable by `keys.Named`, listed in `keys.Keys`, and titled by `keys.DisplayName`.
+Re-registering an existing key overwrites it. The built-in `default` key maps to
+`keys.Default()`.
+
+```go
+keys.Register("wasd", "WASD", keys.Default().With(
+    keys.Binding{Keys: []string{"w"}, Action: keys.Up, Glyph: "w"},
+    keys.Binding{Keys: []string{"s"}, Action: keys.Down},
+))
+if sc, ok := keys.Named("wasd"); ok {
+    keys.Use(sc)
+}
+```
+
+The registry is a process-global, unsynchronized slice; call `keys.Register` at
+startup before concurrent access.
 
 ## Verification
 
