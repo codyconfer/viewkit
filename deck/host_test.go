@@ -51,6 +51,25 @@ func TestHostPushPop(t *testing.T) {
 	}
 }
 
+func TestHostKeyHook(t *testing.T) {
+	var seen string
+	h := New(stubView{title: "Root"}, WithKeyHook(func(m *Model, key tea.KeyMsg) (tea.Cmd, bool) {
+		seen = key.String()
+		return m.Push(stubView{title: "Hot"}), true
+	}))
+	m, cmd := h.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}, Alt: true})
+	h = m.(*Model)
+	if seen != "alt+n" {
+		t.Fatalf("hook key = %q", seen)
+	}
+	if cmd != nil {
+		_ = cmd()
+	}
+	if h.top().Title() != "Hot" {
+		t.Fatalf("after hook title=%s", h.top().Title())
+	}
+}
+
 type ctxView struct {
 	stubView
 	ctx [][2]string

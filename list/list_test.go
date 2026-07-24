@@ -78,10 +78,9 @@ func TestRenderInsertsItemGapBetweenNodes(t *testing.T) {
 	m.SetFocused(true)
 
 	lines := strings.Split(m.View(), "\n")
-	// selected prefix + "a", then ListItemGapY blanks, then unselected "b"
 	wantGap := theme.ListItemGapY
 	if wantGap < 1 {
-		t.Fatal("ListItemGapY must be >= 1 for this spacing change")
+		t.Fatal("ListItemGapY must be >= 1")
 	}
 	if len(lines) != 2+wantGap {
 		t.Fatalf("line count = %d, want %d (2 items + %d gap):\n%q", len(lines), 2+wantGap, wantGap, m.View())
@@ -93,5 +92,32 @@ func TestRenderInsertsItemGapBetweenNodes(t *testing.T) {
 	}
 	if !strings.Contains(lines[0], "a") || !strings.Contains(lines[len(lines)-1], "b") {
 		t.Fatalf("expected items around gap:\n%s", m.View())
+	}
+}
+
+func TestRenderGapStemContinuesTreeThroughItemGap(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{
+		{Block: "│  ├─ a", Key: "a", Selectable: true, GapStem: "│  │  "},
+		{Block: "│  └─ b", Key: "b", Selectable: true, GapStem: "│     "},
+	})
+
+	lines := strings.Split(m.View(), "\n")
+	wantGap := theme.ListItemGapY
+	if wantGap < 1 {
+		t.Fatal("ListItemGapY must be >= 1 for gap-stem coverage")
+	}
+	if len(lines) != 2+wantGap {
+		t.Fatalf("line count = %d, want %d:\n%q", len(lines), 2+wantGap, m.View())
+	}
+	for i := 1; i <= wantGap; i++ {
+		got := lines[i]
+		want := "  │  │  "
+		if got != want {
+			t.Fatalf("gap line %d = %q, want %q (stem through ListItemGapY)", i, got, want)
+		}
+	}
+	if !strings.Contains(lines[0], "├─ a") || !strings.Contains(lines[len(lines)-1], "└─ b") {
+		t.Fatalf("expected tree items around gap stem:\n%s", m.View())
 	}
 }

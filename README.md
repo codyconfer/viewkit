@@ -5,9 +5,10 @@
 
 A small toolkit for building **terminal UIs** with
 [Lip Gloss](https://github.com/charmbracelet/lipgloss). Core packages stay
-**Bubble Tea-free**; interactive hosts live in the nested **`deck/`** module
-([Bubble Tea](https://github.com/charmbracelet/bubbletea) allowed there only —
-see [`deck/INTERFACE.md`](deck/INTERFACE.md)).
+**Bubble Tea-free** (no tea imports); interactive hosts live in the **`deck`**
+package ([Bubble Tea](https://github.com/charmbracelet/bubbletea) allowed there
+only — see [`deck/INTERFACE.md`](deck/INTERFACE.md)). One module version covers
+core + deck.
 
 ## Packages
 
@@ -23,23 +24,22 @@ see [`deck/INTERFACE.md`](deck/INTERFACE.md)).
 | `notify` | Notification tone helpers |
 | `timefmt` | Time formatting |
 | `term` | Terminal launcher helpers |
-| `deck/` (module) | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** place tea is a dependency |
+| `deck` | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** package that imports tea |
 
 Longer API notes: [`skills/viewkit/references/api.md`](skills/viewkit/references/api.md).
 
-Core depends on `charmbracelet/lipgloss`, `charmbracelet/x/ansi`, and the
-standard library. Typical flow: `panels → layout → theme`.
+Core packages depend on `charmbracelet/lipgloss`, `charmbracelet/x/ansi`, and the
+standard library. Typical flow: `panels → layout → theme`. Deck adds Bubble Tea.
 
 ## Install
 
 ```sh
 go get github.com/codyconfer/viewkit@latest
-# interactive host (separate module):
-go get github.com/codyconfer/viewkit/deck@latest
 ```
 
 ```go
 import (
+    "github.com/codyconfer/viewkit/deck"
     "github.com/codyconfer/viewkit/layout"
     "github.com/codyconfer/viewkit/panels"
     "github.com/codyconfer/viewkit/theme"
@@ -98,9 +98,14 @@ Linters live in the nested `tools/` module (`go tool -modfile=tools/go.mod`).
 ### Local multi-repo development (`go.work`)
 
 When editing viewkit alongside munin/sisyphus, use an **uncommitted** `go.work`
-in the consumer that `use`s sibling checkouts (including `../viewkit/deck`).
+in the consumer that `use`s sibling checkouts (e.g. `../viewkit`).
 Do not commit `go.work` / `go.work.sum` and do not add committed `replace`
 directives — CI builds against tagged pins.
+
+`deck` used to be a nested module (`deck/go.mod`). It is now a normal package
+in this module. Consumers that previously required `github.com/codyconfer/viewkit/deck`
+should require only `github.com/codyconfer/viewkit` and exclude any published
+nested `viewkit/deck` versions (Go prefers the longer module path otherwise).
 
 ## License
 

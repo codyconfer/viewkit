@@ -1,9 +1,8 @@
 .PHONY: build test fmt fmt-check vet lint govulncheck check ci
 
-# Build all packages (core + nested deck module).
+# Build all packages (including deck).
 build:
 	go build ./...
-	$(MAKE) -C deck build
 
 # Tooling lives in ./tools (separate module) so consumers don't inherit linter deps.
 GO_TOOL = go tool -modfile=tools/go.mod
@@ -28,10 +27,9 @@ lint:
 govulncheck:
 	$(GO_TOOL) govulncheck ./...
 
-# Run the test suite (core + nested deck module).
+# Run the test suite (including deck).
 test:
 	go test ./...
-	$(MAKE) -C deck test
 
 # Full gate: build, format check, lint, vulncheck, test.
 check: build fmt-check lint govulncheck test

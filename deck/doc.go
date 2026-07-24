@@ -1,6 +1,6 @@
-// Package deck is the bubbletea runtime for viewkit (nested module).
+// Package deck is the bubbletea runtime for viewkit.
 //
-// Invariant: tea lives ONLY here — viewkit core (glyph/theme/layout/panels/…)
+// Invariant: tea lives ONLY in this package — viewkit core (glyph/theme/layout/panels/…)
 // must not import bubbletea. Apps and plugins implement View and register via
 // RegisterView; Model (alias Host) owns stack navigation + chrome.
 //

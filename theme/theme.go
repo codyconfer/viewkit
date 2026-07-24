@@ -11,7 +11,6 @@ const (
 	TallBodyHeight     = 46
 	AppMarginY         = 1
 	AppMarginX         = 2
-	// ListItemGapY is blank lines between consecutive list items (results, etc.).
 	ListItemGapY       = 1
 	ScreenPaddingWidth = AppMarginX*2 + 4
 	MinScreenBodyWidth = MinScreenWidth - ScreenPaddingWidth

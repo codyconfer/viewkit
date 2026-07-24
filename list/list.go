@@ -10,6 +10,7 @@ type Item struct {
 	Block      string
 	Key        string
 	Selectable bool
+	GapStem    string
 }
 
 type Model struct {
@@ -81,7 +82,7 @@ func (m *Model) render() []string {
 	for i, it := range m.items {
 		if i > 0 {
 			for range theme.ListItemGapY {
-				out = append(out, "")
+				out = append(out, gapLine(m.items[i-1]))
 			}
 		}
 		selected := i == m.cursor
@@ -99,6 +100,13 @@ func (m *Model) render() []string {
 		}
 	}
 	return out
+}
+
+func gapLine(prev Item) string {
+	if prev.GapStem == "" {
+		return ""
+	}
+	return "  " + prev.GapStem
 }
 
 func (m *Model) itemStart(idx int) int {

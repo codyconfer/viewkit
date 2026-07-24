@@ -51,6 +51,15 @@ func WithKeyMapQuit() Option {
 	}
 }
 
+// KeyHook handles a key before the top view. Return handled=true to skip
+// view Update (and optionally a Cmd such as Push).
+type KeyHook func(m *Model, key tea.KeyMsg) (cmd tea.Cmd, handled bool)
+
+// WithKeyHook installs a global key interceptor (e.g. app hotkeys).
+func WithKeyHook(fn KeyHook) Option {
+	return func(h *Host) { h.keyHook = fn }
+}
+
 // Host is the tea model: stack navigation + chrome.
 // Prefer the Model alias in new code; Host remains for compatibility.
 type Host struct {
@@ -64,6 +73,7 @@ type Host struct {
 	status    StatusInfo
 	hasStatus bool
 	quitCheck func(string) bool
+	keyHook   KeyHook
 }
 
 // New builds a Model with root view.
@@ -165,6 +175,11 @@ func (h *Host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if h.quitCheck != nil && h.quitCheck(m.String()) {
 			return h, tea.Quit
+		}
+		if h.keyHook != nil {
+			if cmd, handled := h.keyHook(h, m); handled {
+				return h, cmd
+			}
 		}
 		return h, h.top().Update(h, msg)
 	default:

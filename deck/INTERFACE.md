@@ -1,15 +1,7 @@
 # viewkit/deck interface
 
-**Invariant:** `bubbletea` only in this module; viewkit core stays tea-free.
-
-## Why a nested module
-
-Core viewkit must stay importable by non-TUI tools and by sisyphus-adjacent code
-paths without pulling a tea runtime. Deck is the only place that owns
-`tea.NewProgram`.
-
-Versioning: tag `deck/vX.Y.Z` in lockstep with core `vX.Y.Z` on the same commit
-when publishing. Local/dev uses uncommitted `go.work` (no committed `replace`).
+**Invariant:** `bubbletea` only in this package; viewkit core stays tea-free
+(no tea imports outside `deck/`). Deck is part of the single `viewkit` module.
 
 ## Surfaces
 
@@ -65,7 +57,8 @@ tasks return `Content`; apps render domain → string/`Content` before
 
 ## Key bindings
 
-Host quit matching is injectable (`WithQuitCheck`). Generic views use
+Host quit matching is injectable (`WithQuitCheck`). Global app hotkeys use
+`WithKeyHook` (runs after quit check, before the top view). Generic views use
 `keys.Cur()`. Apps may install a scheme (`keys.Use` / `keys.Register`) before
 `deck.Run`.
 
