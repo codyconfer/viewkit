@@ -14,8 +14,13 @@ concurrency:
 
 jobs:
   check:
-    name: check
-    runs-on: ubuntu-latest
+    name: check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # CGO-free core — macos is cheap signal. Windows deferred.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -24,3 +29,6 @@ jobs:
           cache: true
       - name: make ci
         run: make ci
+      - name: deck module
+        working-directory: deck
+        run: go test ./...

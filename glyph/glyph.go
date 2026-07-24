@@ -131,3 +131,29 @@ func Cog() string         { return cog.String() }
 func User() string        { return user.String() }
 func SignOut() string     { return signOut.String() }
 func Clock() string       { return clock.String() }
+
+// Severity is the shared tone vocabulary for glyphs, notifications, and tray
+// state mapping. Apps supply a single kind→Severity classifier; viewkit never
+// knows domain kind strings.
+type Severity int
+
+const (
+	SeverityNeutral Severity = iota
+	SeverityPositive
+	SeverityWarning
+	SeverityNegative
+)
+
+// GlyphFor returns a status glyph for sev.
+func GlyphFor(sev Severity) string {
+	switch sev {
+	case SeverityPositive:
+		return Check()
+	case SeverityWarning:
+		return Warn()
+	case SeverityNegative:
+		return Cross()
+	default:
+		return Bullet()
+	}
+}

@@ -1,32 +1,41 @@
 # viewkit
 
-[![GitHub release](https://img.shields.io/github/v/tag/codyconfer/viewkit?logo=github&label=latest)](https://github.com/codyconfer/viewkit/tags/latest)
+[![GitHub release](https://img.shields.io/github/v/tag/codyconfer/viewkit?logo=github&label=latest)](https://github.com/codyconfer/viewkit/tags)
 [![CI](https://github.com/codyconfer/viewkit/actions/workflows/ci.yml/badge.svg)](https://github.com/codyconfer/viewkit/actions/workflows/ci.yml)
 
-A small, dependency-light toolkit for building **terminal UIs** with
-[Bubble Tea](https://github.com/charmbracelet/bubbletea) /
-[Lip Gloss](https://github.com/charmbracelet/lipgloss). It gives you three
-things:
+A small toolkit for building **terminal UIs** with
+[Lip Gloss](https://github.com/charmbracelet/lipgloss). Core packages stay
+**Bubble Tea-free**; interactive hosts live in the nested **`deck/`** module
+([Bubble Tea](https://github.com/charmbracelet/bubbletea) allowed there only —
+see [`deck/INTERFACE.md`](deck/INTERFACE.md)).
 
-1. **`layout`** — the `Frame` render primitive plus structural tools: headers,
-   rules, sections, panels/boxes, sticky footers, a width-clamped scrollable
-   body/viewport, scroll state, responsive height "tiers", and a focus `Ring`
-   for tab-cycling between panels (`Frame`, `Header`, `Panel`, `Section`,
-   `SplitStickyFooter`, `ScrollableBody`, `ScrollState`, `Tier`, `Ring`,
-   `ScreenFrame`, `TooNarrow`, …).
-2. **`panels`** — data visualization that renders neutral structs / `[]float64`
-   into aligned, styled charts: bar, line, candlestick (OHLC), pie/proportion,
-   and ledger, plus small formatting widgets (`Meter`, `Toggle`, `Flash`).
-3. **`theme`** — a `theme.Theme` value (palette + copy) with `theme.Default()`;
-   install your own with `theme.Use` to restyle everything.
+## Packages
 
-viewkit depends only on `charmbracelet/lipgloss`, `charmbracelet/x/ansi`, and
-the standard library. The package dependency flows `panels → layout → theme`.
+| Package | Role |
+|---|---|
+| `layout` | `Frame`, panels/sections, sticky footer, scroll, focus `Ring` |
+| `panels` | Charts/widgets from neutral structs (`Bar`, `Line`, `Meter`, …) |
+| `theme` | `Theme` + `Use` / `Cur` palettes and status helpers |
+| `glyph` | Nerd/Uni/ASCII variants, status strip, severity vocabulary |
+| `keys` | Keybinding tables |
+| `forms` | Field builders |
+| `list` / `browser` | List/browser helpers |
+| `notify` | Notification tone helpers |
+| `timefmt` | Time formatting |
+| `term` | Terminal launcher helpers |
+| `deck/` (module) | Tea host / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** place tea is a dependency |
+
+Longer API notes: [`skills/viewkit/references/api.md`](skills/viewkit/references/api.md).
+
+Core depends on `charmbracelet/lipgloss`, `charmbracelet/x/ansi`, and the
+standard library. Typical flow: `panels → layout → theme`.
 
 ## Install
 
 ```sh
 go get github.com/codyconfer/viewkit@latest
+# interactive host (separate module):
+go get github.com/codyconfer/viewkit/deck@latest
 ```
 
 ```go
@@ -39,19 +48,16 @@ import (
 
 ## Design contract
 
-viewkit is deliberately domain-agnostic: data crosses the boundary as neutral
-structs (`panels.Datum`, `panels.OHLC`, `panels.LedgerRow`) and formatter
-callbacks (`func(float64) string`) — never your application's domain types. A
-`layout.Frame` carries the render width and focus state; construct one with
-`layout.NewFrame(width)` and pass it to the charts.
+viewkit is domain-agnostic: data crosses the boundary as neutral structs
+(`panels.Datum`, `panels.OHLC`, `panels.LedgerRow`) and formatter callbacks —
+never application domain types. A `layout.Frame` carries render width and focus;
+construct with `layout.NewFrame(width)`.
 
 ```go
 frame := layout.NewFrame(80)
 
-// structural layout — methods on the frame
 body := frame.Panel("STATUS", frame.Row("tokens", "1.2M"))
 
-// charts — functions that take the frame
 chart := panels.Bar(frame, "GPUs", []panels.Datum{
     {Label: "gpu", Value: 12},
     {Label: "cloud", Value: 30},
@@ -60,38 +66,37 @@ chart := panels.Bar(frame, "GPUs", []panels.Datum{
 
 ### Theming
 
-The palette and UI copy are injectable. Build a `theme.Theme` from
-`theme.Default()`, override what you want, and install it once at startup with
-`theme.Use` — every panel and layout helper renders from the active theme
-(`theme.Cur()`):
-
 ```go
 th := theme.Default()
 th.Accent = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-th.TooNarrowTitle = "SCREEN TOO SMALL"
 theme.Use(th)
 ```
 
-Structural dimensions (`theme.BodyWidth`, `theme.MinScreenWidth`, the height
-tiers, …) are exported constants — viewkit's layout contract — rather than part
-of `Theme`; set per-view width via `layout.NewFrame(width)`.
+Structural dimensions (`theme.BodyWidth`, …) are exported constants — set
+per-view width via `layout.NewFrame(width)`.
 
 ## Status
 
-Early days — the API may still shift before a `v1`. It was extracted from the
-[goose](https://github.com/codyconfer/goose) project, which remains its primary
-consumer and reference usage.
+Extracted from [goose](https://github.com/codyconfer/goose) / used by
+[munin](https://github.com/codyconfer/munin). API may still shift before a
+published `v1`; local coherence work tracks munin `m7-coherence`.
 
 ## Development
 
-The module ships its own `.golangci.yml`. Build, test, vet, and lint with:
-
 ```sh
-go build ./...
-go test ./...
-go vet ./...
-golangci-lint run
+make build          # go build ./...
+make check          # build + fmt-check + lint + govulncheck + test (CI gate is `make ci`)
+make test           # go test ./...
 ```
+
+Linters live in the nested `tools/` module (`go tool -modfile=tools/go.mod`).
+
+### Local multi-repo development (`go.work`)
+
+When editing viewkit alongside munin/sisyphus, use an **uncommitted** `go.work`
+in the consumer that `use`s sibling checkouts (including `../viewkit/deck`).
+Do not commit `go.work` / `go.work.sum` and do not add committed `replace`
+directives — CI builds against tagged pins.
 
 ## License
 

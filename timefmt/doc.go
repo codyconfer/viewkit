@@ -1,3 +1,5 @@
-// Package timefmt formats timestamps as short human-readable relative strings
-// ("just now", "5m ago", "in 2h", "3d ago") for viewkit feeds and item lists.
+// Package timefmt formats relative timestamps for TUI chrome.
+//
+// Kept as its own import path for stability; call sites may treat it as a
+// leaf helper alongside theme/layout (M7: no merge this generation).
 package timefmt
