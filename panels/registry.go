@@ -11,7 +11,7 @@ var (
 	panels = map[string]func() DualHost{}
 )
 
-// Register associates id with a DualHost panel constructor (M5 panel registry).
+// Register associates id with a DualHost panel constructor.
 func Register(id string, ctor func() DualHost) {
 	if id == "" || ctor == nil {
 		return

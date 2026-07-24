@@ -9,7 +9,7 @@ var (
 
 // Register associates id with glyph variants for Nerd/Uni/ASCII modes.
 // Built-in helpers (GitHub, Slack, …) remain; plugins use Register for
-// contribution glyphs (ADR-12).
+// contribution glyphs.
 func Register(id string, v Variants) {
 	if id == "" {
 		return
@@ -44,7 +44,7 @@ type StatusContribution struct {
 }
 
 // StatusChip is one right-strip entry carrying glyph text and Severity tone
-// so hosts can color via theme (ADR-12).
+// so hosts can color via theme.
 type StatusChip struct {
 	Glyph string
 	Tone  Severity

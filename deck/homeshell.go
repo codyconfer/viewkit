@@ -91,7 +91,7 @@ func (h *HomeShell) Init() tea.Cmd {
 	return func() tea.Msg { return homeShellLoadedMsg{data: h.SideFetch()} }
 }
 
-func (h *HomeShell) Update(host *Host, msg tea.Msg) tea.Cmd {
+func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		h.width = m.Width
@@ -107,7 +107,7 @@ func (h *HomeShell) Update(host *Host, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (h *HomeShell) handleKey(host *Host, m tea.KeyMsg) tea.Cmd {
+func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 	if h.hasSide() && m.String() == "tab" {
 		if h.focus == homeFocusMenu {
 			h.focus = homeFocusSide

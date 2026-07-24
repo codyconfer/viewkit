@@ -79,6 +79,11 @@ func (m *Model) render() []string {
 	th := theme.Cur()
 	var out []string
 	for i, it := range m.items {
+		if i > 0 {
+			for range theme.ListItemGapY {
+				out = append(out, "")
+			}
+		}
 		selected := i == m.cursor
 		for j, bl := range strings.Split(it.Block, "\n") {
 			prefix := "  "
@@ -102,7 +107,7 @@ func (m *Model) itemStart(idx int) int {
 		if i == idx {
 			return line
 		}
-		line += len(strings.Split(it.Block, "\n"))
+		line += len(strings.Split(it.Block, "\n")) + theme.ListItemGapY
 	}
 	return line
 }

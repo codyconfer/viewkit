@@ -11,7 +11,7 @@ var (
 	views = map[string]func() View{}
 )
 
-// RegisterView associates id with a view constructor (M5 registries).
+// RegisterView associates id with a view constructor.
 func RegisterView(id string, ctor func() View) {
 	if id == "" || ctor == nil {
 		return

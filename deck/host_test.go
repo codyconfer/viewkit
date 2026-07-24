@@ -14,7 +14,7 @@ type stubView struct{ title string }
 
 func (s stubView) Title() string                 { return s.title }
 func (s stubView) Init() tea.Cmd                 { return nil }
-func (s stubView) Update(*Host, tea.Msg) tea.Cmd { return nil }
+func (s stubView) Update(*Model, tea.Msg) tea.Cmd { return nil }
 func (s stubView) Body(int, int) string          { return "body" }
 func (s stubView) Hints() [][2]string            { return nil }
 func (s stubView) Context() [][2]string          { return nil }
@@ -65,7 +65,7 @@ func TestHostHeaderStripRowsAlign(t *testing.T) {
 		ctx:      [][2]string{{"role", "triage"}},
 	}, WithChrome(Chrome{Brand: "MUNIN", BrandGlyph: "▚▚", Subtitle: "deck"}))
 	m, _ := h.Update(tea.WindowSizeMsg{Width: width, Height: 40})
-	h = m.(*Host)
+	h = m.(*Model)
 
 	view := h.View()
 	var stripRows []string
@@ -97,7 +97,7 @@ func TestHostHeaderStripRowsAlign(t *testing.T) {
 func TestHostBrandWithoutGlyphNoExtraPad(t *testing.T) {
 	h := New(stubView{title: "root"}, WithChrome(Chrome{Brand: "MUNIN", Subtitle: "ntr"}))
 	m, _ := h.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
-	h = m.(*Host)
+	h = m.(*Model)
 	plain := ansi.Strip(h.View())
 	// AppMarginX + one strip pad space, then brand — not an extra blank column.
 	wantLead := theme.AppMarginX + 1

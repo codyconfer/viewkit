@@ -19,8 +19,8 @@ type tickMsg time.Time
 type statusMsg struct{ info StatusInfo }
 type statusRefreshMsg struct{}
 
-// Option configures Host.
-type Option func(*Host)
+// Option configures Model (Host alias).
+type Option func(*Model)
 
 // WithStatus installs an async status loader for the footer strip.
 func WithStatus(fn StatusFunc) Option {
@@ -52,6 +52,7 @@ func WithKeyMapQuit() Option {
 }
 
 // Host is the tea model: stack navigation + chrome.
+// Prefer the Model alias in new code; Host remains for compatibility.
 type Host struct {
 	stack  []View
 	width  int
@@ -65,9 +66,9 @@ type Host struct {
 	quitCheck func(string) bool
 }
 
-// New builds a Host with root view.
-func New(root View, opts ...Option) *Host {
-	h := &Host{
+// New builds a Model with root view.
+func New(root View, opts ...Option) *Model {
+	h := &Model{
 		stack: []View{root},
 		clock: time.Now().Format("15:04:05"),
 		chrome: Chrome{

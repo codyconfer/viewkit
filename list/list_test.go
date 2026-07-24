@@ -3,6 +3,8 @@ package list
 import (
 	"strings"
 	"testing"
+
+	"github.com/codyconfer/viewkit/theme"
 )
 
 func sample() []Item {
@@ -64,5 +66,32 @@ func TestViewWindowsToHeightAndKeepsCursorVisible(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "item2") {
 		t.Fatalf("selected item2 not visible in window:\n%s", m.View())
+	}
+}
+
+func TestRenderInsertsItemGapBetweenNodes(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{
+		{Block: "a", Key: "a", Selectable: true},
+		{Block: "b", Key: "b", Selectable: true},
+	})
+	m.SetFocused(true)
+
+	lines := strings.Split(m.View(), "\n")
+	// selected prefix + "a", then ListItemGapY blanks, then unselected "b"
+	wantGap := theme.ListItemGapY
+	if wantGap < 1 {
+		t.Fatal("ListItemGapY must be >= 1 for this spacing change")
+	}
+	if len(lines) != 2+wantGap {
+		t.Fatalf("line count = %d, want %d (2 items + %d gap):\n%q", len(lines), 2+wantGap, wantGap, m.View())
+	}
+	for i := 1; i <= wantGap; i++ {
+		if lines[i] != "" {
+			t.Fatalf("gap line %d = %q, want blank", i, lines[i])
+		}
+	}
+	if !strings.Contains(lines[0], "a") || !strings.Contains(lines[len(lines)-1], "b") {
+		t.Fatalf("expected items around gap:\n%s", m.View())
 	}
 }

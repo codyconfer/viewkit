@@ -16,7 +16,7 @@ type MenuItem struct {
 	Desc  string
 	Icon  string
 	Hue   int
-	Do    func(h *Host) tea.Cmd
+	Do    func(m *Model) tea.Cmd
 }
 
 // Menu is a simple navigable list View.
@@ -39,7 +39,7 @@ func (m *Menu) Hints() [][2]string {
 	return [][2]string{{"↑/↓", "move"}, {"enter", "open"}}
 }
 
-func (m *Menu) Update(h *Host, msg tea.Msg) tea.Cmd {
+func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return nil
@@ -116,7 +116,7 @@ func (m *Message) Init() tea.Cmd        { return nil }
 func (m *Message) Context() [][2]string { return m.ctx }
 func (m *Message) Hints() [][2]string   { return nil }
 
-func (m *Message) Update(h *Host, msg tea.Msg) tea.Cmd {
+func (m *Message) Update(h *Model, msg tea.Msg) tea.Cmd {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return nil
@@ -162,7 +162,7 @@ func (c *ScrollContent) Init() tea.Cmd {
 	return func() tea.Msg { return scrollLoadedMsg{body: c.load()} }
 }
 
-func (c *ScrollContent) Update(h *Host, msg tea.Msg) tea.Cmd {
+func (c *ScrollContent) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case scrollLoadedMsg:
 		c.body, c.loaded = m.body, true

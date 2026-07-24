@@ -70,7 +70,7 @@ func (r *ItemList) Init() tea.Cmd {
 	return func() tea.Msg { return itemListLoadedMsg{data: r.Fetch()} }
 }
 
-func (r *ItemList) Update(h *Host, msg tea.Msg) tea.Cmd {
+func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		r.width = m.Width
@@ -88,7 +88,7 @@ func (r *ItemList) Update(h *Host, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (r *ItemList) handleKey(h *Host, m tea.KeyMsg) tea.Cmd {
+func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
 	switch m.String() {
 	case "pgup":
 		r.lst.Scroll(-r.height)

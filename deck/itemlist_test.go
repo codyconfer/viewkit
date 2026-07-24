@@ -9,9 +9,9 @@ import (
 	"github.com/codyconfer/viewkit/list"
 )
 
-func driveHost(h *Host, msg tea.Msg) *Host {
+func driveHost(h *Model, msg tea.Msg) *Model {
 	m, _ := h.Update(msg)
-	return m.(*Host)
+	return m.(*Model)
 }
 
 func TestItemListLoadsAndShows(t *testing.T) {

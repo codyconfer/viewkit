@@ -1,14 +1,8 @@
-# Build output
 /bin/
 /dist/
 /build/
 *.exe
 *.out
 *.test
-
-# Local agent settings
 .claude/
-
-# Local multi-repo workspace (ADR-5: never commit)
-go.work
-go.work.sum
+go.work*

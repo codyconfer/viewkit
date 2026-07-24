@@ -53,7 +53,7 @@ func (c *Scroll) Init() tea.Cmd {
 	return func() tea.Msg { return scrollViewLoadedMsg{body: c.load()} }
 }
 
-func (c *Scroll) Update(h *Host, msg tea.Msg) tea.Cmd {
+func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		reserve := c.ChromeReserve

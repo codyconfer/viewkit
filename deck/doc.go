@@ -2,7 +2,12 @@
 //
 // Invariant: tea lives ONLY here — viewkit core (glyph/theme/layout/panels/…)
 // must not import bubbletea. Apps and plugins implement View and register via
-// RegisterView; Host owns stack navigation + chrome.
+// RegisterView; Model (alias Host) owns stack navigation + chrome.
 //
-// See INTERFACE.md for the goose-facing contract review notes (ADR-2).
+// Process-global singletons (install before Run):
+//   - theme.Use / theme.Cur — active palette
+//   - keys.Use / keys.Cur — active key scheme
+//   - theme.Register / keys.Register / RegisterView — contribution registries
+//
+// See INTERFACE.md for the Model + singleton contract.
 package deck

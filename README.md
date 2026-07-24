@@ -23,7 +23,7 @@ see [`deck/INTERFACE.md`](deck/INTERFACE.md)).
 | `notify` | Notification tone helpers |
 | `timefmt` | Time formatting |
 | `term` | Terminal launcher helpers |
-| `deck/` (module) | Tea host / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** place tea is a dependency |
+| `deck/` (module) | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** place tea is a dependency |
 
 Longer API notes: [`skills/viewkit/references/api.md`](skills/viewkit/references/api.md).
 
@@ -75,11 +75,15 @@ theme.Use(th)
 Structural dimensions (`theme.BodyWidth`, …) are exported constants — set
 per-view width via `layout.NewFrame(width)`.
 
+### Deck Model + singletons
+
+Interactive apps use `deck.Model` (alias `deck.Host`) as the session tea root.
+Install process-global theme/keys (and optional `RegisterView`) before
+`deck.Run`. Full contract: [`deck/INTERFACE.md`](deck/INTERFACE.md).
+
 ## Status
 
-Extracted from [goose](https://github.com/codyconfer/goose) / used by
-[munin](https://github.com/codyconfer/munin). API may still shift before a
-published `v1`; local coherence work tracks munin `m7-coherence`.
+API may still shift before a published `v1`.
 
 ## Development
 

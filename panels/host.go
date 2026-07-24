@@ -16,7 +16,7 @@ const (
 	Deck
 )
 
-// DualHost is the inline-shell vs deck panel contract (M5 / G2).
+// DualHost is the inline-shell vs deck panel contract.
 // Implementations must not import bubbletea — tea stays in viewkit/deck.
 type DualHost interface {
 	RenderInline(f layout.Frame) string
