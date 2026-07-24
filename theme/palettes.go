@@ -14,6 +14,7 @@ var (
 		Failure:  lipgloss.Color("#ff5286"),
 		Info:     lipgloss.Color("#6e9fff"),
 		Series2:  lipgloss.Color("#d4a0ff"),
+		Series3:  lipgloss.Color("#3fd0c9"),
 		Bg:       lipgloss.Color("#1c1e26"),
 	}
 
@@ -28,6 +29,7 @@ var (
 		Failure:  lipgloss.Color("#dc322f"),
 		Info:     lipgloss.Color("#2aa198"),
 		Series2:  lipgloss.Color("#6c71c4"),
+		Series3:  lipgloss.Color("#2aa198"),
 		Bg:       lipgloss.Color("#002b36"),
 	}
 
@@ -42,6 +44,7 @@ var (
 		Failure:  lipgloss.Color("#dc322f"),
 		Info:     lipgloss.Color("#2aa198"),
 		Series2:  lipgloss.Color("#6c71c4"),
+		Series3:  lipgloss.Color("#2aa198"),
 		Bg:       lipgloss.Color("#fdf6e3"),
 	}
 
@@ -56,6 +59,7 @@ var (
 		Failure:  lipgloss.Color("#ff616e"),
 		Info:     lipgloss.Color("#4cd1e0"),
 		Series2:  lipgloss.Color("#de73ff"),
+		Series3:  lipgloss.Color("#4cd1e0"),
 		Bg:       lipgloss.Color("#282c34"),
 	}
 
@@ -70,6 +74,7 @@ var (
 		Failure:  lipgloss.Color("#f92672"),
 		Info:     lipgloss.Color("#66d9ef"),
 		Series2:  lipgloss.Color("#ae81ff"),
+		Series3:  lipgloss.Color("#fd971f"),
 		Bg:       lipgloss.Color("#272822"),
 	}
 
@@ -84,6 +89,7 @@ var (
 		Failure:  lipgloss.Color("203"),
 		Info:     lipgloss.Color("141"),
 		Series2:  lipgloss.Color("141"),
+		Series3:  lipgloss.Color("44"),
 		Bg:       lipgloss.Color(""),
 	}
 
@@ -98,6 +104,7 @@ var (
 		Failure:  lipgloss.Color("#e6338c"),
 		Info:     lipgloss.Color("#29a3dc"),
 		Series2:  lipgloss.Color("#9b6dff"),
+		Series3:  lipgloss.Color("#2fbfa0"),
 		Bg:       lipgloss.Color("#0a0a0a"),
 	}
 
@@ -112,6 +119,7 @@ var (
 		Failure:  lipgloss.Color("#c0392b"),
 		Info:     lipgloss.Color("#16a89c"),
 		Series2:  lipgloss.Color("#f28c28"),
+		Series3:  lipgloss.Color("#7a5cc0"),
 		Bg:       lipgloss.Color("#f4ecd8"),
 	}
 )

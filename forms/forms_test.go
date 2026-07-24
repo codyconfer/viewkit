@@ -139,3 +139,20 @@ func TestFormRenderShowsAllFields(t *testing.T) {
 		}
 	}
 }
+
+func TestSecretFieldMasksButKeepsValue(t *testing.T) {
+	fm := NewForm(Field{Key: "secret", Label: "Secret", Kind: FieldText, Secret: true})
+	fm.Insert("hunter2")
+
+	if got := fm.Values()["secret"]; got != "hunter2" {
+		t.Fatalf("Values should keep real text, got %q", got)
+	}
+
+	out := stripANSI(fm.Render(layout.DefaultFrame(), "creds"))
+	if strings.Contains(out, "hunter2") {
+		t.Errorf("secret field leaked plaintext:\n%s", out)
+	}
+	if !strings.Contains(out, strings.Repeat("•", len("hunter2"))) {
+		t.Errorf("secret field not masked with bullets:\n%s", out)
+	}
+}

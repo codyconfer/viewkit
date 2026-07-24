@@ -3,6 +3,7 @@ package layout
 import (
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/theme"
@@ -62,6 +63,34 @@ func Spread(left, right string, width int) string {
 
 func (f Frame) Spread(left, right string) string {
 	return Spread(left, right, f.BodyWidth())
+}
+
+func SpreadBG(bg lipgloss.TerminalColor, left, right string, width int) string {
+	if width <= 0 {
+		width = theme.BodyWidth
+	}
+	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
+	if avail := width - rw - 1; avail > 0 && lw > avail {
+		ell := lipgloss.NewStyle().Background(bg).Foreground(theme.Cur().Dim.GetForeground()).Render("…")
+		left = ansi.Truncate(left, avail, ell)
+		lw = ansi.StringWidth(left)
+	}
+	gap := max(width-lw-rw, 0)
+	pad := lipgloss.NewStyle().Background(bg).Render(strings.Repeat(" ", gap))
+	return left + pad + right
+}
+
+func FillHeight(body string, height int) string {
+	lines := CountLines(body)
+	if lines >= height {
+		return body
+	}
+	return body + strings.Repeat("\n", height-lines)
+}
+
+func IndentLines(s string, n int) string {
+	pad := strings.Repeat(" ", n)
+	return pad + strings.ReplaceAll(s, "\n", "\n"+pad)
 }
 
 func Fit(s string, width int) string {

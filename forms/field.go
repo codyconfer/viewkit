@@ -38,6 +38,8 @@ type Field struct {
 	On       bool
 	Selected int
 	Checked  map[int]bool
+
+	Secret bool
 }
 
 func (fd *Field) Value() any {
@@ -162,7 +164,7 @@ func (fd *Field) render(f layout.Frame, focused bool) []string {
 
 	case FieldMultiline:
 		lines := []string{label}
-		body := fd.Text
+		body := fd.display()
 		if focused {
 			body += "▎"
 		}
@@ -175,7 +177,7 @@ func (fd *Field) render(f layout.Frame, focused bool) []string {
 		return lines
 
 	default:
-		val := fd.Text
+		val := fd.display()
 		if focused {
 			val += "▎"
 		}
@@ -185,6 +187,21 @@ func (fd *Field) render(f layout.Frame, focused bool) []string {
 		}
 		return []string{label + "  " + shown}
 	}
+}
+
+func (fd *Field) display() string {
+	if !fd.Secret {
+		return fd.Text
+	}
+	var b strings.Builder
+	for _, r := range fd.Text {
+		if r == '\n' {
+			b.WriteRune('\n')
+		} else {
+			b.WriteRune('•')
+		}
+	}
+	return b.String()
 }
 
 func selectGlyph(fd *Field, focused bool) string {

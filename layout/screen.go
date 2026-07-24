@@ -2,12 +2,24 @@ package layout
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/term"
 
 	"github.com/codyconfer/viewkit/theme"
 )
+
+func FrameFor(w io.Writer) Frame {
+	if f, ok := w.(*os.File); ok {
+		if width, _, err := term.GetSize(f.Fd()); err == nil && width > 0 {
+			return ScreenFrame(width)
+		}
+	}
+	return DefaultFrame()
+}
 
 func FitsScreenWidth(screenWidth int) bool {
 	return screenWidth <= 0 || screenWidth >= theme.MinScreenWidth

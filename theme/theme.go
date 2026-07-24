@@ -28,6 +28,7 @@ type Palette struct {
 	Failure  lipgloss.Color
 	Info     lipgloss.Color
 	Series2  lipgloss.Color
+	Series3  lipgloss.Color
 	Bg       lipgloss.Color
 }
 
@@ -61,6 +62,7 @@ func New(p Palette) Theme {
 			lipgloss.NewStyle().Foreground(p.Failure),
 			lipgloss.NewStyle().Foreground(p.Series2),
 			lipgloss.NewStyle().Foreground(p.Muted),
+			lipgloss.NewStyle().Foreground(p.Series3),
 		},
 
 		Bg: p.Bg,
