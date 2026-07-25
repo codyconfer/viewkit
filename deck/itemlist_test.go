@@ -74,3 +74,18 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 		t.Fatal("want side focus after tab")
 	}
 }
+
+func TestHomeShellBoxTitle(t *testing.T) {
+	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Quit"}}, "")
+	h := New(shell)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if strings.Contains(h.View(), "MAIN MENU") {
+		t.Fatalf("default BoxTitle should omit titled-box title\n%s", h.View())
+	}
+
+	shell.BoxTitle = "MAIN MENU"
+	view := h.View()
+	if !strings.Contains(view, "MAIN MENU") {
+		t.Fatalf("BoxTitle should appear in titled box\n%s", view)
+	}
+}

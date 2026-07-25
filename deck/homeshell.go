@@ -22,6 +22,8 @@ type HomeShell struct {
 	ctx   [][2]string
 	items []MenuItem
 
+	// BoxTitle is the menu TitledBox title. Empty (default) omits the title.
+	BoxTitle string
 	// SideLabel is shown above the side list when SideFetch is set.
 	SideLabel string
 	// SideHint is the tab-target label when menu-focused (default "side").
@@ -47,6 +49,7 @@ type HomeShell struct {
 }
 
 // NewHomeShell builds a HomeShell. sideLabel empty + SideFetch nil → menu-only.
+// BoxTitle defaults empty (no menu titled-box title); set after construction if desired.
 func NewHomeShell(title string, ctx [][2]string, items []MenuItem, sideLabel string) *HomeShell {
 	return &HomeShell{
 		title:       title,
@@ -248,7 +251,7 @@ func (h *HomeShell) menuRows(f layout.Frame) []string {
 func (h *HomeShell) Body(width, height int) string {
 	f := layout.ScreenFrame(width)
 	f.Focused = h.focus == homeFocusMenu
-	menuBox := f.TitledBox("MAIN MENU", h.menuRows(f)...)
+	menuBox := f.TitledBox(h.BoxTitle, h.menuRows(f)...)
 	if !h.hasSide() {
 		return menuBox
 	}

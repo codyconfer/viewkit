@@ -15,6 +15,34 @@ func TestRegisterLookup(t *testing.T) {
 	SetMode(ModeNerd)
 }
 
+func TestBuiltinBrandIDs(t *testing.T) {
+	SetMode(ModeNerd)
+	for _, id := range []string{"github", "GitHub", "slack", "google"} {
+		if got := ResolveID(id); got == "" {
+			t.Fatalf("ResolveID(%q) empty", id)
+		}
+	}
+	if ResolveID("github") != GitHub() {
+		t.Fatalf("github = %q, want GitHub()", ResolveID("github"))
+	}
+	if ResolveID("slack") != Slack() {
+		t.Fatalf("slack = %q, want Slack()", ResolveID("slack"))
+	}
+	if ResolveID("google") != Google() {
+		t.Fatalf("google = %q, want Google()", ResolveID("google"))
+	}
+}
+
+func TestNormalizeID(t *testing.T) {
+	if got := NormalizeID("  GitHub "); got != "github" {
+		t.Fatalf("NormalizeID = %q", got)
+	}
+	Register("MiXeD.ID", Variants{Nerd: "X", Uni: "x", ASCII: "x"})
+	if _, ok := Lookup("mixed.id"); !ok {
+		t.Fatal("Register should normalize id")
+	}
+}
+
 func TestBuildStatusStripKeepsTone(t *testing.T) {
 	strip := BuildStatusStrip("##", "work", []string{"k8s/prod"}, []StatusContribution{
 		{Status: func() (string, Severity) { return "●", SeverityPositive }},

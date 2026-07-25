@@ -1,6 +1,7 @@
 package deck
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -131,4 +132,46 @@ func TestHostBrandWithoutGlyphNoExtraPad(t *testing.T) {
 		return
 	}
 	t.Fatal("brand line not found")
+}
+
+func TestHostRefreshStatusReloadsStrip(t *testing.T) {
+	calls := 0
+	marker := "REFRESH-CHIP"
+	h := New(stubView{title: "root"}, WithStatus(func(context.Context) StatusInfo {
+		calls++
+		name := "first"
+		if calls > 1 {
+			name = marker
+		}
+		return StatusInfo{Services: []ServiceStatus{{Name: name, Glyph: "·"}}}
+	}))
+	m, _ := h.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	h = m.(*Model)
+
+	cmd := h.RefreshStatus()
+	if cmd == nil {
+		t.Fatal("RefreshStatus returned nil with StatusFunc installed")
+	}
+	msg := cmd()
+	m, _ = h.Update(msg)
+	h = m.(*Model)
+	if !strings.Contains(ansi.Strip(h.View()), "first") {
+		t.Fatalf("expected first status load in chrome:\n%s", h.View())
+	}
+
+	cmd = h.RefreshStatus()
+	msg = cmd()
+	m, _ = h.Update(msg)
+	h = m.(*Model)
+	if !strings.Contains(ansi.Strip(h.View()), marker) {
+		t.Fatalf("expected refreshed status chip %q:\n%s", marker, h.View())
+	}
+	if calls != 2 {
+		t.Fatalf("StatusFunc calls = %d, want 2", calls)
+	}
+
+	bare := New(stubView{title: "root"})
+	if bare.RefreshStatus() != nil {
+		t.Fatal("RefreshStatus without WithStatus should be nil")
+	}
 }

@@ -112,6 +112,15 @@ func (h *Host) SetStatus(info StatusInfo) {
 	h.status, h.hasStatus = info, true
 }
 
+// RefreshStatus reloads the status strip via the installed StatusFunc.
+// Same path as the periodic refresh ticker; no-op when WithStatus was not set.
+func (h *Host) RefreshStatus() tea.Cmd {
+	if h.statusFn == nil {
+		return nil
+	}
+	return h.fetchStatus()
+}
+
 // Height returns the current terminal height.
 func (h *Host) Height() int { return h.height }
 

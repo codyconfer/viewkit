@@ -1,16 +1,32 @@
 package glyph
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 var (
 	regMu sync.RWMutex
 	reg   = map[string]Variants{}
 )
 
+func init() {
+	// Builtin brand ids so hosts can ResolveID("github") without a switch.
+	Register("github", github)
+	Register("slack", slack)
+	Register("google", google)
+}
+
+// NormalizeID lowercases and trims a registry id.
+func NormalizeID(id string) string {
+	return strings.ToLower(strings.TrimSpace(id))
+}
+
 // Register associates id with glyph variants for Nerd/Uni/ASCII modes.
 // Built-in helpers (GitHub, Slack, …) remain; plugins use Register for
-// contribution glyphs.
+// contribution glyphs. Ids are normalized (trim + lowercase).
 func Register(id string, v Variants) {
+	id = NormalizeID(id)
 	if id == "" {
 		return
 	}
@@ -19,8 +35,12 @@ func Register(id string, v Variants) {
 	regMu.Unlock()
 }
 
-// Lookup returns registered variants for id.
+// Lookup returns registered variants for id (normalized).
 func Lookup(id string) (Variants, bool) {
+	id = NormalizeID(id)
+	if id == "" {
+		return Variants{}, false
+	}
 	regMu.RLock()
 	defer regMu.RUnlock()
 	v, ok := reg[id]

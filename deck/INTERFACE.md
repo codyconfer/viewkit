@@ -41,6 +41,7 @@ and let the host `Model` own the program.
 
 Apps inject branding via `WithChrome(Chrome{Brand, BrandGlyph, Subtitle, ClockGlyph})`.
 Status strip via `WithStatus(StatusFunc)` returning `StatusInfo{Identity, Services}`.
+Call `Model.RefreshStatus()` to reload immediately (same path as the 60s ticker).
 Deck never hard-codes product names.
 
 ## Dual-host panels (core)
