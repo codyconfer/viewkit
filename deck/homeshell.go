@@ -262,6 +262,6 @@ func (h *HomeShell) Body(width, height int) string {
 	} else {
 		label = th.Dim.Render(label)
 	}
-	h.side.SetSize(width, max(height-layout.CountLines(menuBox)-2, 1))
-	return menuBox + "\n\n" + label + "\n" + h.side.View()
+	h.side.SetSize(width, max(height-layout.CountLines(menuBox)-3, 1))
+	return menuBox + "\n\n" + label + "\n\n" + h.side.View()
 }

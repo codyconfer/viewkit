@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/list"
 )
@@ -63,8 +64,25 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	if cmd := shell.Init(); cmd != nil {
 		h = driveHost(h, cmd())
 	}
-	if !strings.Contains(h.View(), "row-one") {
-		t.Fatalf("missing side row\n%s", h.View())
+	view := ansi.Strip(h.View())
+	if !strings.Contains(view, "row-one") {
+		t.Fatalf("missing side row\n%s", view)
+	}
+	labelAt := strings.Index(view, "side panel")
+	rowAt := strings.Index(view, "row-one")
+	if labelAt < 0 || rowAt <= labelAt {
+		t.Fatalf("side title/results missing or out of order\n%s", view)
+	}
+	// Host margin padding may leave spaces on the blank separator line.
+	blank := false
+	for _, ln := range strings.Split(view[labelAt:rowAt], "\n")[1:] {
+		if strings.TrimSpace(ln) == "" {
+			blank = true
+			break
+		}
+	}
+	if !blank {
+		t.Fatalf("want blank line between side title and results\n%s", view)
 	}
 	if shell.FocusSide() {
 		t.Fatal("want menu focus initially")

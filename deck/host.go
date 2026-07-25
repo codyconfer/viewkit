@@ -60,6 +60,15 @@ func WithKeyHook(fn KeyHook) Option {
 	return func(h *Host) { h.keyHook = fn }
 }
 
+// MsgHook handles a non-key message before the top view. Return handled=true
+// to skip view Update (e.g. debounced role-lifecycle settle).
+type MsgHook func(m *Model, msg tea.Msg) (cmd tea.Cmd, handled bool)
+
+// WithMsgHook installs a global message interceptor (e.g. debounce settle).
+func WithMsgHook(fn MsgHook) Option {
+	return func(h *Host) { h.msgHook = fn }
+}
+
 // Host is the tea model: stack navigation + chrome.
 // Prefer the Model alias in new code; Host remains for compatibility.
 type Host struct {
@@ -74,6 +83,7 @@ type Host struct {
 	hasStatus bool
 	quitCheck func(string) bool
 	keyHook   KeyHook
+	msgHook   MsgHook
 }
 
 // New builds a Model with root view.
@@ -192,6 +202,11 @@ func (h *Host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return h, h.top().Update(h, msg)
 	default:
+		if h.msgHook != nil {
+			if cmd, handled := h.msgHook(h, msg); handled {
+				return h, cmd
+			}
+		}
 		return h, h.top().Update(h, msg)
 	}
 }

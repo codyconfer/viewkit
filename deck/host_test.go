@@ -71,6 +71,31 @@ func TestHostKeyHook(t *testing.T) {
 	}
 }
 
+type settleTestMsg struct{ n int }
+
+func TestHostMsgHook(t *testing.T) {
+	var got int
+	h := New(stubView{title: "Root"}, WithMsgHook(func(m *Model, msg tea.Msg) (tea.Cmd, bool) {
+		s, ok := msg.(settleTestMsg)
+		if !ok {
+			return nil, false
+		}
+		got = s.n
+		return m.Push(stubView{title: "Settled"}), true
+	}))
+	m, cmd := h.Update(settleTestMsg{n: 7})
+	h = m.(*Model)
+	if got != 7 {
+		t.Fatalf("msg hook = %d", got)
+	}
+	if cmd != nil {
+		_ = cmd()
+	}
+	if h.top().Title() != "Settled" {
+		t.Fatalf("after msg hook title=%s", h.top().Title())
+	}
+}
+
 type ctxView struct {
 	stubView
 	ctx [][2]string
