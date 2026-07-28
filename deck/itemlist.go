@@ -25,7 +25,8 @@ type ItemList struct {
 	ChromeReserve int
 	// IsCancel reports whether a key string should pop the view.
 	IsCancel func(string) bool
-	// IsAction maps a key string to a keys.Action (defaults to keys.Cur menu map).
+	// IsAction maps a key string to a keys.Action, fully replacing the active
+	// scheme map (keys.Cur); map PageUp/PageDown too to keep paging.
 	IsAction func(string) (keys.Action, bool)
 	// OnOpen overrides browser.Open when an item Key is confirmed.
 	OnOpen func(url string) error
@@ -60,7 +61,12 @@ type itemListLoadedMsg struct{ data any }
 func (r *ItemList) Title() string        { return r.title }
 func (r *ItemList) Context() [][2]string { return r.ctx }
 func (r *ItemList) Hints() [][2]string {
-	return [][2]string{{"↑/↓", "move"}, {"enter", "open"}, {"pgup/pgdn", "page"}}
+	km := navMap()
+	return [][2]string{
+		km.HintLabeled(keys.Up, "move"),
+		km.HintLabeled(keys.Confirm, "open"),
+		km.HintLabeled(keys.PageUp, "page"),
+	}
 }
 
 func (r *ItemList) Init() tea.Cmd {
@@ -89,14 +95,6 @@ func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 }
 
 func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
-	switch m.String() {
-	case "pgup":
-		r.lst.Scroll(-r.height)
-		return nil
-	case "pgdown":
-		r.lst.Scroll(r.height)
-		return nil
-	}
 	act, ok := r.action(m.String())
 	if !ok {
 		return nil
@@ -106,6 +104,10 @@ func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
 		r.lst.Move(-1)
 	case keys.Down:
 		r.lst.Move(1)
+	case keys.PageUp:
+		r.lst.Scroll(-r.height)
+	case keys.PageDown:
+		r.lst.Scroll(r.height)
 	case keys.Confirm:
 		return r.openSelected()
 	case keys.Cancel:
@@ -121,15 +123,7 @@ func (r *ItemList) action(key string) (keys.Action, bool) {
 	if r.IsAction != nil {
 		return r.IsAction(key)
 	}
-	sc := keys.Cur()
-	km := keys.NewMap(
-		sc.Binding(keys.Up),
-		sc.Binding(keys.Down),
-		sc.Binding(keys.Confirm),
-		sc.Binding(keys.Cancel),
-		sc.Binding(keys.Quit),
-	)
-	return km.Action(key)
+	return navMap().Action(key)
 }
 
 func (r *ItemList) openSelected() tea.Cmd {

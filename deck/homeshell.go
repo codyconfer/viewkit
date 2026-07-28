@@ -35,7 +35,9 @@ type HomeShell struct {
 	// SideLoading shown while SideFetch has not completed.
 	SideLoading string
 
-	// IsAction maps a key string to a keys.Action (defaults to keys.Cur menu map).
+	// IsAction maps a key string to a keys.Action, fully replacing the active
+	// scheme map (keys.Cur); map PageUp/PageDown and FocusNext to keep paging
+	// and pane switching.
 	IsAction func(string) (keys.Action, bool)
 	// OnOpen overrides browser.Open when a side item Key is confirmed.
 	OnOpen func(url string) error
@@ -71,16 +73,25 @@ func (h *HomeShell) Context() [][2]string { return h.ctx }
 func (h *HomeShell) FocusSide() bool { return h.focus == homeFocusSide }
 
 func (h *HomeShell) Hints() [][2]string {
+	km := navMap()
 	if h.focus == homeFocusSide {
-		return [][2]string{{"↑/↓", "move"}, {"enter", "open"}, {"pgup/pgdn", "page"}, {"tab", "menu"}}
+		return [][2]string{
+			km.HintLabeled(keys.Up, "move"),
+			km.HintLabeled(keys.Confirm, "open"),
+			km.HintLabeled(keys.PageUp, "page"),
+			km.HintLabeled(keys.FocusNext, "menu"),
+		}
 	}
-	hints := [][2]string{{"↑/↓", "move"}, {"enter", "open"}}
+	hints := [][2]string{
+		km.HintLabeled(keys.Up, "move"),
+		km.HintLabeled(keys.Confirm, "open"),
+	}
 	if h.hasSide() {
 		hint := h.SideHint
 		if hint == "" {
 			hint = "side"
 		}
-		hints = append(hints, [2]string{"tab", hint})
+		hints = append(hints, km.HintLabeled(keys.FocusNext, hint))
 	}
 	return hints
 }
@@ -111,43 +122,30 @@ func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 }
 
 func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
-	if h.hasSide() && m.String() == "tab" {
-		if h.focus == homeFocusMenu {
-			h.focus = homeFocusSide
-		} else {
-			h.focus = homeFocusMenu
-		}
-		h.side.SetFocused(h.focus == homeFocusSide)
+	act, ok := h.action(m.String())
+	if !ok {
+		return nil
+	}
+	if h.hasSide() && (act == keys.FocusNext || act == keys.FocusPrev) {
+		h.toggleFocus()
 		return nil
 	}
 	if h.focus == homeFocusSide {
-		switch m.String() {
-		case "pgup":
-			h.side.Scroll(-1)
-			return nil
-		case "pgdown":
-			h.side.Scroll(1)
-			return nil
-		}
-		act, ok := h.action(m.String())
-		if !ok {
-			return nil
-		}
 		switch act {
 		case keys.Up:
 			h.side.Move(-1)
 		case keys.Down:
 			h.side.Move(1)
+		case keys.PageUp:
+			h.side.Scroll(-1)
+		case keys.PageDown:
+			h.side.Scroll(1)
 		case keys.Confirm:
 			return h.openSelected()
 		case keys.Cancel:
 			h.focus = homeFocusMenu
 			h.side.SetFocused(false)
 		}
-		return nil
-	}
-	act, ok := h.action(m.String())
-	if !ok {
 		return nil
 	}
 	switch act {
@@ -169,19 +167,20 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+func (h *HomeShell) toggleFocus() {
+	if h.focus == homeFocusMenu {
+		h.focus = homeFocusSide
+	} else {
+		h.focus = homeFocusMenu
+	}
+	h.side.SetFocused(h.focus == homeFocusSide)
+}
+
 func (h *HomeShell) action(key string) (keys.Action, bool) {
 	if h.IsAction != nil {
 		return h.IsAction(key)
 	}
-	sc := keys.Cur()
-	km := keys.NewMap(
-		sc.Binding(keys.Up),
-		sc.Binding(keys.Down),
-		sc.Binding(keys.Confirm),
-		sc.Binding(keys.Cancel),
-		sc.Binding(keys.Quit),
-	)
-	return km.Action(key)
+	return navMap().Action(key)
 }
 
 func (h *HomeShell) openSelected() tea.Cmd {

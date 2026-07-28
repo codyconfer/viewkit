@@ -43,7 +43,11 @@ type scrollViewLoadedMsg struct{ body string }
 func (c *Scroll) Title() string        { return c.title }
 func (c *Scroll) Context() [][2]string { return c.ctx }
 func (c *Scroll) Hints() [][2]string {
-	return append([][2]string{{"↑/↓", "scroll"}, {"pgup/pgdn", "page"}}, c.hints...)
+	km := navMap()
+	return append([][2]string{
+		km.HintLabeled(keys.Up, "scroll"),
+		km.HintLabeled(keys.PageUp, "page"),
+	}, c.hints...)
 }
 
 func (c *Scroll) Init() tea.Cmd {
@@ -77,17 +81,28 @@ func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 		if c.IsCancel != nil && c.IsCancel(m.String()) {
 			return h.Pop()
 		}
-		// Default cancel bindings when host did not inject a checker.
-		if c.IsCancel == nil {
-			sc := keys.Cur()
-			if act, ok := keys.NewMap(sc.Binding(keys.Cancel)).Action(m.String()); ok && act == keys.Cancel {
-				return h.Pop()
-			}
+		act, ok := navMap().Action(m.String())
+		if !ok {
+			return nil
 		}
-		if c.ready {
-			var cmd tea.Cmd
-			c.vp, cmd = c.vp.Update(msg)
-			return cmd
+		// Default cancel binding when host did not inject a checker.
+		if act == keys.Cancel && c.IsCancel == nil {
+			return h.Pop()
+		}
+		if !c.ready {
+			return nil
+		}
+		// Scroll from the active scheme rather than the viewport's own keymap,
+		// so Hints() cannot advertise bindings the view does not honour.
+		switch act {
+		case keys.Up:
+			c.vp.ScrollUp(1)
+		case keys.Down:
+			c.vp.ScrollDown(1)
+		case keys.PageUp:
+			c.vp.PageUp()
+		case keys.PageDown:
+			c.vp.PageDown()
 		}
 	}
 	return nil

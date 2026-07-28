@@ -15,21 +15,24 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
-// Task is one unit of work in a flight. Run must be safe for concurrent
-// execution; return Content (never domain types).
-type Task struct {
+// Job is one unit of work. Do must be safe for concurrent execution; return
+// Content (never domain types).
+type Job struct {
 	Label string
-	Run   func(ctx context.Context) (Content, error)
+	Do    func(ctx context.Context) (Content, error)
 }
 
-// Execute runs tasks concurrently via errgroup and returns bodies in order.
-// This is the headless driver; RunFlight is the tea progressive UI driver.
-func Execute(ctx context.Context, tasks []Task) ([]Content, error) {
-	out := make([]Content, len(tasks))
+// Work is a set of jobs run together: Execute is the headless driver, Run the
+// tea progressive UI driver.
+type Work []Job
+
+// Execute runs the jobs concurrently via errgroup and returns bodies in order.
+func (w Work) Execute(ctx context.Context) ([]Content, error) {
+	out := make([]Content, len(w))
 	g, ctx := errgroup.WithContext(ctx)
-	for i, t := range tasks {
+	for i, j := range w {
 		g.Go(func() error {
-			c, err := t.Run(ctx)
+			c, err := j.Do(ctx)
 			if err != nil {
 				return err
 			}
@@ -43,9 +46,9 @@ func Execute(ctx context.Context, tasks []Task) ([]Content, error) {
 	return out, nil
 }
 
-// RunFlight shows a progressive tea UI while tasks run under errgroup.
-// Quit keys follow keys.Cur() (Quit / Cancel).
-func RunFlight(ctx context.Context, tasks []Task) error {
+// Run shows a progressive tea UI while the jobs run under errgroup. Finished
+// results print to scrollback in job order. Quit keys follow keys.Cur().
+func (w Work) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -53,15 +56,15 @@ func RunFlight(ctx context.Context, tasks []Task) error {
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 
-	m := &flightModel{
+	m := &workModel{
 		ctx:    ctx,
-		tasks:  tasks,
-		panels: make([]flightPanel, len(tasks)),
+		jobs:   w,
+		panels: make([]jobPanel, len(w)),
 		spin:   sp,
-		left:   len(tasks),
+		left:   len(w),
 	}
-	for i, t := range tasks {
-		m.panels[i].label = t.Label
+	for i, j := range w {
+		m.panels[i].label = j.Label
 	}
 
 	p := tea.NewProgram(m, tea.WithContext(ctx))
@@ -73,47 +76,49 @@ func RunFlight(ctx context.Context, tasks []Task) error {
 	return m.err
 }
 
-type flightPanel struct {
+type jobPanel struct {
 	label   string
 	done    bool
+	printed bool
 	content string
 }
 
-type flightDoneMsg struct {
+type jobDoneMsg struct {
 	idx     int
 	content string
 	err     error
 }
 
-type flightModel struct {
+type workModel struct {
 	ctx     context.Context
-	tasks   []Task
-	panels  []flightPanel
+	jobs    Work
+	panels  []jobPanel
 	spin    spinner.Model
 	left    int
+	next    int
 	err     error
 	program *tea.Program
 	once    sync.Once
 }
 
-func (m *flightModel) Init() tea.Cmd {
+func (m *workModel) Init() tea.Cmd {
 	m.once.Do(func() {
 		go m.runWorkers()
 	})
 	return m.spin.Tick
 }
 
-func (m *flightModel) runWorkers() {
+func (m *workModel) runWorkers() {
 	g, ctx := errgroup.WithContext(m.ctx)
-	for i, t := range m.tasks {
+	for i, j := range m.jobs {
 		g.Go(func() error {
-			c, err := t.Run(ctx)
+			c, err := j.Do(ctx)
 			body := ""
 			if c != nil {
 				body = c.Render(theme.BodyWidth)
 			}
 			if m.program != nil {
-				m.program.Send(flightDoneMsg{idx: i, content: body, err: err})
+				m.program.Send(jobDoneMsg{idx: i, content: body, err: err})
 			}
 			return nil
 		})
@@ -121,7 +126,7 @@ func (m *flightModel) runWorkers() {
 	_ = g.Wait()
 }
 
-func (m *flightModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *workModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		sc := keys.Cur()
@@ -130,7 +135,7 @@ func (m *flightModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		}
-	case flightDoneMsg:
+	case jobDoneMsg:
 		if !m.panels[msg.idx].done {
 			m.panels[msg.idx].done = true
 			if msg.err != nil {
@@ -143,10 +148,17 @@ func (m *flightModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.left--
 		}
+		var cmd tea.Cmd
+		if body, ok := m.drain(); ok {
+			cmd = tea.Println(body)
+		}
 		if m.left == 0 {
+			if cmd != nil {
+				return m, tea.Sequence(cmd, tea.Quit)
+			}
 			return m, tea.Quit
 		}
-		return m, nil
+		return m, cmd
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spin, cmd = m.spin.Update(msg)
@@ -155,15 +167,31 @@ func (m *flightModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *flightModel) View() string {
-	parts := make([]string, len(m.panels))
+func (m *workModel) drain() (string, bool) {
+	var out []string
+	for m.next < len(m.panels) && m.panels[m.next].done {
+		out = append(out, m.panels[m.next].content)
+		m.panels[m.next].printed = true
+		m.next++
+	}
+	if len(out) == 0 {
+		return "", false
+	}
+	return strings.Join(out, "\n"), true
+}
+
+func (m *workModel) View() string {
+	parts := make([]string, 0, len(m.panels))
 	f := layout.NewFrame(theme.BodyWidth)
-	for i, p := range m.panels {
-		if p.done {
-			parts[i] = p.content
+	for _, p := range m.panels {
+		if p.printed {
 			continue
 		}
-		parts[i] = f.TitledBox(p.label, theme.Cur().Dim.Render(m.spin.View()+" loading…"))
+		status := m.spin.View() + " loading…"
+		if p.done {
+			status = "queued…"
+		}
+		parts = append(parts, f.TitledBox(p.label, theme.Cur().Dim.Render(status)))
 	}
 	return strings.Join(parts, "\n") + "\n"
 }

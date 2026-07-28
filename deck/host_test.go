@@ -13,12 +13,12 @@ import (
 
 type stubView struct{ title string }
 
-func (s stubView) Title() string                 { return s.title }
-func (s stubView) Init() tea.Cmd                 { return nil }
+func (s stubView) Title() string                  { return s.title }
+func (s stubView) Init() tea.Cmd                  { return nil }
 func (s stubView) Update(*Model, tea.Msg) tea.Cmd { return nil }
-func (s stubView) Body(int, int) string          { return "body" }
-func (s stubView) Hints() [][2]string            { return nil }
-func (s stubView) Context() [][2]string          { return nil }
+func (s stubView) Body(int, int) string           { return "body" }
+func (s stubView) Hints() [][2]string             { return nil }
+func (s stubView) Context() [][2]string           { return nil }
 
 type stubComp struct{}
 

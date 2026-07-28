@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/list"
 )
 
@@ -48,9 +49,10 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	if strings.Contains(h.View(), "◈") {
 		t.Fatal("menu-only should not show side label")
 	}
+	focusGlyph := keys.Cur().Binding(keys.FocusNext).DisplayGlyph()
 	for _, hint := range menuOnly.Hints() {
-		if hint[0] == "tab" {
-			t.Fatal("menu-only should not offer tab")
+		if hint[0] == focusGlyph {
+			t.Fatalf("menu-only should not offer pane switching (%q)", focusGlyph)
 		}
 	}
 
@@ -87,7 +89,7 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	if shell.FocusSide() {
 		t.Fatal("want menu focus initially")
 	}
-	h = driveHost(h, tea.KeyMsg{Type: tea.KeyTab})
+	driveHost(h, tea.KeyMsg{Type: tea.KeyTab})
 	if !shell.FocusSide() {
 		t.Fatal("want side focus after tab")
 	}

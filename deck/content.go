@@ -1,7 +1,7 @@
 package deck
 
-// Content is domain-agnostic flight/panel body text. Apps adapt their types
-// (e.g. munin signals.Section trees) into Content before crossing into deck.
+// Content is domain-agnostic job/panel body text. Apps adapt their types
+// (e.g. domain section trees) into Content before crossing into deck.
 type Content interface {
 	// Render returns the painted body for the given width (may ignore width).
 	Render(width int) string

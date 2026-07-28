@@ -11,8 +11,8 @@
 | `Model` (`Host` alias) | Stateful tea root: stack nav + chrome (brand/subtitle injected; no app literals) |
 | `RegisterView` / `LookupView` | View registry (plugin views) |
 | `RegisterComponent` / `LookupComponent` | Fragment registry |
-| `Content` / `Text` | Domain-agnostic flight body (apps adapt before crossing) |
-| `Task` + `Execute` / `RunFlight` | Unified flight: errgroup headless + tea progressive UI |
+| `Content` / `Text` | Domain-agnostic job body (apps adapt before crossing) |
+| `Job` + `Work.Execute` / `Work.Run` | A set of concurrent jobs: errgroup headless + tea progressive UI |
 | `Confirm` | Yes/no tea prompt |
 | `Menu` / `Message` / `Scroll` | Generic views (optional; apps may roll their own) |
 | `ItemList` | Lazy Fetch+Bind selectable list (domain → `list.Item` in Bind) |
@@ -52,16 +52,29 @@ Panels that work in both inline shells and deck live in `viewkit/panels` as
 
 ## Content boundary
 
-Deck must not import app domain types (e.g. munin `signals.Section`). Flight
-tasks return `Content`; apps render domain → string/`Content` before
-`RunFlight` / `Execute`.
+Deck must not import app domain types (e.g. an app's `signals.Section`). Jobs
+return `Content`; apps render domain → string/`Content` before
+`Work.Run` / `Work.Execute`.
 
 ## Key bindings
 
-Host quit matching is injectable (`WithQuitCheck`). Global app hotkeys use
-`WithKeyHook` (runs after quit check, before the top view). Generic views use
-`keys.Cur()`. Apps may install a scheme (`keys.Use` / `keys.Register`) before
-`deck.Run`.
+Apps may install a scheme (`keys.Use` / `keys.Register`) before `deck.Run`.
+
+**Single source:** generic views resolve input *and* render their footer legend
+through the active scheme (`navMap` over `keys.Cur()`). No view matches raw key
+literals, so a hint can never advertise a binding the view does not honour.
+Paging is `keys.PageUp`/`PageDown`; pane switching is `keys.FocusNext`/`FocusPrev`.
+`Scroll` drives the viewport from the scheme rather than the bubbles keymap for
+the same reason.
+
+Host quit matching defaults to the scheme's `keys.Quit` binding, so behaviour and
+the `quit` legend share one source. `WithQuitCheck` takes an opaque matcher that
+cannot be rendered — pair it with `WithQuitHint` or the legend will disagree with
+the matcher. Global app hotkeys use `WithKeyHook` (runs after the quit check,
+before the top view).
+
+A view's `IsAction` hook *replaces* the scheme map rather than extending it: map
+`PageUp`/`PageDown`/`FocusNext` too if paging and pane switching should survive.
 
 ## Consumer checklist
 
@@ -70,6 +83,7 @@ Host quit matching is injectable (`WithQuitCheck`). Global app hotkeys use
 - [ ] Content boundary keeps domain types out of deck
 - [ ] DualHost panels usable from inline shells
 - [ ] No tea leakage into viewkit core imports
+- [ ] No raw key literals in views; hints derived from `keys.Cur()`
 
 ## Package consolidation
 

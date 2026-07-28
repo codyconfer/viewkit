@@ -50,7 +50,7 @@ func Default() Scheme {
 		Inc:       {Keys: []string{"]", "+", "="}, Action: Inc, Glyph: "[ ]/-/+"},
 		Dec:       {Keys: []string{"[", "-", "_"}, Action: Dec},
 		Erase:     {Keys: []string{"backspace", "ctrl+h"}, Action: Erase, Glyph: "backspace"},
-		PageUp:    {Keys: []string{"pgup"}, Action: PageUp},
+		PageUp:    {Keys: []string{"pgup"}, Action: PageUp, Glyph: "pgup/pgdn"},
 		PageDown:  {Keys: []string{"pgdown"}, Action: PageDown},
 	}}
 }

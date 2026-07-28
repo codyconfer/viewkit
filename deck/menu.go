@@ -36,7 +36,11 @@ func (m *Menu) Title() string        { return m.title }
 func (m *Menu) Init() tea.Cmd        { return nil }
 func (m *Menu) Context() [][2]string { return m.ctx }
 func (m *Menu) Hints() [][2]string {
-	return [][2]string{{"↑/↓", "move"}, {"enter", "open"}}
+	km := navMap()
+	return [][2]string{
+		km.HintLabeled(keys.Up, "move"),
+		km.HintLabeled(keys.Confirm, "open"),
+	}
 }
 
 func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
@@ -44,15 +48,7 @@ func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	sc := keys.Cur()
-	km := keys.NewMap(
-		sc.Binding(keys.Up),
-		sc.Binding(keys.Down),
-		sc.Binding(keys.Confirm),
-		sc.Binding(keys.Cancel),
-		sc.Binding(keys.Quit),
-	)
-	act, ok := km.Action(key.String())
+	act, ok := navMap().Action(key.String())
 	if !ok {
 		return nil
 	}
@@ -155,7 +151,11 @@ type scrollLoadedMsg struct{ body string }
 func (c *ScrollContent) Title() string        { return c.title }
 func (c *ScrollContent) Context() [][2]string { return c.ctx }
 func (c *ScrollContent) Hints() [][2]string {
-	return append([][2]string{{"↑/↓", "scroll"}}, c.hints...)
+	km := navMap()
+	return append([][2]string{
+		km.HintLabeled(keys.Up, "scroll"),
+		km.HintLabeled(keys.PageUp, "page"),
+	}, c.hints...)
 }
 
 func (c *ScrollContent) Init() tea.Cmd {
@@ -168,15 +168,7 @@ func (c *ScrollContent) Update(h *Model, msg tea.Msg) tea.Cmd {
 		c.body, c.loaded = m.body, true
 		return nil
 	case tea.KeyMsg:
-		sc := keys.Cur()
-		km := keys.NewMap(
-			sc.Binding(keys.Up),
-			sc.Binding(keys.Down),
-			sc.Binding(keys.Cancel),
-			sc.Binding(keys.PageUp),
-			sc.Binding(keys.PageDown),
-		)
-		act, ok := km.Action(m.String())
+		act, ok := navMap().Action(m.String())
 		if !ok {
 			return nil
 		}

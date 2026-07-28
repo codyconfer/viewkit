@@ -2,6 +2,7 @@ package deck
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -32,23 +33,28 @@ func WithChrome(c Chrome) Option {
 	return func(h *Host) { h.chrome = c }
 }
 
-// WithQuitCheck overrides quit key matcher.
+// WithQuitCheck overrides quit key matcher. An opaque matcher cannot be
+// rendered, so pair it with WithQuitHint to keep the footer legend truthful.
 func WithQuitCheck(fn func(string) bool) Option {
 	return func(h *Host) { h.quitCheck = fn }
 }
 
+// WithQuitHint overrides the quit glyph in the footer legend. Defaults to the
+// active scheme's Quit binding.
+func WithQuitHint(glyph string) Option {
+	return func(h *Host) { h.quitHint = glyph }
+}
+
 // WithKeyMapQuit installs a quit matcher from keys.Cur() Quit binding.
+// This is also the default; the option remains for explicit call sites.
 func WithKeyMapQuit() Option {
-	return func(h *Host) {
-		h.quitCheck = func(k string) bool {
-			for _, q := range keys.Cur().Binding(keys.Quit).Keys {
-				if k == q {
-					return true
-				}
-			}
-			return false
-		}
-	}
+	return func(h *Host) { h.quitCheck = schemeQuit }
+}
+
+// schemeQuit matches the active scheme's Quit binding. keys.Cur() is read at
+// match time so a keys.Use after New still applies.
+func schemeQuit(k string) bool {
+	return slices.Contains(keys.Cur().Binding(keys.Quit).Keys, k)
 }
 
 // KeyHook handles a key before the top view. Return handled=true to skip
@@ -82,6 +88,7 @@ type Host struct {
 	status    StatusInfo
 	hasStatus bool
 	quitCheck func(string) bool
+	quitHint  string
 	keyHook   KeyHook
 	msgHook   MsgHook
 }
@@ -95,7 +102,7 @@ func New(root View, opts ...Option) *Model {
 			Brand:    "APP",
 			Subtitle: "deck",
 		},
-		quitCheck: func(k string) bool { return k == "ctrl+c" },
+		quitCheck: schemeQuit,
 	}
 	for _, o := range opts {
 		o(h)
@@ -289,10 +296,22 @@ func (h *Host) footer(v View) string {
 	f := layout.ScreenFrame(h.width)
 	full := f.BodyWidth() + 4
 	hints := append([][2]string{}, v.Hints()...)
-	hints = append(hints, [2]string{"esc", "back"}, [2]string{"ctrl+c", "quit"})
+	hints = append(hints,
+		navMap().HintLabeled(keys.Cancel, "back"),
+		[2]string{h.quitGlyph(), "quit"},
+	)
 	legend := layout.IndentLines(f.HintLine(hints...), 1)
 	bar := theme.StripBlock(full, layout.SpreadBG(theme.StripBg(), h.statusSegments(), "", full))
 	return layout.Stack(bar, legend)
+}
+
+// quitGlyph is the footer legend for quit: the WithQuitHint override when set,
+// else the active scheme's Quit binding (which drives the default matcher).
+func (h *Host) quitGlyph() string {
+	if h.quitHint != "" {
+		return h.quitHint
+	}
+	return keys.Cur().Binding(keys.Quit).DisplayGlyph()
 }
 
 func (h *Host) statusSegments() string {

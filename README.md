@@ -24,7 +24,7 @@ core + deck.
 | `notify` | Notification tone helpers |
 | `timefmt` | Time formatting |
 | `term` | Terminal launcher helpers |
-| `deck` | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, flight) — **only** package that imports tea |
+| `deck` | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, `Work`) — **only** package that imports tea |
 
 Longer API notes: [`skills/viewkit/references/api.md`](skills/viewkit/references/api.md).
 

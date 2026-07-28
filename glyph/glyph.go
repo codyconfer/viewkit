@@ -101,7 +101,7 @@ var (
 	github      = Variants{"", "●", "gh"}
 	slack       = Variants{"", "●", "sl"}
 	google      = Variants{"", "●", "go"}
-	flight      = Variants{"", "◈", ">"}
+	diamond     = Variants{"", "◈", ">"}
 	history     = Variants{"", "◷", ">"}
 	list        = Variants{"", "≣", ">"}
 	database    = Variants{"", "▤", ">"}
@@ -123,7 +123,7 @@ func Bullet() string      { return bullet.String() }
 func GitHub() string      { return github.String() }
 func Slack() string       { return slack.String() }
 func Google() string      { return google.String() }
-func Flight() string      { return flight.String() }
+func Diamond() string     { return diamond.String() }
 func History() string     { return history.String() }
 func List() string        { return list.String() }
 func Database() string    { return database.String() }
