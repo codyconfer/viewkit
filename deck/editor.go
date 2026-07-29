@@ -195,6 +195,15 @@ func (e *Editor) Hints() [][2]string {
 			{"ctrl+r", "rerun"},
 		}
 	}
+	if len(e.form.Suggestions()) > 0 {
+		return [][2]string{
+			{"tab", "accept"},
+			{"ctrl+n/ctrl+p", "suggestion"},
+			{"↑/↓", "field"},
+			{"ctrl+r", "run"},
+			{"ctrl+s", "save"},
+		}
+	}
 	hints := [][2]string{
 		{"↑/↓", "field"},
 		{"←/→", "adjust"},
@@ -261,6 +270,9 @@ func (e *Editor) handleKey(a *Model, key tea.KeyMsg) tea.Cmd {
 	case e.keys.Delete:
 		e.askDelete()
 	case e.keys.Focus:
+		if !e.onResults && e.form.AcceptSuggestion() {
+			return nil
+		}
 		e.setFocus(!e.onResults)
 	default:
 		if e.onResults {

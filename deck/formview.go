@@ -118,6 +118,13 @@ func (v *FormView) Hints() [][2]string {
 		return v.spec.Hints
 	}
 	km := v.keyMap()
+	if len(v.form.Suggestions()) > 0 && km.Has(keys.Complete) {
+		return [][2]string{
+			km.Hint(keys.Complete),
+			km.Hint(keys.CompleteNext),
+			km.HintLabeled(keys.Up, "field"),
+		}
+	}
 	hints := [][2]string{
 		km.HintLabeled(keys.Up, "field"),
 		km.HintLabeled(keys.Left, "change"),
@@ -157,7 +164,10 @@ func (v *FormView) keyMap() *keys.Map {
 // which drop single-character keys so ordinary typing is not swallowed.
 func formMap() *keys.Map {
 	sc := keys.Cur()
+	// Complete leads so a scheme that deliberately rebinds tab to something
+	// else still wins: NewMap resolves a shared key to the last binding.
 	return keys.NewMap(sc.EditorBindings(
+		keys.Complete, keys.CompleteNext, keys.CompletePrev,
 		keys.Up, keys.Down, keys.Left, keys.Right,
 		keys.Confirm, keys.Cancel, keys.Erase, keys.PageUp, keys.PageDown,
 	)...)
@@ -188,6 +198,8 @@ func (v *FormView) Update(a *Model, msg tea.Msg) tea.Cmd {
 	switch act {
 	case keys.Cancel:
 		return a.Pop()
+	case keys.Complete:
+		v.form.AcceptSuggestion()
 	case v.spec.Keys.Save:
 		return v.submit(a)
 	default:

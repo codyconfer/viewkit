@@ -1,6 +1,7 @@
 package forms
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -40,6 +41,33 @@ type Field struct {
 	Checked  map[int]bool
 
 	Secret bool
+
+	// Suggest proposes completions for the token being typed. Text and
+	// multiline fields only; a nil Suggester disables completion.
+	Suggest Suggester
+	// Delim splits the field into independently completed tokens, e.g. ","
+	// for a comma-separated list or " " for a search expression. Empty means
+	// the whole text is one token.
+	Delim string
+}
+
+// candidates asks the field's Suggester about the token currently being
+// typed. Secret fields never suggest: the ghost would leak the vocabulary.
+func (fd *Field) candidates() []string {
+	if fd.Suggest == nil || fd.Secret {
+		return nil
+	}
+	if fd.Kind != FieldText && fd.Kind != FieldMultiline {
+		return nil
+	}
+	_, tail := splitTail(fd.Text, fd.Delim)
+	return fd.Suggest(tail)
+}
+
+// accept replaces the trailing token with pick.
+func (fd *Field) accept(pick string) {
+	head, _ := splitTail(fd.Text, fd.Delim)
+	fd.Text = joinTail(head, pick, fd.Delim)
 }
 
 func (fd *Field) Value() any {
@@ -122,7 +150,23 @@ func (fd *Field) activate() bool {
 	return false
 }
 
-func (fd *Field) render(f layout.Frame, focused bool) []string {
+// suggState is the focused field's live completion state, passed down from
+// the Form so a rebuilt Fields slice cannot lose it.
+type suggState struct {
+	cands []string
+	idx   int
+}
+
+func (s suggState) pick() string {
+	if s.idx < 0 || s.idx >= len(s.cands) {
+		return ""
+	}
+	return s.cands[s.idx]
+}
+
+const suggListMax = 5
+
+func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 	t := theme.Cur()
 	label := layout.Cursor(false) + t.Dim.Render(fd.Label)
 	if focused {
@@ -166,7 +210,7 @@ func (fd *Field) render(f layout.Frame, focused bool) []string {
 		lines := []string{label}
 		body := fd.display()
 		if focused {
-			body += "▎"
+			body += "▎" + fd.ghost(sg)
 		}
 		if body == "" {
 			body = t.Dim.Render("…")
@@ -174,19 +218,58 @@ func (fd *Field) render(f layout.Frame, focused bool) []string {
 		for _, ln := range strings.Split(body, "\n") {
 			lines = append(lines, "  "+t.Val.Render(f.Fit(ln)))
 		}
-		return lines
+		return append(lines, fd.suggestions(f, focused, sg)...)
 
 	default:
 		val := fd.display()
 		if focused {
-			val += "▎"
+			val += "▎" + fd.ghost(sg)
 		}
 		shown := t.Val.Render(ansi.Truncate(val, f.BodyWidth()-ansi.StringWidth(fd.Label)-4, "…"))
 		if fd.Text == "" && !focused {
 			shown = t.Dim.Render("…")
 		}
-		return []string{label + "  " + shown}
+		return append([]string{label + "  " + shown}, fd.suggestions(f, focused, sg)...)
 	}
+}
+
+// ghost is the unwritten remainder of the active candidate, shown inline
+// after the caret. It is rendered before truncation so an over-long
+// suggestion is clipped with the rest of the value rather than overflowing.
+func (fd *Field) ghost(sg suggState) string {
+	pick := sg.pick()
+	if pick == "" || fd.Secret {
+		return ""
+	}
+	_, tail := splitTail(fd.Text, fd.Delim)
+	rest := ghostOf(pick, tail)
+	if rest == "" {
+		return ""
+	}
+	return theme.Cur().Dim.Render(rest)
+}
+
+// suggestions lists the alternatives beneath the field, so cycling has
+// somewhere to point. Only the focused field gets one.
+func (fd *Field) suggestions(f layout.Frame, focused bool, sg suggState) []string {
+	if !focused || len(sg.cands) == 0 {
+		return nil
+	}
+	t := theme.Cur()
+	shown := min(len(sg.cands), suggListMax)
+	out := make([]string, 0, shown+1)
+	for i := range shown {
+		style := t.Dim
+		mark := "  "
+		if i == sg.idx {
+			style, mark = t.Val, layout.Cursor(true)
+		}
+		out = append(out, "  "+mark+style.Render(f.Fit(sg.cands[i])))
+	}
+	if rest := len(sg.cands) - shown; rest > 0 {
+		out = append(out, "    "+t.Dim.Render(moreMarker+" +"+strconv.Itoa(rest)))
+	}
+	return out
 }
 
 func (fd *Field) display() string {

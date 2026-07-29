@@ -16,6 +16,13 @@ const (
 	PageUp    Action = "page.up"
 	PageDown  Action = "page.down"
 	Open      Action = "open"
+
+	// Complete accepts the suggestion a text field is showing. It shares tab
+	// with FocusNext: a host that binds both resolves the conflict by build
+	// order, and one that binds Complete alone gets tab-to-accept for free.
+	Complete     Action = "complete"
+	CompleteNext Action = "complete.next"
+	CompletePrev Action = "complete.prev"
 )
 
 type Scheme struct {
@@ -54,6 +61,10 @@ func Default() Scheme {
 		PageUp:    {Keys: []string{"pgup"}, Action: PageUp, Glyph: "pgup/pgdn"},
 		PageDown:  {Keys: []string{"pgdown"}, Action: PageDown},
 		Open:      {Keys: []string{"o"}, Action: Open, Glyph: "o", Label: "open"},
+
+		Complete:     {Keys: []string{"tab"}, Action: Complete, Glyph: "tab", Label: "accept"},
+		CompleteNext: {Keys: []string{"ctrl+n"}, Action: CompleteNext, Glyph: "ctrl+n/ctrl+p", Label: "suggestion"},
+		CompletePrev: {Keys: []string{"ctrl+p"}, Action: CompletePrev, Glyph: "ctrl+p"},
 	}}
 }
 

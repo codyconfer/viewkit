@@ -12,6 +12,14 @@ func Str(vals map[string]any, key string) string {
 	return strings.TrimSpace(s)
 }
 
+// Raw returns the string value stored under key verbatim. Seeding a rebuilt
+// form uses it rather than Str, so a trailing delimiter or space the user
+// deliberately typed survives the rebuild.
+func Raw(vals map[string]any, key string) string {
+	s, _ := vals[key].(string)
+	return s
+}
+
 // Bool returns the boolean value stored under key. Missing keys and non-bool
 // values yield false.
 func Bool(vals map[string]any, key string) bool {

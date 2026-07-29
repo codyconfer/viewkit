@@ -10,10 +10,14 @@ import (
 type Form struct {
 	Fields []Field
 	cursor int
+
+	sugg suggState
 }
 
 func NewForm(fields ...Field) *Form {
-	return &Form{Fields: fields}
+	fm := &Form{Fields: fields}
+	fm.resuggest()
+	return fm
 }
 
 func (fm *Form) Focused() *Field {
@@ -22,6 +26,48 @@ func (fm *Form) Focused() *Field {
 	}
 	fm.cursor = panels.ClampIndex(fm.cursor, len(fm.Fields))
 	return &fm.Fields[fm.cursor]
+}
+
+// Suggestions lists the completions offered for the focused field, most
+// relevant first. It is empty when the field has no Suggester or nothing
+// matches what has been typed.
+func (fm *Form) Suggestions() []string { return fm.sugg.cands }
+
+// AcceptSuggestion writes the active candidate into the focused field,
+// replacing the token being typed. It reports false when there is nothing to
+// accept, which lets a host give the accept key a second meaning.
+func (fm *Form) AcceptSuggestion() bool {
+	pick := fm.sugg.pick()
+	if pick == "" {
+		return false
+	}
+	fd := fm.Focused()
+	if fd == nil {
+		return false
+	}
+	fd.accept(pick)
+	fm.resuggest()
+	return true
+}
+
+// CycleSuggestion moves through the candidate list. It wraps at both ends
+// rather than clamping like field navigation does: a short list is meant to
+// be cycled repeatedly, and stopping at the last entry hides the first.
+func (fm *Form) CycleSuggestion(delta int) {
+	n := len(fm.sugg.cands)
+	if n == 0 {
+		return
+	}
+	fm.sugg.idx = ((fm.sugg.idx+delta)%n + n) % n
+}
+
+// resuggest recomputes the focused field's candidates and returns to the
+// first of them, so a fresh keystroke never leaves a stale ghost on screen.
+func (fm *Form) resuggest() {
+	fm.sugg = suggState{}
+	if fd := fm.Focused(); fd != nil {
+		fm.sugg.cands = fd.candidates()
+	}
 }
 
 func (fm *Form) Handle(a keys.Action) bool {
@@ -34,14 +80,21 @@ func (fm *Form) Handle(a keys.Action) bool {
 	switch a {
 	case keys.Up, keys.FocusPrev:
 		fm.cursor = panels.MoveIndex(fm.cursor, -1, len(fm.Fields))
+		fm.resuggest()
 	case keys.Down, keys.FocusNext:
 		fm.cursor = panels.MoveIndex(fm.cursor, +1, len(fm.Fields))
+		fm.resuggest()
 	case keys.Left, keys.Dec:
 		fd.left()
 	case keys.Right, keys.Inc:
 		fd.right()
 	case keys.Erase:
 		fd.backspace()
+		fm.resuggest()
+	case keys.CompleteNext:
+		fm.CycleSuggestion(+1)
+	case keys.CompletePrev:
+		fm.CycleSuggestion(-1)
 	case keys.Confirm:
 		return fd.activate()
 	default:
@@ -53,6 +106,7 @@ func (fm *Form) Handle(a keys.Action) bool {
 func (fm *Form) Insert(s string) {
 	if fd := fm.Focused(); fd != nil {
 		fd.insert(s)
+		fm.resuggest()
 	}
 }
 
@@ -82,7 +136,11 @@ func (fm *Form) render(f layout.Frame, title string, maxLines int) string {
 		if i > 0 {
 			lines = append(lines, "")
 		}
-		block := fm.Fields[i].render(f, i == fm.cursor)
+		var sg suggState
+		if i == fm.cursor {
+			sg = fm.sugg
+		}
+		block := fm.Fields[i].render(f, i == fm.cursor, sg)
 		if i == fm.cursor {
 			focusStart = len(lines)
 			focusEnd = focusStart + len(block)
