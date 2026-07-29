@@ -6,23 +6,30 @@ import (
 	"github.com/codyconfer/viewkit/glyph"
 )
 
-// SeverityColor maps glyph.Severity to the active theme's terminal color.
-// glyph.Severity is the sole severity vocabulary; theme only supplies color.
-func SeverityColor(s glyph.Severity) lipgloss.TerminalColor {
+// SeverityStyle maps glyph.Severity to the active theme's style for that
+// severity. Use it when rendering text; use SeverityColor when only the
+// foreground color is needed.
+func SeverityStyle(s glyph.Severity) lipgloss.Style {
 	th := Cur()
 	switch s {
 	case glyph.SeverityPositive:
-		return th.Can.GetForeground()
+		return th.Can
 	case glyph.SeverityNegative:
-		return th.Cant.GetForeground()
+		return th.Cant
 	case glyph.SeverityWarning:
 		if len(th.Series) > 2 {
-			return th.Series[2].GetForeground()
+			return th.Series[2]
 		}
-		return th.Cant.GetForeground()
+		return th.Cant
 	default:
-		return th.Dim.GetForeground()
+		return th.Dim
 	}
+}
+
+// SeverityColor maps glyph.Severity to the active theme's terminal color.
+// glyph.Severity is the sole severity vocabulary; theme only supplies color.
+func SeverityColor(s glyph.Severity) lipgloss.TerminalColor {
+	return SeverityStyle(s).GetForeground()
 }
 
 // SeverityGlyph returns the status-strip glyph for s (StatusOK/Warn/Bad/Muted).

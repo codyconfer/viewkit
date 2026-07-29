@@ -71,10 +71,13 @@ func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Menu) Body(width, _ int) string {
+// menuBoxChrome is the line count TitledBox adds around the rows.
+const menuBoxChrome = 2
+
+func (m *Menu) Body(width, height int) string {
 	th := theme.Cur()
 	f := layout.ScreenFrame(width)
-	var lines []string
+	rows := make([]string, 0, len(m.items))
 	for i, it := range m.items {
 		cursor := "  "
 		label := th.Val.Render(it.Label)
@@ -90,9 +93,10 @@ func (m *Menu) Body(width, _ int) string {
 		if it.Desc != "" {
 			row = f.Spread(row, th.Dim.Render(it.Desc))
 		}
-		lines = append(lines, row)
+		rows = append(rows, row)
 	}
-	return f.TitledBox(strings.ToUpper(m.title), lines...)
+	rows = layout.CursorRows(rows, m.cursor, height-menuBoxChrome)
+	return f.TitledBox(strings.ToUpper(m.title), rows...)
 }
 
 // Message is a dismissible text View.

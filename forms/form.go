@@ -4,6 +4,7 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/panels"
+	"github.com/codyconfer/viewkit/theme"
 )
 
 type Form struct {
@@ -64,15 +65,67 @@ func (fm *Form) Values() map[string]any {
 }
 
 func (fm *Form) Render(f layout.Frame, title string) string {
+	return fm.render(f, title, 0)
+}
+
+// RenderWindow renders at most maxLines of field rows, scrolled to keep the
+// focused field visible. A maxLines of zero renders every field.
+func (fm *Form) RenderWindow(f layout.Frame, title string, maxLines int) string {
+	return fm.render(f, title, maxLines)
+}
+
+func (fm *Form) render(f layout.Frame, title string, maxLines int) string {
 	fm.cursor = panels.ClampIndex(fm.cursor, len(fm.Fields))
-	var lines []string
+	lines := []string{""}
+	focusStart, focusEnd := 0, 0
 	for i := range fm.Fields {
 		if i > 0 {
 			lines = append(lines, "")
 		}
-		lines = append(lines, fm.Fields[i].render(f, i == fm.cursor)...)
+		block := fm.Fields[i].render(f, i == fm.cursor)
+		if i == fm.cursor {
+			focusStart = len(lines)
+			focusEnd = focusStart + len(block)
+		}
+		lines = append(lines, block...)
+	}
+	if maxLines > 0 && len(lines) > maxLines {
+		lines = windowAround(lines, focusStart, focusEnd, maxLines)
 	}
 	return f.Panel(title, lines...)
+}
+
+const moreMarker = "⋯"
+
+// windowAround returns exactly maxLines of lines containing [focusStart,
+// focusEnd), marking clipped edges so the field list does not look complete.
+func windowAround(lines []string, focusStart, focusEnd, maxLines int) []string {
+	if maxLines < 3 {
+		maxLines = 3
+	}
+	span := focusEnd - focusStart
+	start := focusStart - (maxLines-span)/2
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxLines
+	if end > len(lines) {
+		end = len(lines)
+		start = end - maxLines
+		if start < 0 {
+			start = 0
+		}
+	}
+	out := make([]string, 0, end-start)
+	out = append(out, lines[start:end]...)
+	marker := theme.Cur().Dim.Render(moreMarker)
+	if start > 0 {
+		out[0] = marker
+	}
+	if end < len(lines) {
+		out[len(out)-1] = marker
+	}
+	return out
 }
 
 func (fm *Form) Overlay(bg string, f layout.Frame, title string, pos ...layout.OverlayPos) string {

@@ -156,3 +156,34 @@ func TestSecretFieldMasksButKeepsValue(t *testing.T) {
 		t.Errorf("secret field not masked with bullets:\n%s", out)
 	}
 }
+
+func TestFormRenderSeparatesTitleFromFirstField(t *testing.T) {
+	fm := NewForm(
+		Field{Key: "first", Label: "First", Kind: FieldText},
+		Field{Key: "second", Label: "Second", Kind: FieldText},
+	)
+	lines := strings.Split(stripANSI(fm.Render(layout.NewFrame(48), "TITLE")), "\n")
+
+	titleAt, firstAt := -1, -1
+	for i, ln := range lines {
+		if titleAt < 0 && strings.Contains(ln, "TITLE") {
+			titleAt = i
+		}
+		if firstAt < 0 && strings.Contains(ln, "First") {
+			firstAt = i
+		}
+	}
+	if titleAt < 0 || firstAt < 0 {
+		t.Fatalf("title or first field missing:\n%s", strings.Join(lines, "\n"))
+	}
+	if gap := firstAt - titleAt; gap != 2 {
+		t.Errorf("title to first field gap = %d lines, want 2 (one blank line):\n%s", gap, strings.Join(lines, "\n"))
+	}
+	if strings.TrimSpace(stripBox(lines[titleAt+1])) != "" {
+		t.Errorf("line after title is not blank: %q", lines[titleAt+1])
+	}
+}
+
+func stripBox(s string) string {
+	return strings.NewReplacer("│", "", "╭", "", "╮", "", "╰", "", "╯", "", "─", "").Replace(s)
+}
