@@ -137,9 +137,9 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 		case keys.Down:
 			h.side.Move(1)
 		case keys.PageUp:
-			h.side.Scroll(-1)
+			h.side.Scroll(-max(h.side.Height(), 1))
 		case keys.PageDown:
-			h.side.Scroll(1)
+			h.side.Scroll(max(h.side.Height(), 1))
 		case keys.Confirm:
 			return h.openSelected()
 		case keys.Cancel:

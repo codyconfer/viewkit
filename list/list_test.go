@@ -15,6 +15,117 @@ func sample() []Item {
 	}
 }
 
+func flightSample() []Item {
+	return []Item{
+		{Block: "flight  (2)"},
+		{Block: "Open PRs  (3)"},
+		{Block: "pr one", Key: "u1", Selectable: true},
+		{Block: "pr two", Key: "u2", Selectable: true},
+		{Block: "pr three", Key: "u3", Selectable: true},
+		{Block: "Reviews  (1)"},
+		{Block: "rev one", Key: "u4", Selectable: true},
+	}
+}
+
+func TestMoveBackToFirstSelectableRevealsLeadingHeaders(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+
+	for range 3 {
+		m.Move(1)
+	}
+	for range 3 {
+		m.Move(-1)
+	}
+
+	if it, _ := m.Selected(); it.Key != "u1" {
+		t.Fatalf("cursor = %q, want u1 (back at first selectable)", it.Key)
+	}
+	if m.offset != 0 {
+		t.Fatalf("offset = %d, want 0 so the trunk and first header are reachable", m.offset)
+	}
+	for _, want := range []string{"flight  (2)", "Open PRs  (3)"} {
+		if !strings.Contains(m.View(), want) {
+			t.Fatalf("%q truncated off the top of the panel:\n%s", want, m.View())
+		}
+	}
+}
+
+func TestFirstSelectableKeepsCursorVisibleUnderTallLeadingBlock(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{
+		{Block: "h1\nh2\nh3\nh4\nh5\nh6"},
+		{Block: "a", Key: "u1", Selectable: true},
+		{Block: "b", Key: "u2", Selectable: true},
+	})
+	m.SetSize(80, 3)
+
+	m.Move(1)
+	m.Move(-1)
+
+	if it, _ := m.Selected(); it.Key != "u1" {
+		t.Fatalf("cursor = %q, want u1", it.Key)
+	}
+	if m.offset == 0 {
+		t.Fatal("offset forced to 0: a leading block taller than the viewport pushed the cursor off screen")
+	}
+	if !strings.Contains(m.View(), "a") {
+		t.Fatalf("cursor item not visible:\n%s", m.View())
+	}
+}
+
+func TestLastSelectableRevealsTrailingNonSelectableRow(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{
+		{Block: "hdr"},
+		{Block: "a", Key: "u1", Selectable: true},
+		{Block: "b", Key: "u2", Selectable: true},
+		{Block: "nothing to show"},
+	})
+	m.SetSize(80, 3)
+
+	m.Move(1)
+
+	if !strings.Contains(m.View(), "nothing to show") {
+		t.Fatalf("trailing row unreachable from the last selectable item:\n%s", m.View())
+	}
+}
+
+func TestScrollDragsCursorSoMoveDoesNotSnapBack(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+
+	m.Scroll(8)
+	if m.offset != 8 {
+		t.Fatalf("offset after scroll = %d, want 8", m.offset)
+	}
+	if it, _ := m.Selected(); it.Key != "u3" {
+		t.Fatalf("cursor after scroll = %q, want u3 (dragged into the window)", it.Key)
+	}
+
+	m.Move(1)
+	if m.offset != 8 {
+		t.Fatalf("offset = %d, want 8: move snapped the view back to the pre-scroll cursor", m.offset)
+	}
+}
+
+func TestScrollLeavesCursorUnsetWhenNothingSelectable(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{{Block: "nothing to show"}})
+	m.SetSize(80, 1)
+
+	m.Scroll(1)
+	if _, ok := m.Selected(); ok {
+		t.Fatal("scroll assigned a cursor to a list with no selectable items")
+	}
+	m.Move(1)
+	if _, ok := m.Selected(); ok {
+		t.Fatal("move assigned a cursor to a list with no selectable items")
+	}
+}
+
 func TestSetItemsSelectsFirstSelectable(t *testing.T) {
 	m := New()
 	m.SetItems(sample())
