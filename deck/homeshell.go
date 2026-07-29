@@ -39,8 +39,9 @@ type HomeShell struct {
 	// scheme map (keys.Cur); map PageUp/PageDown and FocusNext to keep paging
 	// and pane switching.
 	IsAction func(string) (keys.Action, bool)
-	// OnOpen overrides browser.Open when a side item Key is confirmed.
-	OnOpen func(url string) error
+	// OnOpen overrides browser.Open when a side item Key is opened.
+	OnOpen   func(url string) error
+	OnSelect func(h *Model, key string) tea.Cmd
 
 	cursor  int
 	focus   int
@@ -75,12 +76,17 @@ func (h *HomeShell) FocusSide() bool { return h.focus == homeFocusSide }
 func (h *HomeShell) Hints() [][2]string {
 	km := navMap()
 	if h.focus == homeFocusSide {
-		return [][2]string{
-			km.HintLabeled(keys.Up, "move"),
-			km.HintLabeled(keys.Confirm, "open"),
-			km.HintLabeled(keys.PageUp, "page"),
-			km.HintLabeled(keys.FocusNext, "menu"),
+		hints := [][2]string{km.HintLabeled(keys.Up, "move")}
+		if h.OnSelect != nil {
+			hints = append(hints,
+				km.HintLabeled(keys.Confirm, "details"),
+				km.HintLabeled(keys.Open, "open"))
+		} else {
+			hints = append(hints, km.HintLabeled(keys.Confirm, "open"))
 		}
+		return append(hints,
+			km.HintLabeled(keys.PageUp, "page"),
+			km.HintLabeled(keys.FocusNext, "menu"))
 	}
 	hints := [][2]string{
 		km.HintLabeled(keys.Up, "move"),
@@ -141,6 +147,8 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 		case keys.PageDown:
 			h.side.Scroll(max(h.side.Height(), 1))
 		case keys.Confirm:
+			return h.confirmSelected(host)
+		case keys.Open:
 			return h.openSelected()
 		case keys.Cancel:
 			h.focus = homeFocusMenu
@@ -181,6 +189,17 @@ func (h *HomeShell) action(key string) (keys.Action, bool) {
 		return h.IsAction(key)
 	}
 	return navMap().Action(key)
+}
+
+func (h *HomeShell) confirmSelected(host *Model) tea.Cmd {
+	if h.OnSelect == nil {
+		return h.openSelected()
+	}
+	it, ok := h.side.Selected()
+	if !ok || it.Key == "" {
+		return nil
+	}
+	return h.OnSelect(host, it.Key)
 }
 
 func (h *HomeShell) openSelected() tea.Cmd {

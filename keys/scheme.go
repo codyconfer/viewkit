@@ -15,6 +15,7 @@ const (
 	Erase     Action = "erase"
 	PageUp    Action = "page.up"
 	PageDown  Action = "page.down"
+	Open      Action = "open"
 )
 
 type Scheme struct {
@@ -52,6 +53,7 @@ func Default() Scheme {
 		Erase:     {Keys: []string{"backspace", "ctrl+h"}, Action: Erase, Glyph: "backspace"},
 		PageUp:    {Keys: []string{"pgup"}, Action: PageUp, Glyph: "pgup/pgdn"},
 		PageDown:  {Keys: []string{"pgdown"}, Action: PageDown},
+		Open:      {Keys: []string{"o"}, Action: Open, Glyph: "o", Label: "open"},
 	}}
 }
 

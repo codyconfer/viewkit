@@ -28,8 +28,9 @@ type ItemList struct {
 	// IsAction maps a key string to a keys.Action, fully replacing the active
 	// scheme map (keys.Cur); map PageUp/PageDown too to keep paging.
 	IsAction func(string) (keys.Action, bool)
-	// OnOpen overrides browser.Open when an item Key is confirmed.
-	OnOpen func(url string) error
+	// OnOpen overrides browser.Open when an item Key is opened.
+	OnOpen   func(url string) error
+	OnSelect func(h *Model, key string) tea.Cmd
 	// LoadingText shown before load completes.
 	LoadingText string
 
@@ -62,6 +63,14 @@ func (r *ItemList) Title() string        { return r.title }
 func (r *ItemList) Context() [][2]string { return r.ctx }
 func (r *ItemList) Hints() [][2]string {
 	km := navMap()
+	if r.OnSelect != nil {
+		return [][2]string{
+			km.HintLabeled(keys.Up, "move"),
+			km.HintLabeled(keys.Confirm, "details"),
+			km.HintLabeled(keys.Open, "open"),
+			km.HintLabeled(keys.PageUp, "page"),
+		}
+	}
 	return [][2]string{
 		km.HintLabeled(keys.Up, "move"),
 		km.HintLabeled(keys.Confirm, "open"),
@@ -109,11 +118,24 @@ func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
 	case keys.PageDown:
 		r.lst.Scroll(r.height)
 	case keys.Confirm:
+		return r.confirmSelected(h)
+	case keys.Open:
 		return r.openSelected()
 	case keys.Cancel:
 		return h.Pop()
 	}
 	return nil
+}
+
+func (r *ItemList) confirmSelected(h *Model) tea.Cmd {
+	if r.OnSelect == nil {
+		return r.openSelected()
+	}
+	it, ok := r.lst.Selected()
+	if !ok || it.Key == "" {
+		return nil
+	}
+	return r.OnSelect(h, it.Key)
 }
 
 func (r *ItemList) action(key string) (keys.Action, bool) {

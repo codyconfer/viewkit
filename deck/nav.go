@@ -19,5 +19,6 @@ func navMap() *keys.Map {
 		sc.Binding(keys.PageDown),
 		sc.Binding(keys.FocusNext),
 		sc.Binding(keys.FocusPrev),
+		sc.Binding(keys.Open),
 	)
 }
