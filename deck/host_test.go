@@ -273,7 +273,7 @@ func TestLoadDeliveryDoesNotCrossViews(t *testing.T) {
 	}
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	h = driveHost(h, first.Init()())
+	driveHost(h, first.Init()())
 	if second.loaded {
 		t.Fatal("first view's load marked the second view loaded")
 	}
