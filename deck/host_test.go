@@ -25,18 +25,71 @@ type stubComp struct{}
 func (stubComp) Render(int, int) string { return "c" }
 
 func TestRegisterView(t *testing.T) {
+	registryScope(t)
 	RegisterView("test.stub", func() View { return stubView{title: "Stub"} })
 	v, ok := LookupView("test.stub")
 	if !ok || v.Title() != "Stub" {
 		t.Fatalf("lookup = %v ok=%v", v, ok)
 	}
+	if got := ViewIDs(); len(got) != 1 || got[0] != "test.stub" {
+		t.Fatalf("ViewIDs = %v, want [test.stub]", got)
+	}
 }
 
 func TestRegisterComponent(t *testing.T) {
+	registryScope(t)
 	RegisterComponent("test.comp", func() Component { return stubComp{} })
 	c, ok := LookupComponent("test.comp")
 	if !ok || c.Render(1, 1) != "c" {
 		t.Fatal("component lookup")
+	}
+	if got := ComponentIDs(); len(got) != 1 || got[0] != "test.comp" {
+		t.Fatalf("ComponentIDs = %v, want [test.comp]", got)
+	}
+}
+
+func TestRegisterRejectsDuplicateIDs(t *testing.T) {
+	registryScope(t)
+	RegisterView("test.dupe", func() View { return stubView{title: "First"} })
+	RegisterComponent("test.dupe", func() Component { return stubComp{} })
+
+	for name, register := range map[string]func(){
+		"view":      func() { RegisterView("test.dupe", func() View { return stubView{} }) },
+		"component": func() { RegisterComponent("test.dupe", func() Component { return stubComp{} }) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatalf("re-registering a %s id did not panic", name)
+				}
+				if msg, ok := r.(string); !ok || !strings.Contains(msg, "test.dupe") {
+					t.Fatalf("panic = %v, want a message naming the duplicate id", r)
+				}
+			}()
+			register()
+		})
+	}
+}
+
+func TestRegisterIgnoresEmptyIDsAndNilConstructors(t *testing.T) {
+	registryScope(t)
+	RegisterView("", func() View { return stubView{} })
+	RegisterView("test.nil", nil)
+	RegisterComponent("", func() Component { return stubComp{} })
+	RegisterComponent("test.nil", nil)
+
+	if got := ViewIDs(); len(got) != 0 {
+		t.Fatalf("ViewIDs = %v, want none", got)
+	}
+	if got := ComponentIDs(); len(got) != 0 {
+		t.Fatalf("ComponentIDs = %v, want none", got)
+	}
+	if _, ok := LookupView("test.nil"); ok {
+		t.Fatal("a nil view constructor was stored")
+	}
+	if _, ok := LookupComponent("test.nil"); ok {
+		t.Fatal("a nil component constructor was stored")
 	}
 }
 
@@ -307,5 +360,49 @@ func TestWithoutClockDropsTheClockAndItsTick(t *testing.T) {
 	quiet.SetStatus(StatusInfo{Identity: "who@example.test"})
 	if got := ansi.Strip(quiet.View()); !strings.Contains(got, "who@example.test") {
 		t.Fatalf("identity should still render without the clock:\n%s", got)
+	}
+}
+
+func TestWithoutClockKeepsTheStatusRefreshArmed(t *testing.T) {
+	loads := 0
+	h := New(stubView{title: "root"},
+		WithoutClock(),
+		WithStatus(func(context.Context) StatusInfo {
+			loads++
+			return StatusInfo{Services: []ServiceStatus{{Name: "status-chip"}}}
+		}),
+	)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	init := h.Init()
+	if init == nil {
+		t.Fatal("WithoutClock with a status function must still schedule the status load")
+	}
+	if h.tick() != nil {
+		t.Fatal("WithoutClock must not schedule the 1 Hz repaint tick")
+	}
+
+	cmd := h.RefreshStatus()
+	if cmd == nil {
+		t.Fatal("RefreshStatus returned nil with a StatusFunc installed")
+	}
+	m, rearm := h.Update(cmd())
+	h = m.(*Model)
+	if rearm == nil {
+		t.Fatal("a landed status must re-arm the periodic refresh even with no clock")
+	}
+	if _, again := h.Update(statusRefreshMsg{}); again == nil {
+		t.Fatal("the periodic refresh must reload the status strip even with no clock")
+	}
+	if loads != 1 {
+		t.Fatalf("StatusFunc calls = %d, want 1 (only RefreshStatus ran its command)", loads)
+	}
+
+	got := ansi.Strip(h.View())
+	if !strings.Contains(got, "status-chip") {
+		t.Fatalf("status strip missing without the clock:\n%s", got)
+	}
+	if strings.Contains(got, h.clock) {
+		t.Fatalf("WithoutClock still rendered the clock:\n%s", got)
 	}
 }

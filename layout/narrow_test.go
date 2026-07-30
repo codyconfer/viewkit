@@ -27,6 +27,15 @@ func titledBoxPane(name string) Pane {
 	}
 }
 
+// cellTitledBoxPane is the pane shape for tracks of any width: CellTitledBox
+// takes the rect width directly and clamps its body down to fit.
+func cellTitledBoxPane(name string) Pane {
+	return Pane{
+		Name:   name,
+		Render: func(f Frame) string { return f.CellTitledBox(name, "x") },
+	}
+}
+
 // assertBoxedGridIntact checks the two invariants a tiled layout owes its
 // caller: every row is exactly the frame width, and no box loses an edge — a
 // sliced right border shows up as a row with more ╭ than ╮.
@@ -79,6 +88,12 @@ func TestGridNarrowColumnsKeepBordersIntact(t *testing.T) {
 		{"8 cols at 81 with CellBox", 8, 81, 8, cellBoxPane, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, 4},
 		{"4 cols at 40 with CellBox", 4, 40, 8, cellBoxPane, []string{"a", "b", "c", "d"}, 2},
 		{"2 cols at 24 with CellBox", 2, 24, 8, cellBoxPane, []string{"a", "b"}, 1},
+		{"1 col at 27 with CellTitledBox", 1, 27, 4, cellTitledBoxPane, []string{"a"}, 1},
+		{"2 cols at 43 with CellTitledBox", 2, 43, 4, cellTitledBoxPane, []string{"a", "b"}, 2},
+		{"3 cols at 67 with CellTitledBox", 3, 67, 4, cellTitledBoxPane, []string{"a", "b", "c"}, 3},
+		{"4 cols at 95 with CellTitledBox", 4, 95, 4, cellTitledBoxPane, []string{"a", "b", "c", "d"}, 4},
+		{"8 cols at 184 with CellTitledBox", 8, 184, 4, cellTitledBoxPane,
+			[]string{"a", "b", "c", "d", "e", "f", "g", "h"}, 8},
 	}
 	for _, c := range cases {
 		panes := make([]Pane, 0, len(c.names))
@@ -94,7 +109,7 @@ func TestFitColsDropsColumnsBelowMinTrack(t *testing.T) {
 	cases := []struct{ cols, width, want int }{
 		{4, 81, 4}, {4, 79, 3}, {4, 40, 2}, {4, 20, 1}, {4, 19, 1},
 		{2, 40, 2}, {2, 39, 1}, {8, 81, 4}, {1, 1, 1}, {0, 81, 1}, {-3, 81, 1},
-		{4, 0, 4}, {4, -5, 4},
+		{4, 0, 1}, {4, -5, 1},
 	}
 	for _, c := range cases {
 		if got := FitCols(c.cols, c.width); got != c.want {
@@ -222,7 +237,9 @@ func TestDegenerateFramesStillClamp(t *testing.T) {
 	}
 }
 
-func TestSpreadBGNeverExceedsWidth(t *testing.T) {
+// TestSpreadFamilyIsWidthExact covers both spreaders: they right-align the same
+// way, so they owe their callers the same width guarantee.
+func TestSpreadFamilyIsWidthExact(t *testing.T) {
 	bg := theme.Cur().Dim.GetForeground()
 	long := "identity.that.is.long@example.com   12:34:56"
 	cases := []struct {
@@ -238,14 +255,63 @@ func TestSpreadBGNeverExceedsWidth(t *testing.T) {
 		{"tiny width", "abc", "def", 3},
 		{"width one", "abc", "def", 1},
 		{"fits with slack", "left", "right", 40},
+		{"wide right alone at two", "", "日本語", 2},
+		{"wide right alone at three", "", "日本語", 3},
+		{"wide right alone at four", "", "日本語", 4},
+		{"wide both", "日本語", "日本語", 7},
+		{"wide left narrow right", "日本語ですよ", "x", 5},
 	}
 	for _, c := range cases {
-		got := SpreadBG(bg, c.left, c.right, c.width)
-		if w := ansi.StringWidth(got); w != c.width {
-			t.Errorf("SpreadBG(%s) width = %d, want %d: %q", c.name, w, c.width, stripANSI(got))
+		for name, got := range map[string]string{
+			"Spread":   Spread(c.left, c.right, c.width),
+			"SpreadBG": SpreadBG(bg, c.left, c.right, c.width),
+		} {
+			if w := ansi.StringWidth(got); w != c.width {
+				t.Errorf("%s(%s) width = %d, want %d: %q", name, c.name, w, c.width, stripANSI(got))
+			}
+			if strings.Contains(got, "\n") {
+				t.Errorf("%s(%s) wrapped onto multiple lines: %q", name, c.name, stripANSI(got))
+			}
 		}
-		if strings.Contains(got, "\n") {
-			t.Errorf("SpreadBG(%s) wrapped onto multiple lines: %q", c.name, stripANSI(got))
+	}
+}
+
+func TestSpreadFamilyWidthSweep(t *testing.T) {
+	bg := theme.Cur().Dim.GetForeground()
+	parts := []string{"", "a", "abc", "日本語", "日", "a日b", "abc def", strings.Repeat("x", 12), "…"}
+	for _, left := range parts {
+		for _, right := range parts {
+			for width := 1; width <= 14; width++ {
+				for name, got := range map[string]string{
+					"Spread":   Spread(left, right, width),
+					"SpreadBG": SpreadBG(bg, left, right, width),
+				} {
+					if w := ansi.StringWidth(got); w != width {
+						t.Fatalf("%s(%q, %q, %d) width = %d, want %d: %q",
+							name, left, right, width, w, width, stripANSI(got))
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestCellTitledBoxNeverExceedsFrameWidth is the TitledBox counterpart of
+// TestCellBoxNeverExceedsFrameWidth: MinTrackWidth (20) is below the 28 columns
+// TitledBox needs, so tracks in [20,27] used to lose a right border. The
+// clamp-down variant must fit any track.
+func TestCellTitledBoxNeverExceedsFrameWidth(t *testing.T) {
+	for width := 1; width <= 40; width++ {
+		for _, box := range []string{
+			Frame{Width: width}.CellTitledBox("title", "body"),
+			Frame{Width: width}.CellTitledBoxIcon("✱", "title", "body"),
+		} {
+			for _, r := range strings.Split(box, "\n") {
+				if w := ansi.StringWidth(r); w > width {
+					t.Fatalf("CellTitledBox at width %d produced a %d-wide row: %q",
+						width, w, stripANSI(r))
+				}
+			}
 		}
 	}
 }

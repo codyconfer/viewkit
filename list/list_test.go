@@ -209,6 +209,87 @@ func TestSetItemsKeepingCursorFallsBackWhenKeyIsGone(t *testing.T) {
 	}
 }
 
+func TestSetItemsKeepingCursorHoldsIndexForKeylessRows(t *testing.T) {
+	rows := func(suffix string) []Item {
+		return []Item{
+			{Block: "header"},
+			{Block: "first" + suffix, Selectable: true},
+			{Block: "second" + suffix, Selectable: true},
+			{Block: "third" + suffix, Selectable: true},
+		}
+	}
+	m := New()
+	m.SetItems(rows(""))
+	m.SetSize(80, 5)
+	m.Move(1)
+	m.Move(1)
+	if it, _ := m.Selected(); it.Block != "third" {
+		t.Fatalf("precondition: cursor = %q, want third", it.Block)
+	}
+
+	m.SetItemsKeepingCursor(rows(" (wrapped)"))
+
+	if it, ok := m.Selected(); !ok || it.Block != "third (wrapped)" {
+		t.Fatalf("cursor = %q (%v), want third (wrapped): a keyless rebind reset the selection", it.Block, ok)
+	}
+	if m.cursor != 3 {
+		t.Fatalf("cursor index = %d, want 3", m.cursor)
+	}
+}
+
+func TestSetItemsKeepingCursorDropsKeylessCursorWhenTheIndexIsGone(t *testing.T) {
+	m := New()
+	m.SetItems([]Item{
+		{Block: "header"},
+		{Block: "first", Selectable: true},
+		{Block: "second", Selectable: true},
+	})
+	m.SetSize(80, 5)
+	m.Move(1)
+	if it, _ := m.Selected(); it.Block != "second" {
+		t.Fatalf("precondition: cursor = %q, want second", it.Block)
+	}
+
+	m.SetItemsKeepingCursor([]Item{
+		{Block: "header"},
+		{Block: "only", Selectable: true},
+		{Block: "footer"},
+	})
+
+	if it, ok := m.Selected(); !ok || it.Block != "only" {
+		t.Fatalf("cursor = %q (%v), want only (first selectable)", it.Block, ok)
+	}
+	if m.offset != 0 {
+		t.Fatalf("offset = %d, want 0 on fallback", m.offset)
+	}
+}
+
+func TestSetItemsKeepingCursorResolvesDuplicateKeysToTheFirstMatch(t *testing.T) {
+	dupes := []Item{
+		{Block: "Open PRs  (3)"},
+		{Block: "pr one", Key: "dup", Selectable: true},
+		{Block: "pr two", Key: "dup", Selectable: true},
+		{Block: "pr three", Key: "dup", Selectable: true},
+	}
+	m := New()
+	m.SetItems(dupes)
+	m.SetSize(80, 6)
+	m.Move(1)
+	m.Move(1)
+	if m.cursor != 3 {
+		t.Fatalf("precondition: cursor index = %d, want 3", m.cursor)
+	}
+
+	m.SetItemsKeepingCursor(dupes)
+
+	if m.cursor != 1 {
+		t.Fatalf("cursor index = %d, want 1: duplicate keys resolve to the first match", m.cursor)
+	}
+	if it, ok := m.Selected(); !ok || it.Key != "dup" {
+		t.Fatalf("selection = %q (%v), want the dup key", it.Key, ok)
+	}
+}
+
 func TestSetItemsKeepingCursorHandlesEmptyAndUnselectableLists(t *testing.T) {
 	m := New()
 	m.SetItems(flightSample())

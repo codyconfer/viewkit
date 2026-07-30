@@ -120,6 +120,176 @@ func TestGridAutoFlowFillsFreeCells(t *testing.T) {
 	}
 }
 
+func TestGridCollidingPositionsKeepEveryPane(t *testing.T) {
+	panes := []Pane{
+		fixedPane("A", false, &GridPos{Col: 0, Row: 0}),
+		fixedPane("B", false, &GridPos{Col: 0, Row: 0}),
+		fixedPane("C", false, &GridPos{Col: 1, Row: 0}),
+	}
+	out := Grid{Cols: 2}.Arrange(Frame{Width: 80, Height: 4}, TierTall, panes, "")
+	for i, r := range strings.Split(out, "\n") {
+		if w := ansiWidth(r); w != 80 {
+			t.Fatalf("row %d width = %d, want 80:\n%s", i, w, stripANSI(out))
+		}
+	}
+	for _, name := range []string{"A", "B", "C"} {
+		if !strings.Contains(stripANSI(out), name) {
+			t.Errorf("pane %q vanished from a colliding grid:\n%s", name, stripANSI(out))
+		}
+	}
+}
+
+func TestGridCollidingPositionsCascadeToNextRow(t *testing.T) {
+	panes := []Pane{
+		fixedPane("A", false, &GridPos{Col: 0, Row: 0}),
+		fixedPane("B", false, &GridPos{Col: 0, Row: 0}),
+	}
+	out := Grid{Cols: 1}.Arrange(Frame{Width: 40, Height: 4}, TierTall, panes, "")
+	rows := strings.Split(out, "\n")
+	if !strings.Contains(stripANSI(rows[0]), "A") {
+		t.Fatalf("pane A missing from row 0:\n%s", stripANSI(out))
+	}
+	if strings.Contains(stripANSI(rows[0]), "B") {
+		t.Fatalf("pane B drew into A's row in a single-column grid:\n%s", stripANSI(out))
+	}
+	if !strings.Contains(stripANSI(rows[len(rows)-1]), "B") {
+		t.Fatalf("pane B never cascaded to a free row:\n%s", stripANSI(out))
+	}
+}
+
+func TestGridReflowKeepsColSpanIntent(t *testing.T) {
+	panes := []Pane{
+		fixedPane("HDR", false, &GridPos{Col: 0, Row: 0, ColSpan: 3}),
+		fixedPane("x", false, nil),
+		fixedPane("y", false, nil),
+		fixedPane("z", false, nil),
+	}
+	out := Grid{Cols: 3}.Arrange(Frame{Width: 59, Height: 6}, TierTall, panes, "")
+	for i, r := range strings.Split(out, "\n") {
+		if w := ansiWidth(r); w != 59 {
+			t.Fatalf("row %d width = %d, want 59:\n%s", i, w, stripANSI(out))
+		}
+	}
+	row0 := stripANSI(lineAt(out, 0))
+	if !strings.Contains(row0, "HDR") {
+		t.Fatalf("header missing from row 0:\n%s", stripANSI(out))
+	}
+	for _, name := range []string{"x", "y", "z"} {
+		if strings.Contains(row0, name) {
+			t.Errorf("pane %q shares row 0 with the full-width header (ColSpan discarded):\n%s",
+				name, stripANSI(out))
+		}
+	}
+	for _, name := range []string{"x", "y", "z"} {
+		if !strings.Contains(stripANSI(out), name) {
+			t.Errorf("pane %q vanished:\n%s", name, stripANSI(out))
+		}
+	}
+}
+
+func TestGridReflowKeepsRowSpanIntent(t *testing.T) {
+	panes := []Pane{
+		fixedPane("A", false, &GridPos{Col: 0, Row: 0, RowSpan: 2}),
+		fixedPane("B", false, nil),
+	}
+	out := Grid{Cols: 2}.Arrange(Frame{Width: 39, Height: 6}, TierTall, panes, "")
+	rows := strings.Split(out, "\n")
+	tall, short := 0, 0
+	for _, r := range rows {
+		s := stripANSI(r)
+		if strings.Contains(s, "A") {
+			tall++
+		}
+		if strings.Contains(s, "B") {
+			short++
+		}
+	}
+	if tall <= short {
+		t.Fatalf("row-spanning pane got %d rows and its neighbour %d; the span was discarded:\n%s",
+			tall, short, stripANSI(out))
+	}
+}
+
+// TestGridReflowCapsAbsurdRowSpan makes sure a reflowed span stays searchable:
+// autoFlow used to zero every span, so an absurd RowSpan was silently ignored;
+// now that spans survive, the free-block search must not walk them forever.
+func TestGridReflowCapsAbsurdRowSpan(t *testing.T) {
+	panes := []Pane{
+		fixedPane("A", false, &GridPos{Col: 0, Row: 0, RowSpan: 1 << 30}),
+		fixedPane("B", false, nil),
+	}
+	out := Grid{Cols: 2}.Arrange(Frame{Width: 39, Height: 4}, TierTall, panes, "")
+	rows := strings.Split(out, "\n")
+	if len(rows) != 4 {
+		t.Fatalf("grid height = %d rows, want 4", len(rows))
+	}
+	for i, r := range rows {
+		if w := ansiWidth(r); w != 39 {
+			t.Fatalf("row %d width = %d, want 39:\n%s", i, w, stripANSI(out))
+		}
+	}
+	for _, name := range []string{"A", "B"} {
+		if !strings.Contains(stripANSI(out), name) {
+			t.Errorf("pane %q vanished:\n%s", name, stripANSI(out))
+		}
+	}
+}
+
+// TestGridCellsNeverOverlap is the invariant composite depends on: it lays rows
+// out left to right and pads them to the frame width, so any pair of overlapping
+// rects would push a pane off the end of its row and delete it outright.
+func TestGridCellsNeverOverlap(t *testing.T) {
+	specs := [][]*GridPos{
+		{{Col: 0, Row: 0}, {Col: 0, Row: 0}, {Col: 1, Row: 0}},
+		{{Col: 0, Row: 0, ColSpan: 3}, {Col: 1, Row: 0}, nil},
+		{{Col: 0, Row: 0, RowSpan: 3}, {Col: 0, Row: 1}, {Col: 0, Row: 2}},
+		{{Col: 2, Row: 1, ColSpan: 2}, {Col: 3, Row: 1}, nil, nil},
+		{nil, {Col: 0, Row: 0}, nil, {Col: 0, Row: 0, ColSpan: 2}},
+		{{Col: -4, Row: -4}, {Col: 0, Row: 0}, {Col: 9, Row: 0}, {Col: 9, Row: 0}},
+	}
+	for si, spec := range specs {
+		panes := make([]Pane, 0, len(spec))
+		for i, pos := range spec {
+			panes = append(panes, fixedPane(string(rune('A'+i)), false, pos))
+		}
+		for _, cols := range []int{1, 2, 3, 4} {
+			for _, width := range []int{20, 40, 59, 80, 120} {
+				g := Grid{Cols: FitCols(cols, width)}
+				slots := gridSlots(panes)
+				if g.Cols < cols {
+					slots = autoFlow(slots, g.Cols)
+				}
+				cells, gc, gr := g.place(slots)
+				for a := range cells {
+					for b := a + 1; b < len(cells); b++ {
+						if cellsOverlap(cells[a], cells[b]) {
+							t.Fatalf("spec %d cols %d width %d: cells %d %+v and %d %+v overlap",
+								si, cols, width, a, cells[a], b, cells[b])
+						}
+					}
+				}
+				out := Grid{Cols: cols}.Arrange(Frame{Width: width, Height: 8}, TierTall, panes, "")
+				for i, r := range strings.Split(out, "\n") {
+					if w := ansiWidth(r); w != width {
+						t.Fatalf("spec %d cols %d width %d: row %d width %d:\n%s",
+							si, cols, width, i, w, stripANSI(out))
+					}
+				}
+				for i := range spec {
+					if !strings.Contains(stripANSI(out), string(rune('A'+i))) {
+						t.Fatalf("spec %d cols %d width %d (grid %dx%d): pane %q vanished:\n%s",
+							si, cols, width, gc, gr, string(rune('A'+i)), stripANSI(out))
+					}
+				}
+			}
+		}
+	}
+}
+
+func cellsOverlap(a, b gridCell) bool {
+	return a.x < b.x+b.w && b.x < a.x+a.w && a.y < b.y+b.h && b.y < a.y+a.h
+}
+
 func TestGridColSpanClampsToGrid(t *testing.T) {
 	c := cellFor(GridPos{Col: 1, ColSpan: 5}, 3)
 	if c.x != 1 || c.w != 2 {

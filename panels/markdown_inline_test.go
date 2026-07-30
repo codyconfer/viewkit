@@ -198,7 +198,11 @@ func markdownLegacy(f layout.Frame, src string) string {
 		case trimmed == "":
 			out = append(out, "")
 		case trimmed == "---" || trimmed == "***" || trimmed == "___":
-			out = append(out, f.Rule())
+			// Frame.Rule is BodyWidth+4 wide (it underlines a whole panel), so a
+			// rule dropped into a BodyWidth body wrapped onto a second line. The
+			// fix is intentional and mirrored here: this reference exists to guard
+			// the inline passes, not the rule.
+			out = append(out, ansi.Truncate(f.Rule(), width, ""))
 		case strings.HasPrefix(trimmed, "### "):
 			out = append(out, t.Accent.Render(ansi.Truncate(strings.TrimPrefix(trimmed, "### "), width, "…")))
 		case strings.HasPrefix(trimmed, "## "):
@@ -250,8 +254,18 @@ func TestMdInlinePlainLineEmitsNoEscapes(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 	lipgloss.SetColorProfile(termenv.TrueColor)
 
+	// The filter is derived from the pass patterns rather than re-typing the
+	// guard's alphabet: a line no pattern can match must come back untouched,
+	// whether the fast path skipped it or every pass ran and found nothing.
 	for _, in := range mdInlineCorpus() {
-		if strings.ContainsAny(in, "*_`[") {
+		matched := false
+		for _, p := range mdInlinePasses {
+			if p.re.MatchString(in) {
+				matched = true
+				break
+			}
+		}
+		if matched {
 			continue
 		}
 		if got := mdInline(in); got != in {
@@ -259,6 +273,123 @@ func TestMdInlinePlainLineEmitsNoEscapes(t *testing.T) {
 		}
 		if mdInlineEscapeRe.MatchString(mdInline(in)) {
 			t.Errorf("mdInline(%q) emitted escapes", in)
+		}
+	}
+}
+
+// mdInlineEscapeHazards are the inputs mdInlineLegacy corrupts: an earlier pass
+// injects a CSI sequence, whose literal '[' the link pattern then matches, so the
+// SGR parameters leak into the line as text and the real link keeps its bracket.
+// They are deliberately not in mdInlineCorpus — the legacy output is the bug, so
+// the byte-for-byte comparison must not treat it as the expectation.
+func mdInlineEscapeHazards() []struct{ in, want string } {
+	return []struct{ in, want string }{
+		{"see `go test` and the [docs](http://x) for more", "see go test and the docs (http://x) for more"},
+		{"**bold** then [docs](http://x)", "bold then docs (http://x)"},
+		{"*em* then [docs](http://x)", "em then docs (http://x)"},
+		{"_em_ and [a](b) and `c` and [d](e)", "em and a (b) and c and d (e)"},
+		{"`code` [label](http://x/a_b)", "code label (http://x/a_b)"},
+	}
+}
+
+func TestMdInlineKeepsLinksIntactAfterStyledSpans(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	for _, c := range mdInlineEscapeHazards() {
+		got := mdInline(c.in)
+		if plain := stripANSI(got); plain != c.want {
+			t.Errorf("mdInline(%q)\n plain %q\n  want %q\n   raw %q", c.in, plain, c.want, got)
+		}
+	}
+}
+
+func TestMarkdownKeepsLinksIntactAfterStyledSpans(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	f := layout.NewFrame(81)
+	for _, c := range mdInlineEscapeHazards() {
+		for _, prefix := range []string{"", "- ", "> ", "1. "} {
+			out := stripANSI(Markdown(f, prefix+c.in))
+			if !strings.Contains(out, c.want) {
+				t.Errorf("Markdown(%q) = %q, want it to contain %q", prefix+c.in, out, c.want)
+			}
+		}
+	}
+}
+
+// TestMdMarkersCoverEveryInlinePattern is the sufficiency check the hand-kept
+// `const mdMarkers = "*_`["` never had: it enumerates short strings over each
+// pattern's own literal alphabet and fails if any pattern matches a string the
+// fast-path guard would have skipped. Adding a pass whose markers are missing
+// from the guard makes this fail instead of silently shipping a dead feature.
+func TestMdMarkersCoverEveryInlinePattern(t *testing.T) {
+	for _, p := range mdInlinePasses {
+		alphabet := append(reLiterals(p.re), 'a', 'b')
+		seen := map[rune]bool{}
+		uniq := alphabet[:0:0]
+		for _, r := range alphabet {
+			if !seen[r] {
+				seen[r] = true
+				uniq = append(uniq, r)
+			}
+		}
+		var walk func(s string, depth int)
+		walk = func(s string, depth int) {
+			if t.Failed() {
+				return
+			}
+			if s != "" && p.re.MatchString(s) && !strings.ContainsAny(s, mdMarkers) {
+				t.Fatalf("pattern %s matches %q, but the mdInline guard %q skips that line",
+					p.re, s, mdMarkers)
+			}
+			if depth == 0 {
+				return
+			}
+			for _, r := range uniq {
+				walk(s+string(r), depth-1)
+			}
+		}
+		walk("", 6)
+	}
+}
+
+func TestMdMaskBlanksEscapesInPlace(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"plain", "plain"},
+		{"a\x1b[1mb", "a\x00\x00\x00\x00b"},
+		{"a\x1b]0;title\x07b", "a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00b"},
+		{"a\x1b]0;t\x1b\\b", "a\x00\x00\x00\x00\x00\x00\x00b"},
+		{"a\x1bZb", "a\x00\x00b"},
+		{"trailing\x1b", "trailing\x00"},
+		{"unterminated\x1b[38;2", "unterminated\x00\x00\x00\x00\x00\x00"},
+	}
+	for _, c := range cases {
+		got := mdMask(c.in)
+		if got != c.want {
+			t.Errorf("mdMask(%q) = %q, want %q", c.in, got, c.want)
+		}
+		if len(got) != len(c.in) {
+			t.Errorf("mdMask(%q) changed length %d -> %d (offsets would shift)", c.in, len(c.in), len(got))
+		}
+	}
+}
+
+func TestMarkdownRuleFitsTheBody(t *testing.T) {
+	for _, width := range []int{20, 40, 81} {
+		f := layout.NewFrame(width)
+		for _, src := range []string{"---", "***", "___"} {
+			out := Markdown(f, src)
+			if strings.Contains(out, "\n") {
+				t.Errorf("width %d: rule %q spans multiple lines: %q", width, src, stripANSI(out))
+			}
+			if w := ansi.StringWidth(out); w != f.BodyWidth() {
+				t.Errorf("width %d: rule %q is %d wide, want the body width %d",
+					width, src, w, f.BodyWidth())
+			}
 		}
 	}
 }

@@ -34,7 +34,7 @@ func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(f
 			continue
 		}
 		frac := v / total
-		sty := theme.Cur().Series[i%len(theme.Cur().Series)]
+		sty := seriesStyle(i)
 		n := min(max(int(frac*float64(barWidth)+0.5), 0), barWidth-filled)
 		filled += n
 		bar.WriteString(sty.Render(strings.Repeat("█", n)))

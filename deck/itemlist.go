@@ -42,6 +42,8 @@ type ItemList struct {
 	ready   bool
 	loaded  bool
 	fetched any
+
+	boundTheme *theme.Theme
 }
 
 // NewItemList builds an ItemList with Fetch+Bind.
@@ -124,7 +126,7 @@ func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		w, ht := m.Width, max(m.Height-r.ChromeReserve, 1)
-		if r.ready && w == r.width && ht == r.height {
+		if r.ready && w == r.width && ht == r.height && r.boundTheme == theme.Cur() {
 			return nil
 		}
 		r.width, r.height, r.ready = w, ht, true
@@ -209,6 +211,7 @@ func (r *ItemList) refresh() {
 	if !r.ready || !r.loaded {
 		return
 	}
+	r.boundTheme = theme.Cur()
 	r.lst.SetSize(r.width, r.height)
 	if r.Bind != nil {
 		r.lst.SetItemsKeepingCursor(r.Bind(r.width, r.fetched))

@@ -53,8 +53,16 @@ type HomeShell struct {
 	focus   int
 	side    list.Model
 	width   int
+	ready   bool
 	loaded  bool
 	fetched any
+	bound   sideBind
+}
+
+type sideBind struct {
+	width int
+	label string
+	theme *theme.Theme
 }
 
 // NewHomeShell builds a HomeShell. sideLabel empty + SideFetch nil → menu-only.
@@ -168,6 +176,10 @@ func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		h.width = m.Width
+		if h.ready && h.bound == h.bindKey() {
+			return nil
+		}
+		h.ready = true
 		h.refresh()
 		return nil
 	case homeShellLoadedMsg:
@@ -276,7 +288,12 @@ func (h *HomeShell) openSelected() tea.Cmd {
 	}
 }
 
+func (h *HomeShell) bindKey() sideBind {
+	return sideBind{width: h.width, label: h.sideLabel(), theme: theme.Cur()}
+}
+
 func (h *HomeShell) refresh() {
+	h.bound = h.bindKey()
 	if !h.hasSide() || h.width == 0 {
 		return
 	}
@@ -290,11 +307,11 @@ func (h *HomeShell) refresh() {
 		return
 	}
 	if h.SideBind != nil {
-		h.side.SetItems(h.SideBind(h.width, h.fetched))
+		h.side.SetItemsKeepingCursor(h.SideBind(h.width, h.fetched))
 		return
 	}
 	if items, ok := h.fetched.([]list.Item); ok {
-		h.side.SetItems(items)
+		h.side.SetItemsKeepingCursor(items)
 	}
 }
 

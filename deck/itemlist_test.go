@@ -87,7 +87,7 @@ func TestItemListKeepsCursorAcrossDetailRoundTrip(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("Pop returned no relayout command")
 	}
-	h = driveHost(h, cmd())
+	driveHost(h, cmd())
 
 	if it, ok := il.Selected(); !ok || it.Key != "u3" {
 		t.Fatalf("cursor = %q (%v), want u3: the pop relayout reset the list", it.Key, ok)
@@ -111,7 +111,7 @@ func TestItemListSameSizeResizeKeepsCursor(t *testing.T) {
 		t.Fatalf("cursor = %q (%v), want u2 after a no-op resize", it.Key, ok)
 	}
 
-	h = driveHost(h, tea.WindowSizeMsg{Width: 100, Height: 24})
+	driveHost(h, tea.WindowSizeMsg{Width: 100, Height: 24})
 	if binds == before {
 		t.Fatal("a real resize must re-bind the rows")
 	}

@@ -27,6 +27,23 @@ func finite(v float64) float64 {
 	return v
 }
 
+// seriesStyle picks the i-th series colour. theme.New always fills Series, but
+// theme.Use accepts any Theme literal, and i%len(series) on an empty slice is an
+// integer divide by zero, so a Series-less theme falls back to the value style.
+func seriesStyle(i int) lipgloss.Style {
+	return seriesAt(theme.Cur().Series, i)
+}
+
+func seriesAt(series []lipgloss.Style, i int) lipgloss.Style {
+	if len(series) == 0 {
+		return theme.Cur().Val
+	}
+	if i < 0 {
+		i = 0
+	}
+	return series[i%len(series)]
+}
+
 func ProgressBar(frac float64, width int) string {
 	if width < 0 {
 		width = 0

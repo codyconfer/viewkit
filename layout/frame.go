@@ -49,16 +49,19 @@ func Spread(left, right string, width int) string {
 	if leftW+rightW+1 > width {
 		switch {
 		case rightW >= width:
-			return ansi.Truncate(right, width, "…")
+			left, right = "", ansi.Truncate(right, width, "…")
 		case width-rightW > 1:
 			left = ansi.Truncate(left, width-rightW-1, "…")
 		default:
 			left = ""
 		}
-		leftW = ansi.StringWidth(left)
+		leftW, rightW = ansi.StringWidth(left), ansi.StringWidth(right)
 	}
-	gap := max(width-leftW-rightW, 1)
-	return left + strings.Repeat(" ", gap) + right
+	line := left + strings.Repeat(" ", max(width-leftW-rightW, 0)) + right
+	if ansi.StringWidth(line) > width {
+		line = ansi.Truncate(line, width, "")
+	}
+	return line
 }
 
 func (f Frame) Spread(left, right string) string {

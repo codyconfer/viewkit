@@ -240,16 +240,25 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 		if labelW < ansi.StringWidth(fd.Label) {
 			label = fieldLabel(ansi.Truncate(fd.Label, labelW, "…"), focused)
 		}
-		val := fd.display()
+		val := ansi.Truncate(fd.display(), valW, "…")
 		if focused {
-			val = ansi.Truncate(val, max(valW-1, 1), "…") + "▎" + fd.ghost(sg)
+			val = fd.caretRow(valW, sg)
 		}
-		shown := t.Val.Render(ansi.Truncate(val, valW, "…"))
+		shown := t.Val.Render(val)
 		if fd.Text == "" && !focused {
 			shown = t.Dim.Render("…")
 		}
 		return append([]string{label + "  " + shown}, fd.suggestions(f, focused, sg)...)
 	}
+}
+
+func (fd *Field) caretRow(valW int, sg suggState) string {
+	body := ansi.Truncate(fd.display(), max(valW-1, 1), "…")
+	room := valW - ansi.StringWidth(body) - 1
+	if room <= 0 {
+		return body + "▎"
+	}
+	return body + "▎" + ansi.Truncate(fd.ghost(sg), room, "")
 }
 
 func (fd *Field) ghost(sg suggState) string {

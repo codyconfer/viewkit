@@ -13,6 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Race detector. Its own job so the fast `check` signal stays fast.
+  race:
+    name: race
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: make test-race
+        run: make test-race
+
+  # Randomized test order, to catch tests that depend on execution order.
+  shuffle:
+    name: shuffle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: make test-shuffle
+        run: make test-shuffle
+
   check:
     name: check (${{ matrix.os }})
     strategy:

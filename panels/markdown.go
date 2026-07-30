@@ -2,6 +2,7 @@ package panels
 
 import (
 	"regexp"
+	"regexp/syntax"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -41,7 +42,7 @@ func Markdown(f layout.Frame, src string) string {
 		case trimmed == "":
 			out = append(out, "")
 		case trimmed == "---" || trimmed == "***" || trimmed == "___":
-			out = append(out, f.Rule())
+			out = append(out, ansi.Truncate(f.Rule(), width, ""))
 		case strings.HasPrefix(trimmed, "### "):
 			out = append(out, t.Accent.Render(ansi.Truncate(strings.TrimPrefix(trimmed, "### "), width, "…")))
 		case strings.HasPrefix(trimmed, "## "):
@@ -69,35 +70,87 @@ func MarkdownPanel(f layout.Frame, title, src string) string {
 	return f.Panel(title, strings.Split(Markdown(f, src), "\n")...)
 }
 
-const mdMarkers = "*_`["
+// mdPass is one inline styling pass. The list below is the single source of
+// truth: mdInline runs it in order and mdMarkers is derived from it, so a new
+// pattern cannot be dead on arrival behind a stale fast-path guard.
+type mdPass struct {
+	re     *regexp.Regexp
+	render func(b *strings.Builder, t *theme.Theme, src string, loc []int)
+}
+
+var mdInlinePasses = []mdPass{
+	{mdCode, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+		b.WriteString(t.Key.Render(mdGroup(src, loc, 1)))
+	}},
+	{mdBold, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+		b.WriteString(t.Accent.Bold(true).Render(mdGroup(src, loc, 1)))
+	}},
+	{mdItalic, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+		text := mdGroup(src, loc, 1)
+		if text == "" {
+			text = mdGroup(src, loc, 2)
+		}
+		b.WriteString(t.Val.Italic(true).Render(text))
+	}},
+	{mdLink, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+		b.WriteString(t.Accent.Render(mdGroup(src, loc, 1)))
+		b.WriteString(t.Dim.Render(" (" + mdGroup(src, loc, 2) + ")"))
+	}},
+}
+
+// mdMarkers is every literal byte the passes can need. A line without one of
+// them cannot match any pattern, so mdInline returns it untouched.
+var mdMarkers = mdMarkerSet(mdInlinePasses)
+
+func mdMarkerSet(passes []mdPass) string {
+	var b strings.Builder
+	seen := map[rune]bool{}
+	for _, p := range passes {
+		for _, r := range reLiterals(p.re) {
+			if !seen[r] {
+				seen[r] = true
+				b.WriteRune(r)
+			}
+		}
+	}
+	return b.String()
+}
+
+// reLiterals is the set of literal runes a pattern can match, taken from the
+// parsed pattern rather than from a hand-kept copy of it.
+func reLiterals(re *regexp.Regexp) []rune {
+	parsed, err := syntax.Parse(re.String(), syntax.Perl)
+	if err != nil {
+		return []rune(re.String())
+	}
+	var out []rune
+	var walk func(*syntax.Regexp)
+	walk = func(r *syntax.Regexp) {
+		if r.Op == syntax.OpLiteral {
+			out = append(out, r.Rune...)
+		}
+		for _, sub := range r.Sub {
+			walk(sub)
+		}
+	}
+	walk(parsed)
+	return out
+}
 
 func mdInline(s string) string {
 	if !strings.ContainsAny(s, mdMarkers) {
 		return s
 	}
 	t := theme.Cur()
-	s = mdReplace(s, mdCode, func(b *strings.Builder, src string, loc []int) {
-		b.WriteString(t.Key.Render(mdGroup(src, loc, 1)))
-	})
-	s = mdReplace(s, mdBold, func(b *strings.Builder, src string, loc []int) {
-		b.WriteString(t.Accent.Bold(true).Render(mdGroup(src, loc, 1)))
-	})
-	s = mdReplace(s, mdItalic, func(b *strings.Builder, src string, loc []int) {
-		text := mdGroup(src, loc, 1)
-		if text == "" {
-			text = mdGroup(src, loc, 2)
-		}
-		b.WriteString(t.Val.Italic(true).Render(text))
-	})
-	s = mdReplace(s, mdLink, func(b *strings.Builder, src string, loc []int) {
-		b.WriteString(t.Accent.Render(mdGroup(src, loc, 1)))
-		b.WriteString(t.Dim.Render(" (" + mdGroup(src, loc, 2) + ")"))
-	})
+	for _, p := range mdInlinePasses {
+		s = mdReplace(s, p.re, t, p.render)
+	}
 	return s
 }
 
-func mdReplace(s string, re *regexp.Regexp, render func(*strings.Builder, string, []int)) string {
-	locs := re.FindAllStringSubmatchIndex(s, -1)
+func mdReplace(s string, re *regexp.Regexp, t *theme.Theme,
+	render func(*strings.Builder, *theme.Theme, string, []int)) string {
+	locs := re.FindAllStringSubmatchIndex(mdMask(s), -1)
 	if len(locs) == 0 {
 		return s
 	}
@@ -106,11 +159,60 @@ func mdReplace(s string, re *regexp.Regexp, render func(*strings.Builder, string
 	end := 0
 	for _, loc := range locs {
 		b.WriteString(s[end:loc[0]])
-		render(&b, s, loc)
+		render(&b, t, s, loc)
 		end = loc[1]
 	}
 	b.WriteString(s[end:])
 	return b.String()
+}
+
+// mdMask blanks every escape sequence in place, keeping byte offsets, so the
+// patterns match against text only: an earlier pass injects CSI sequences, and
+// the '[' inside one used to satisfy mdLink, which swallowed the styled span and
+// leaked the SGR parameters into the line as literal text.
+func mdMask(s string) string {
+	if strings.IndexByte(s, 0x1b) < 0 {
+		return s
+	}
+	b := []byte(s)
+	for i := 0; i < len(b); {
+		if b[i] != 0x1b {
+			i++
+			continue
+		}
+		end := mdEscapeEnd(b, i)
+		for ; i < end; i++ {
+			b[i] = 0
+		}
+	}
+	return string(b)
+}
+
+func mdEscapeEnd(b []byte, i int) int {
+	if i+1 >= len(b) {
+		return len(b)
+	}
+	switch b[i+1] {
+	case '[':
+		for j := i + 2; j < len(b); j++ {
+			if b[j] >= 0x40 && b[j] <= 0x7e {
+				return j + 1
+			}
+		}
+		return len(b)
+	case ']':
+		for j := i + 2; j < len(b); j++ {
+			if b[j] == 0x07 {
+				return j + 1
+			}
+			if b[j] == 0x1b && j+1 < len(b) && b[j+1] == '\\' {
+				return j + 2
+			}
+		}
+		return len(b)
+	default:
+		return i + 2
+	}
 }
 
 func mdGroup(s string, loc []int, n int) string {

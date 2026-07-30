@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
+
+	"github.com/codyconfer/viewkit/theme"
 )
 
 func rowIndex(lines []string, want string) int {
@@ -33,6 +35,45 @@ func menuInEveryProfile(t *testing.T, body func(t *testing.T)) {
 			lipgloss.SetColorProfile(prof.p)
 			body(t)
 		})
+	}
+}
+
+func TestMenuStylesOnlyTheCursorRow(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	m := NewMenu("queries", nil, MenuItem{Label: "first"}, MenuItem{Label: "second"})
+
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	th := theme.Cur()
+	keySGR, valSGR := sgrPrefix(t, th.Key), sgrPrefix(t, th.Val)
+	if keySGR == valSGR {
+		t.Fatalf("theme cannot distinguish the cursor row: key and value both render %q", keySGR)
+	}
+
+	lines := strings.Split(m.Body(60, 30), "\n")
+	cursorAt, otherAt := rowIndex(lines, "first"), rowIndex(lines, "second")
+	if cursorAt < 0 || otherAt < 0 {
+		t.Fatalf("rows not found by plain text:\n%q", lines)
+	}
+	if !strings.Contains(lines[cursorAt], keySGR) {
+		t.Errorf("cursor row lacks the key emphasis %q:\n%q", keySGR, lines[cursorAt])
+	}
+	if strings.Contains(lines[otherAt], keySGR) {
+		t.Errorf("a row away from the cursor got the cursor emphasis:\n%q", lines[otherAt])
+	}
+	if !strings.Contains(lines[otherAt], valSGR) {
+		t.Errorf("non-cursor row lacks the value style %q:\n%q", valSGR, lines[otherAt])
+	}
+	if got := ansi.Strip(lines[cursorAt]); !strings.Contains(got, "▸ first") {
+		t.Errorf("cursor row plain text = %q, want it to contain %q", got, "▸ first")
+	}
+	if raw := lines[cursorAt]; strings.Contains(raw, "▸ first") {
+		t.Errorf("glyph and label are styled as one segment, so rowIndex need not strip: %q", raw)
+	}
+
+	lipgloss.SetColorProfile(termenv.Ascii)
+	if plain := m.Body(60, 30); strings.Contains(plain, "\x1b[") {
+		t.Errorf("the escape-free profile still emitted SGR:\n%q", plain)
 	}
 }
 

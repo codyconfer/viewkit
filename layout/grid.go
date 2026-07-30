@@ -24,8 +24,11 @@ type Grid struct {
 const SlimMinWidth = 20
 
 // MinTrackWidth is the narrowest column a tiling layout will create. It is the
-// same floor Slim panes use: below it a track holds no readable body, so
-// layouts drop columns instead of tiling slivers that box helpers overflow.
+// same floor Slim panes use, and it is what Frame.CellBox needs to stay inside
+// the rect its layout hands it. It is not enough for Frame.TitledBox, which
+// clamps its body up to theme.MinBodyWidth and therefore needs
+// theme.MinBodyWidth+4 columns; panes that tile into narrow tracks want
+// Frame.CellTitledBox, which clamps down instead.
 const MinTrackWidth = SlimMinWidth
 
 type gridCell struct {
@@ -57,10 +60,11 @@ func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) stri
 	}
 	fitted := g
 	fitted.Cols = FitCols(g.Cols, width)
+	slots := gridSlots(visible)
 	if fitted.Cols < g.Cols {
-		visible = autoFlow(visible)
+		slots = autoFlow(slots, fitted.Cols)
 	}
-	cells, cols, rows := fitted.place(visible)
+	cells, cols, rows := fitted.place(slots)
 	rects := make([]rect, len(visible))
 	slim := make([]bool, len(visible))
 	for i, p := range visible {
@@ -82,54 +86,95 @@ func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) stri
 }
 
 // FitCols reduces a requested column count until every column is at least
-// MinTrackWidth wide, never dropping below a single column.
+// MinTrackWidth wide, never dropping below a single column. A width below one
+// cannot hold even a single track, so it also yields a single column.
 func FitCols(cols, width int) int {
 	if cols < 1 {
 		cols = 1
 	}
 	if width < 1 {
-		return cols
+		return 1
 	}
 	return min(cols, max(width/MinTrackWidth, 1))
 }
 
-// autoFlow strips explicit grid positions so panes reflow into the narrowed
-// column count instead of colliding on clamped coordinates.
-func autoFlow(panes []Pane) []Pane {
-	out := make([]Pane, len(panes))
-	copy(out, panes)
+// gridSlot is the placement intent for one pane. A pinned slot keeps the
+// coordinates its caller declared; an unpinned slot cascades into the next free
+// block while still honouring the spans it declared.
+type gridSlot struct {
+	pos    GridPos
+	pinned bool
+}
+
+func gridSlots(panes []Pane) []gridSlot {
+	slots := make([]gridSlot, len(panes))
+	for i, p := range panes {
+		if p.Pos != nil {
+			slots[i] = gridSlot{pos: *p.Pos, pinned: true}
+		}
+	}
+	return slots
+}
+
+// autoFlow drops explicit coordinates so panes reflow into the narrowed column
+// count instead of colliding on clamped ones. Spans survive, clamped to the
+// columns that are left, so a declared full-width header stays full width.
+func autoFlow(slots []gridSlot, cols int) []gridSlot {
+	out := make([]gridSlot, len(slots))
+	copy(out, slots)
 	for i := range out {
-		out[i].Pos = nil
+		if out[i].pinned {
+			out[i] = unpin(out[i], cols, len(out))
+		}
 	}
 	return out
 }
 
-func (g Grid) place(panes []Pane) (cells []gridCell, cols, rows int) {
+// unpin keeps the spans and drops the coordinates. A cascading pane searches for
+// a free block, so its row span is also capped at the pane count: no span can
+// usefully reach deeper than there are panes to stack, and an unbounded one would
+// make that search walk (and occupy) cells forever.
+func unpin(s gridSlot, cols, panes int) gridSlot {
+	return gridSlot{pos: GridPos{
+		ColSpan: min(s.pos.ColSpan, cols),
+		RowSpan: min(s.pos.RowSpan, max(panes, 1)),
+	}}
+}
+
+// place assigns every pane a cell. Pinned slots whose cells would overlap an
+// already-claimed cell are unpinned and cascade instead: two panes declaring the
+// same coordinates both get drawn, because dropping one silently is the one
+// outcome a layout must never produce.
+func (g Grid) place(slots []gridSlot) (cells []gridCell, cols, rows int) {
 	cols = g.Cols
 	if cols < 1 {
 		cols = 1
 	}
-	cells = make([]gridCell, len(panes))
+	cells = make([]gridCell, len(slots))
 	occupied := map[[2]int]bool{}
-	for i := range panes {
-		if panes[i].Pos == nil {
+	for i := range slots {
+		if !slots[i].pinned {
 			continue
 		}
-		c := cellFor(*panes[i].Pos, cols)
+		c := cellFor(slots[i].pos, cols)
+		if !freeBlock(occupied, c) {
+			slots[i] = unpin(slots[i], cols, len(slots))
+			continue
+		}
 		cells[i] = c
 		occupy(occupied, c)
 	}
-	for i := range panes {
-		if panes[i].Pos != nil {
+	for i := range slots {
+		if slots[i].pinned {
 			continue
 		}
-		x, y := nextFree(occupied, cols)
-		c := gridCell{x: x, y: y, w: 1, h: 1}
+		c := cellFor(slots[i].pos, cols)
+		c.x, c.y = nextFreeBlock(occupied, cols, c.w, c.h)
 		cells[i] = c
 		occupy(occupied, c)
 	}
-	for i := range panes {
-		if panes[i].Pos != nil || cells[i].w >= cols {
+	for i := range slots {
+		if slots[i].pinned || slots[i].pos.ColSpan >= 1 || cells[i].w >= cols {
 			continue
 		}
 		if soleInRows(cells, i) {
@@ -247,10 +292,23 @@ func occupy(occ map[[2]int]bool, c gridCell) {
 	}
 }
 
-func nextFree(occ map[[2]int]bool, cols int) (int, int) {
+func freeBlock(occ map[[2]int]bool, c gridCell) bool {
+	for dy := 0; dy < c.h; dy++ {
+		for dx := 0; dx < c.w; dx++ {
+			if occ[[2]int{c.x + dx, c.y + dy}] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func nextFreeBlock(occ map[[2]int]bool, cols, w, h int) (int, int) {
+	w = min(max(w, 1), cols)
+	h = max(h, 1)
 	for y := 0; ; y++ {
-		for x := 0; x < cols; x++ {
-			if !occ[[2]int{x, y}] {
+		for x := 0; x+w <= cols; x++ {
+			if freeBlock(occ, gridCell{x: x, y: y, w: w, h: h}) {
 				return x, y
 			}
 		}

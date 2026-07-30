@@ -137,6 +137,10 @@ type Editor struct {
 
 	bodyHeight int
 	bodyWidth  int
+
+	bound      bool
+	boundWidth int
+	boundTheme *theme.Theme
 }
 
 // NewEditor builds an Editor over doc. seed pre-fills the form and is
@@ -267,7 +271,7 @@ func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		e.bodyHeight, e.bodyWidth = m.Height, m.Width
-		e.rebindResults()
+		e.relayoutResults()
 		return nil
 	case editorRanMsg:
 		e.running = false
@@ -485,12 +489,24 @@ func (e *Editor) save(a *Model) tea.Cmd {
 	return a.Push(NewMessage("saved", summary, e.doc.Context()))
 }
 
+func (e *Editor) relayoutResults() {
+	if e.bound && e.bodyWidth == e.boundWidth && e.boundTheme == theme.Cur() {
+		return
+	}
+	e.bindResults(e.results.SetItemsKeepingCursor)
+}
+
 func (e *Editor) rebindResults() {
+	e.bindResults(e.results.SetItems)
+}
+
+func (e *Editor) bindResults(install func([]list.Item)) {
 	if !e.hasResults || e.bodyWidth <= 0 || e.set == nil {
 		return
 	}
 	items := e.set.Items(layout.ScreenFrame(e.bodyWidth - editorListIndent))
-	e.results.SetItems(items)
+	install(items)
+	e.bound, e.boundWidth, e.boundTheme = true, e.bodyWidth, theme.Cur()
 	lines := 0
 	for i, it := range items {
 		if i > 0 {

@@ -1,4 +1,11 @@
-.PHONY: build test fmt fmt-check vet lint govulncheck check ci
+.PHONY: build test test-race test-shuffle fmt fmt-check vet lint govulncheck check ci
+
+# RACE — set to test with the race detector, e.g. `make test RACE=1`.
+# SHUFFLE — set to randomize test order, e.g. `make test SHUFFLE=1`.
+RACE ?=
+SHUFFLE ?=
+COUNT ?=
+GOFLAGS_TEST = $(if $(RACE),-race,) $(if $(SHUFFLE),-shuffle=on,) $(if $(COUNT),-count=$(COUNT),)
 
 # Build all packages (including deck).
 build:
@@ -27,9 +34,19 @@ lint:
 govulncheck:
 	$(GO_TOOL) govulncheck ./...
 
-# Run the test suite (including deck).
+# Run the test suite (including deck). Honors RACE=1 (race detector),
+# SHUFFLE=1 (random test order) and COUNT=N (repeat runs); `test-race` and
+# `test-shuffle` are the named entrypoints CI uses.
 test:
-	go test ./...
+	go test $(GOFLAGS_TEST) ./...
+
+# Race detector over the whole suite. Separate target/job so the fast gate stays fast.
+test-race:
+	@$(MAKE) test RACE=1
+
+# Randomized test order. Catches order-dependent tests that share package state.
+test-shuffle:
+	@$(MAKE) test SHUFFLE=1
 
 # Full gate: build, format check, lint, vulncheck, test.
 check: build fmt-check lint govulncheck test

@@ -26,16 +26,67 @@ func TestLongLabelKeepsValueVisible(t *testing.T) {
 }
 
 func TestLongLabelValueVisibleAcrossWidths(t *testing.T) {
-	for _, width := range []int{1, 10, 24, 30, 40, 81} {
-		fm := NewForm(Field{Key: "a", Label: strings.Repeat("Label ", 12), Text: "VALUE"})
-		out := stripANSI(fm.Render(layout.NewFrame(width), "form"))
-		if !strings.Contains(out, "▎") {
-			t.Errorf("width %d hid the caret:\n%s", width, out)
-		}
-		if !strings.Contains(out, "V") {
-			t.Errorf("width %d hid the value entirely:\n%s", width, out)
+	for _, tc := range []struct {
+		name    string
+		suggest Suggester
+	}{
+		{name: "no suggestions"},
+		{name: "with ghost", suggest: Static("VALUEVALUEVALUEEXTENDEDCOMPLETION")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, width := range []int{1, 10, 24, 30, 40, 81} {
+				fm := NewForm(Field{
+					Key:     "a",
+					Label:   strings.Repeat("Label ", 12),
+					Text:    "VALUEVALUEVALUE",
+					Suggest: tc.suggest,
+				})
+				out := stripANSI(fm.Render(layout.NewFrame(width), "form"))
+				if !strings.Contains(out, "▎") {
+					t.Errorf("width %d hid the caret:\n%s", width, out)
+				}
+				if !strings.Contains(out, "V") {
+					t.Errorf("width %d hid the value entirely:\n%s", width, out)
+				}
+			}
+		})
+	}
+}
+
+func TestGhostNeverEvictsTheCaret(t *testing.T) {
+	wide := NewForm(Field{
+		Key:     "a",
+		Label:   "LLL",
+		Text:    "abc",
+		Suggest: Static("abcdefghijklmnopqrstuvwxyz"),
+	})
+	if row := valueRow(t, wide.Render(layout.NewFrame(60), "form")); !strings.Contains(row, "abc▎defghij") {
+		t.Fatalf("no ghost drawn after the caret at width 60:\n%s", row)
+	}
+
+	for _, typed := range []string{"", "abc", "abcdefgh", "abcdefghijklmnop"} {
+		fm := NewForm(Field{
+			Key:     "a",
+			Label:   strings.Repeat("L", 30),
+			Text:    typed,
+			Suggest: Static("abcdefghijklmnopqrstuvwxyz"),
+		})
+		row := valueRow(t, fm.Render(layout.NewFrame(30), "form"))
+		if !strings.Contains(row, "▎") {
+			t.Errorf("a ghost evicted the caret with %d chars typed:\n%s", len(typed), row)
 		}
 	}
+}
+
+func valueRow(t *testing.T, rendered string) string {
+	t.Helper()
+	for _, ln := range strings.Split(stripANSI(rendered), "\n") {
+		if strings.Contains(ln, "LLL") {
+			return ln
+		}
+	}
+	t.Fatalf("no field row in:\n%s", stripANSI(rendered))
+	return ""
 }
 
 func TestShortLabelValueBudgetUnchanged(t *testing.T) {

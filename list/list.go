@@ -32,18 +32,18 @@ func (m *Model) SetItems(items []Item) {
 }
 
 func (m *Model) SetItemsKeepingCursor(items []Item) {
-	prevKey, hadCursor, prevOffset := "", m.cursor >= 0, m.offset
+	prevIdx, prevOffset := m.cursor, m.offset
+	hadCursor := m.cursor >= 0
+	prevKey := ""
 	if it, ok := m.Selected(); ok {
 		prevKey = it.Key
 	}
 	m.items = items
-	if prevKey != "" {
-		if i := m.indexOfSelectable(prevKey); i >= 0 {
-			m.cursor, m.offset = i, prevOffset
-			m.clampOffset(m.totalLines())
-			m.ensureVisible()
-			return
-		}
+	if i := m.reacquire(prevKey, prevIdx, hadCursor); i >= 0 {
+		m.cursor, m.offset = i, prevOffset
+		m.clampOffset(m.totalLines())
+		m.ensureVisible()
+		return
 	}
 	m.cursor = m.firstSelectable()
 	if !hadCursor && m.cursor < 0 {
@@ -52,6 +52,18 @@ func (m *Model) SetItemsKeepingCursor(items []Item) {
 		return
 	}
 	m.offset = 0
+}
+
+func (m *Model) reacquire(key string, idx int, hadCursor bool) int {
+	switch {
+	case !hadCursor:
+		return -1
+	case key != "":
+		return m.indexOfSelectable(key)
+	case idx >= 0 && idx < len(m.items) && m.items[idx].Selectable:
+		return idx
+	}
+	return -1
 }
 
 func (m *Model) indexOfSelectable(key string) int {

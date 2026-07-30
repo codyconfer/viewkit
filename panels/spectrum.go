@@ -56,7 +56,7 @@ func Spectrum(f layout.Frame, title string, levels []float64, height int, empty 
 			glyph := spectrumCell(lvl, cell, height)
 			switch {
 			case glyph != "":
-				b.WriteString(series[i%len(series)].Render(strings.Repeat(glyph, o.BarWide)))
+				b.WriteString(seriesAt(series, i).Render(strings.Repeat(glyph, o.BarWide)))
 			case i < len(peaks) && peakCell(peaks[i], height) == cell:
 				b.WriteString(dim.Render(strings.Repeat("▔", o.BarWide)))
 			default:
@@ -69,6 +69,7 @@ func Spectrum(f layout.Frame, title string, levels []float64, height int, empty 
 }
 
 func spectrumCell(level float64, cell, height int) string {
+	level = finite(level)
 	if level < 0 {
 		level = 0
 	}
@@ -88,6 +89,7 @@ func spectrumCell(level float64, cell, height int) string {
 }
 
 func peakCell(peak float64, height int) int {
+	peak = finite(peak)
 	if peak < 0 {
 		peak = 0
 	}

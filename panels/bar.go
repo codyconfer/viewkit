@@ -45,7 +45,7 @@ func barLines(f layout.Frame, data []Datum, width int, fmtNum func(float64) stri
 		if w := ansi.StringWidth(d.Label); w > labelW {
 			labelW = w
 		}
-		if w := ansi.StringWidth(fmtNum(d.Value)); w > valueW {
+		if w := ansi.StringWidth(fmtNum(finite(d.Value))); w > valueW {
 			valueW = w
 		}
 	}
@@ -61,14 +61,15 @@ func barLines(f layout.Frame, data []Datum, width int, fmtNum func(float64) stri
 	}
 	lines := make([]string, len(data))
 	for i, d := range data {
-		n := min(max(int(absf(finite(d.Value))/peak*float64(width)+0.5), 0), width)
+		v := finite(d.Value)
+		n := min(max(int(absf(v)/peak*float64(width)+0.5), 0), width)
 		sty := theme.Cur().Can
-		if d.Value < 0 {
+		if v < 0 {
 			sty = theme.Cur().Cant
 		}
 		label := theme.Cur().Dim.Render(padRight(d.Label, labelW))
 		bar := sty.Render(strings.Repeat("█", n))
-		lines[i] = f.Spread(label+" "+bar, sty.Render(fmtNum(d.Value)))
+		lines[i] = f.Spread(label+" "+bar, sty.Render(fmtNum(v)))
 	}
 	return lines, true
 }

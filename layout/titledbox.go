@@ -14,8 +14,25 @@ func (f Frame) TitledBox(title string, lines ...string) string {
 }
 
 func (f Frame) TitledBoxIcon(icon, title string, lines ...string) string {
+	return f.titledBoxAt(f.BodyWidth(), icon, title, lines...)
+}
+
+// CellTitledBox is TitledBox sized to fit inside f.Width rather than around it.
+// TitledBox routes through Frame.BodyWidth, which clamps a narrow body *up* to
+// theme.MinBodyWidth, so a titled pane needs theme.MinBodyWidth+4 columns before
+// it stops spilling past the rect its layout gave it — MinTrackWidth alone is not
+// enough. CellTitledBox clamps the body down instead, exactly as CellBox does,
+// and so keeps its right border in any track.
+func (f Frame) CellTitledBox(title string, lines ...string) string {
+	return f.CellTitledBoxIcon("", title, lines...)
+}
+
+func (f Frame) CellTitledBoxIcon(icon, title string, lines ...string) string {
+	return f.fitCell(f.titledBoxAt(f.cellBody(), icon, title, lines...))
+}
+
+func (f Frame) titledBoxAt(inner int, icon, title string, lines ...string) string {
 	th := theme.Cur()
-	inner := f.BodyWidth()
 	span := inner + 2
 
 	border := th.Dim
