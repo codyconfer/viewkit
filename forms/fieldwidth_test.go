@@ -25,7 +25,13 @@ func TestLongLabelKeepsValueVisible(t *testing.T) {
 	}
 }
 
+const clampedWidthsContract = "widths 1, 10 and 24 all render identically: layout.NewFrame clamps every " +
+	"width below theme.MinBodyWidth up to it, so they were three copies of one case. One below-clamp " +
+	"representative is kept; TestFrameClampMakesNarrowWidthsIdentical fails if the clamp ever changes " +
+	"and this list needs widening again."
+
 func TestLongLabelValueVisibleAcrossWidths(t *testing.T) {
+	t.Log(clampedWidthsContract)
 	for _, tc := range []struct {
 		name    string
 		suggest Suggester
@@ -34,7 +40,7 @@ func TestLongLabelValueVisibleAcrossWidths(t *testing.T) {
 		{name: "with ghost", suggest: Static("VALUEVALUEVALUEEXTENDEDCOMPLETION")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, width := range []int{1, 10, 24, 30, 40, 81} {
+			for _, width := range []int{1, 30, 40, 81} {
 				fm := NewForm(Field{
 					Key:     "a",
 					Label:   strings.Repeat("Label ", 12),

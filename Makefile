@@ -1,4 +1,4 @@
-.PHONY: build test test-race test-shuffle fmt fmt-check vet lint govulncheck check ci
+.PHONY: build test test-race test-shuffle prove fmt fmt-check vet lint govulncheck check ci
 
 # RACE — set to test with the race detector, e.g. `make test RACE=1`.
 # SHUFFLE — set to randomize test order, e.g. `make test SHUFFLE=1`.
@@ -47,6 +47,16 @@ test-race:
 # Randomized test order. Catches order-dependent tests that share package state.
 test-shuffle:
 	@$(MAKE) test SHUFFLE=1
+
+# Show that a test fails when the code it guards is reverted or mutated. A test
+# that passes against the pre-fix source guards nothing. Never uses `git stash`:
+# in a shared checkout that would take a co-worker's uncommitted work with it.
+#
+#   make prove ARGS="--rev HEAD~1 --run TestFoo ./pkg/ pkg/a.go"
+#
+# Run `tools/prove --help` for the mutation and file-drop modes.
+prove:
+	@tools/prove $(ARGS)
 
 # Full gate: build, format check, lint, vulncheck, test.
 check: build fmt-check lint govulncheck test

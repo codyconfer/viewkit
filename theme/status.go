@@ -47,10 +47,7 @@ func SeverityGlyph(s glyph.Severity) string {
 }
 
 func stripBgOf(t Theme) lipgloss.TerminalColor {
-	if bg := t.Panel.GetBorderTopForeground(); bg != nil {
-		return bg
-	}
-	return t.Dim.GetForeground()
+	return t.Panel.GetBorderTopForeground()
 }
 
 func StripBg() lipgloss.TerminalColor {

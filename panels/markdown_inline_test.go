@@ -357,6 +357,37 @@ func TestMdMarkersCoverEveryInlinePattern(t *testing.T) {
 	}
 }
 
+const boldPassContract = "every theme viewkit ships already sets Accent.Bold, so dropping Bold(true) from " +
+	"the bold pass changes nothing for them and the byte-for-byte tests cannot see it. A host is free to " +
+	"register a theme whose Accent is not bold, and then **bold** must still render bold — this is the " +
+	"only test that reaches that arm."
+
+func TestMdInlineBoldsEvenWhenTheThemeAccentIsNot(t *testing.T) {
+	t.Log(boldPassContract)
+	prev := lipgloss.ColorProfile()
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	lipgloss.SetColorProfile(termenv.TrueColor)
+
+	orig := *theme.Cur()
+	t.Cleanup(func() { theme.Use(orig) })
+	if !orig.Accent.GetBold() {
+		t.Skip("the active theme's Accent is already non-bold, so the byte-for-byte tests cover this")
+	}
+
+	flat := lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00"))
+	th := orig
+	th.Accent = flat
+	theme.Use(th)
+
+	got := mdInline("**x**")
+	if got == flat.Render("x") {
+		t.Fatalf("mdInline(\"**x**\") = %q, which is the unbolded Accent render: %s", got, boldPassContract)
+	}
+	if want := flat.Bold(true).Render("x"); got != want {
+		t.Errorf("mdInline(\"**x**\") = %q, want %q", got, want)
+	}
+}
+
 func TestMdMaskBlanksEscapesInPlace(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},

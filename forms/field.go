@@ -180,7 +180,6 @@ func fieldRowBudget(body, label int) (labelW, valW int) {
 	if labelW > room-fieldValueMin {
 		labelW = max(room-fieldValueMin, room/2)
 	}
-	labelW = min(labelW, room-1)
 	return labelW, room - labelW
 }
 
