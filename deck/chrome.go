@@ -20,7 +20,7 @@ type ServiceStatus struct {
 
 // StatusInfo is optional chrome identity + service chips.
 type StatusInfo struct {
-	Identity string // e.g. "@user ✓"
+	Identity string
 	Services []ServiceStatus
 }
 
@@ -30,8 +30,8 @@ type StatusFunc func(context.Context) StatusInfo
 // Chrome configures brand/header appearance. Apps inject product branding;
 // viewkit/deck never hard-codes app names.
 type Chrome struct {
-	Brand      string // e.g. "MUNIN"
+	Brand      string
 	BrandGlyph string
-	Subtitle   string // e.g. "ono-sendai deck"
+	Subtitle   string
 	ClockGlyph string
 }

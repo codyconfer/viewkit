@@ -11,7 +11,6 @@ var (
 )
 
 func init() {
-	// Builtin brand ids so hosts can ResolveID("github") without a switch.
 	Register("github", github)
 	Register("slack", slack)
 	Register("google", google)

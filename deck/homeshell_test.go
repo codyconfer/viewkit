@@ -42,6 +42,81 @@ func focusedHomeHost(t *testing.T, shell *HomeShell) *Model {
 	return h
 }
 
+func driveSettled(h *Model, msg tea.Msg) *Model {
+	m, cmd := h.Update(msg)
+	h = m.(*Model)
+	for cmd != nil {
+		next := cmd()
+		if next == nil {
+			break
+		}
+		m, cmd = h.Update(next)
+		h = m.(*Model)
+	}
+	return h
+}
+
+func TestHomeShellReloadRefetchesAndFollowsLiveLabel(t *testing.T) {
+	subject := "morning"
+	fetches := 0
+	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "")
+	shell.SideLabelFn = func() string { return "home flight · " + subject }
+	shell.SideFetch = func() any { fetches++; return subject }
+	shell.SideBind = func(int, any) []list.Item {
+		return []list.Item{{Block: "loaded " + fmt.Sprint(shell.fetched)}}
+	}
+
+	h := New(shell)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := shell.Init(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+	if fetches != 1 {
+		t.Fatalf("Init fetched %d times, want 1", fetches)
+	}
+
+	subject = "evening"
+	h = driveSettled(h, ReloadMsg{})
+	if fetches != 2 {
+		t.Fatalf("ReloadMsg fetched %d times, want 2", fetches)
+	}
+	got := ansi.Strip(h.View())
+	for _, want := range []string{"home flight · evening", "loaded evening"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("after reload missing %q\n%s", want, got)
+		}
+	}
+
+	subject = "night"
+	h = driveSettled(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if fetches != 3 {
+		t.Fatalf("reload key fetched %d times, want 3", fetches)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "loaded night") {
+		t.Errorf("reload key did not refetch\n%s", got)
+	}
+}
+
+func TestHomeShellEmptyLiveLabelHidesSidePane(t *testing.T) {
+	subject := ""
+	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "")
+	shell.SideLabelFn = func() string { return subject }
+	shell.SideFetch = func() any { return subject }
+	shell.SideBind = func(int, any) []list.Item { return []list.Item{{Block: "rows"}} }
+
+	h := New(shell)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if got := ansi.Strip(h.View()); strings.Contains(got, "rows") {
+		t.Fatalf("empty live label still rendered a side pane:\n%s", got)
+	}
+
+	subject = "morning"
+	h = driveSettled(h, ReloadMsg{})
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "rows") {
+		t.Fatalf("side pane did not appear once the live label filled in:\n%s", got)
+	}
+}
+
 func TestHomeShellPageKeysMoveAFullPage(t *testing.T) {
 	shell := homeShellWithRows(40)
 	h := focusedHomeHost(t, shell)

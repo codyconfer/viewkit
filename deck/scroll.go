@@ -20,6 +20,8 @@ type Scroll struct {
 	ChromeReserve int
 	// IsCancel reports whether a key string should pop the view.
 	IsCancel func(string) bool
+	// ReloadHint is the footer label for the reload key (default "reload").
+	ReloadHint string
 
 	vp     viewport.Model
 	ready  bool
@@ -38,23 +40,55 @@ func NewScroll(title string, ctx, hints [][2]string, load func() string) *Scroll
 	}
 }
 
-type scrollViewLoadedMsg struct{ body string }
+type scrollViewLoadedMsg struct {
+	own  *Scroll
+	body string
+}
+
+func (m scrollViewLoadedMsg) recipient() View { return m.own }
 
 func (c *Scroll) Title() string        { return c.title }
 func (c *Scroll) Context() [][2]string { return c.ctx }
 func (c *Scroll) Hints() [][2]string {
 	km := navMap()
-	return append([][2]string{
+	hints := [][2]string{
 		km.HintLabeled(keys.Up, "scroll"),
 		km.HintLabeled(keys.PageUp, "page"),
-	}, c.hints...)
+	}
+	if c.load != nil {
+		hints = append(hints, km.HintLabeled(keys.Reload, c.reloadHint()))
+	}
+	return append(hints, c.hints...)
+}
+
+func (c *Scroll) reloadHint() string {
+	if c.ReloadHint != "" {
+		return c.ReloadHint
+	}
+	return "reload"
 }
 
 func (c *Scroll) Init() tea.Cmd {
 	if c.load == nil {
 		return nil
 	}
-	return func() tea.Msg { return scrollViewLoadedMsg{body: c.load()} }
+	return c.loadCmd()
+}
+
+// Reload discards the rendered body and re-runs load, showing the loading
+// placeholder until the new text lands. No-op when there is nothing to load.
+func (c *Scroll) Reload() tea.Cmd {
+	if c.load == nil {
+		return nil
+	}
+	c.body, c.loaded = "", false
+	c.refresh()
+	return c.loadCmd()
+}
+
+func (c *Scroll) loadCmd() tea.Cmd {
+	load := c.load
+	return func() tea.Msg { return scrollViewLoadedMsg{own: c, body: load()} }
 }
 
 func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
@@ -77,6 +111,8 @@ func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 		c.body, c.loaded = m.body, true
 		c.refresh()
 		return nil
+	case ReloadMsg:
+		return c.Reload()
 	case tea.KeyMsg:
 		if c.IsCancel != nil && c.IsCancel(m.String()) {
 			return h.Pop()
@@ -85,15 +121,15 @@ func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		// Default cancel binding when host did not inject a checker.
 		if act == keys.Cancel && c.IsCancel == nil {
 			return h.Pop()
+		}
+		if act == keys.Reload {
+			return c.Reload()
 		}
 		if !c.ready {
 			return nil
 		}
-		// Scroll from the active scheme rather than the viewport's own keymap,
-		// so Hints() cannot advertise bindings the view does not honour.
 		switch act {
 		case keys.Up:
 			c.vp.ScrollUp(1)

@@ -51,8 +51,6 @@ func WithKeyMapQuit() Option {
 	return func(h *Host) { h.quitCheck = schemeQuit }
 }
 
-// schemeQuit matches the active scheme's Quit binding. keys.Cur() is read at
-// match time so a keys.Use after New still applies.
 func schemeQuit(k string) bool {
 	return slices.Contains(keys.Cur().Binding(keys.Quit).Keys, k)
 }
@@ -70,9 +68,26 @@ func WithKeyHook(fn KeyHook) Option {
 // to skip view Update (e.g. debounced role-lifecycle settle).
 type MsgHook func(m *Model, msg tea.Msg) (cmd tea.Cmd, handled bool)
 
+type ownedMsg interface{ recipient() View }
+
 // WithMsgHook installs a global message interceptor (e.g. debounce settle).
 func WithMsgHook(fn MsgHook) Option {
 	return func(h *Host) { h.msgHook = fn }
+}
+
+// WithInitCmd adds a command to run when the program starts, alongside the root
+// view's own Init. Use it to start a watcher that outlives navigation: a tick
+// armed here and re-armed from a MsgHook keeps running whatever is on the stack,
+// whereas one armed by a view stops as soon as that view is pushed over.
+//
+// Repeated calls accumulate.
+func WithInitCmd(cmd tea.Cmd) Option {
+	return func(h *Host) {
+		if cmd == nil {
+			return
+		}
+		h.initCmds = append(h.initCmds, cmd)
+	}
 }
 
 // Host is the tea model: stack navigation + chrome.
@@ -91,6 +106,7 @@ type Host struct {
 	quitHint  string
 	keyHook   KeyHook
 	msgHook   MsgHook
+	initCmds  []tea.Cmd
 }
 
 // New builds a Model with root view.
@@ -165,6 +181,7 @@ func (h *Host) Init() tea.Cmd {
 	if h.statusFn != nil {
 		cmds = append(cmds, h.fetchStatus())
 	}
+	cmds = append(cmds, h.initCmds...)
 	return tea.Batch(cmds...)
 }
 
@@ -212,6 +229,11 @@ func (h *Host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if h.msgHook != nil {
 			if cmd, handled := h.msgHook(h, msg); handled {
 				return h, cmd
+			}
+		}
+		if om, ok := msg.(ownedMsg); ok {
+			if v := om.recipient(); v != nil {
+				return h, v.Update(h, msg)
 			}
 		}
 		return h, h.top().Update(h, msg)
@@ -305,8 +327,6 @@ func (h *Host) footer(v View) string {
 	return layout.Stack(bar, legend)
 }
 
-// quitGlyph is the footer legend for quit: the WithQuitHint override when set,
-// else the active scheme's Quit binding (which drives the default matcher).
 func (h *Host) quitGlyph() string {
 	if h.quitHint != "" {
 		return h.quitHint

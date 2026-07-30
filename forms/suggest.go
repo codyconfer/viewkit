@@ -49,9 +49,6 @@ func Match(vals []string, prefix string) []string {
 	return out
 }
 
-// splitTail divides text into the part already committed and the token still
-// being typed. With no delimiter the whole text is one token. The head keeps
-// its trailing delimiter so joinTail can rebuild the text verbatim.
 func splitTail(text, delim string) (head, tail string) {
 	if delim == "" {
 		return "", text
@@ -63,8 +60,6 @@ func splitTail(text, delim string) (head, tail string) {
 	return text[:i+len(delim)], strings.TrimLeft(text[i+len(delim):], " ")
 }
 
-// joinTail rebuilds a field's text with pick replacing the trailing token.
-// A comma-style delimiter gains a space after it; a space delimiter does not.
 func joinTail(head, pick, delim string) string {
 	if head == "" {
 		return pick
@@ -75,8 +70,6 @@ func joinTail(head, pick, delim string) string {
 	return head + pick
 }
 
-// ghostOf returns the part of pick that tail has not yet typed, or "" when
-// tail is not a case-insensitive prefix of pick.
 func ghostOf(pick, tail string) string {
 	if pick == "" {
 		return ""

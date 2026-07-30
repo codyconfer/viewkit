@@ -56,6 +56,17 @@ type EditorDoc interface {
 	Remove() string
 }
 
+// EditorOutput is an optional EditorDoc extension for documents whose run
+// produces text worth taking away — a rendered report, a generated file. An
+// Editor offers Copy and Write only when its doc implements this and the host
+// bound the matching keys, so documents without an output are unaffected.
+type EditorOutput interface {
+	// CopyOutput puts the last run's text on the clipboard.
+	CopyOutput() (summary string, err error)
+	// WriteOutput persists the last run's text and names where it landed.
+	WriteOutput() (summary string, err error)
+}
+
 // EditorKeys binds an Editor's commands to a host application's key scheme.
 // Actions are supplied by the caller because command vocabularies are
 // app-specific; only Cancel and the navigation actions come from viewkit.
@@ -71,6 +82,11 @@ type EditorKeys struct {
 	Preview  keys.Action
 	Delete   keys.Action
 	Focus    keys.Action
+
+	// Copy and Write drive EditorOutput. Leave them empty for documents that
+	// produce no text.
+	Copy  keys.Action
+	Write keys.Action
 }
 
 const (
@@ -187,38 +203,49 @@ func (e *Editor) Hints() [][2]string {
 		return [][2]string{{"←/→", "choose"}, {"enter", "confirm"}}
 	}
 	if e.onResults {
-		return [][2]string{
+		hints := [][2]string{
 			{"↑/↓", "item"},
 			{"pgup/pgdn", "page"},
 			{"enter", "open"},
-			{"tab", "edit"},
-			{"ctrl+r", "rerun"},
 		}
+		hints = e.withHint(hints, e.keys.Focus, "edit")
+		return e.withHint(hints, e.keys.Run, "rerun")
 	}
 	if len(e.form.Suggestions()) > 0 {
-		return [][2]string{
+		hints := [][2]string{
 			{"tab", "accept"},
 			{"ctrl+n/ctrl+p", "suggestion"},
 			{"↑/↓", "field"},
-			{"ctrl+r", "run"},
-			{"ctrl+s", "save"},
 		}
+		hints = e.withHint(hints, e.keys.Run, "run")
+		return e.withHint(hints, e.keys.Save, "save")
 	}
 	hints := [][2]string{
 		{"↑/↓", "field"},
 		{"←/→", "adjust"},
-		{"ctrl+r", "run"},
-		{"ctrl+t", "validate"},
-		{"ctrl+y", "yaml"},
-		{"ctrl+s", "save"},
 	}
+	hints = e.withHint(hints, e.keys.Run, "run")
+	hints = e.withHint(hints, e.keys.Validate, "validate")
+	hints = e.withHint(hints, e.keys.Preview, "yaml")
+	hints = e.withHint(hints, e.keys.Save, "save")
+	hints = append(hints, e.outputHints()...)
 	if e.doc.SavedName() != "" {
-		hints = append(hints, [2]string{"ctrl+x", "delete"})
+		hints = e.withHint(hints, e.keys.Delete, "delete")
 	}
 	if e.hasResults && !e.running {
-		hints = append(hints, [2]string{"tab", "results"})
+		hints = e.withHint(hints, e.keys.Focus, "results")
 	}
 	return hints
+}
+
+// withHint appends the hint for a host-supplied action, taking the glyph from the
+// binding the host actually installed rather than assuming one. An action the host
+// left unbound contributes no hint, so the footer never advertises a dead key.
+func (e *Editor) withHint(hints [][2]string, act keys.Action, label string) [][2]string {
+	if act == "" || e.keys.Map == nil || !e.keys.Map.Has(act) {
+		return hints
+	}
+	return append(hints, e.keys.Map.HintLabeled(act, label))
 }
 
 func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
@@ -234,6 +261,11 @@ func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 		e.rebindResults()
 		e.setFocus(true)
 		return nil
+	case ReloadMsg:
+		if !e.hasResults || e.running {
+			return nil
+		}
+		return e.run()
 	case tea.KeyMsg:
 		if e.confirm != nil {
 			return e.updateConfirm(a, m)
@@ -241,6 +273,46 @@ func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 		return e.handleKey(a, m)
 	}
 	return nil
+}
+
+func (e *Editor) outputHints() [][2]string {
+	if _, ok := e.doc.(EditorOutput); !ok {
+		return nil
+	}
+	var out [][2]string
+	for _, act := range []keys.Action{e.keys.Copy, e.keys.Write} {
+		if act == "" || !e.keys.Map.Has(act) {
+			continue
+		}
+		out = append(out, e.keys.Map.Hint(act))
+	}
+	return out
+}
+
+func (e *Editor) output(a *Model, act keys.Action) (tea.Cmd, bool) {
+	doc, ok := e.doc.(EditorOutput)
+	if !ok || act == "" {
+		return nil, false
+	}
+	var (
+		run  func() (string, error)
+		kind string
+	)
+	switch act {
+	case e.keys.Copy:
+		run, kind = doc.CopyOutput, "copy"
+	case e.keys.Write:
+		run, kind = doc.WriteOutput, "write"
+	default:
+		return nil, false
+	}
+	summary, err := run()
+	if err != nil {
+		e.status = err.Error()
+		return nil, true
+	}
+	e.status = ""
+	return a.Push(NewMessage(kind, summary, e.doc.Context())), true
 }
 
 func (e *Editor) handleKey(a *Model, key tea.KeyMsg) tea.Cmd {
@@ -255,6 +327,9 @@ func (e *Editor) handleKey(a *Model, key tea.KeyMsg) tea.Cmd {
 			e.form.Insert(string(key.Runes))
 		}
 		return nil
+	}
+	if cmd, owned := e.output(a, act); owned {
+		return cmd
 	}
 	switch act {
 	case keys.Cancel:

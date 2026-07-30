@@ -13,7 +13,6 @@ import (
 
 var toastEpoch = time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)
 
-// fixedToaster is a Toaster on a clock the test drives.
 func fixedToaster(ttl time.Duration, clock *time.Time) *Toaster {
 	tst := NewToaster(4, ttl)
 	tst.now = func() time.Time { return *clock }
@@ -24,7 +23,6 @@ func toastBody() string {
 	return strings.Repeat("body line\n", 8)
 }
 
-// tick is the message the Toaster's own command would deliver.
 func tick(tst *Toaster, at time.Time) tea.Msg {
 	return toastPruneMsg{id: tst.id, at: at}
 }
@@ -107,8 +105,6 @@ func TestToastersDoNotConsumeEachOthersTicks(t *testing.T) {
 	a.Push(notify.Neutral("alpha", ""))
 	b.Push(notify.Neutral("beta", ""))
 
-	// A tick armed by a, delivered while b is the top view: b must decline it
-	// and must not expire its own toast off another view's clock.
 	late := toastEpoch.Add(10 * time.Second)
 	if cmd, handled := b.Update(tick(a, late)); handled || cmd != nil {
 		t.Fatalf("b claimed a's tick: cmd=%v handled=%v", cmd, handled)
@@ -133,7 +129,6 @@ func TestToasterExpiresOnRenderWhenATickWasLost(t *testing.T) {
 	tst := fixedToaster(3*time.Second, &now)
 	tst.Push(notify.Neutral("stale", ""))
 
-	// No tick ever arrives (it was delivered to whatever view was on top).
 	now = toastEpoch.Add(time.Minute)
 	if got := tst.Body(toastBody(), 80); strings.Contains(got, "stale") {
 		t.Fatalf("Body should prune against the clock:\n%s", got)

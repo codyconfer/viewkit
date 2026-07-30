@@ -1,6 +1,5 @@
 package deck
 
-// hintView appends app hints to an inner view's footer legend.
 type hintView struct {
 	View
 	extra [][2]string
@@ -17,14 +16,10 @@ func WithExtraHints(inner View, extra [][2]string) View {
 	return &hintView{View: inner, extra: extra}
 }
 
-// Hints returns the inner view's hints followed by the extras. The result is
-// always a fresh slice: appending onto inner's own slice could scribble into
-// its backing array.
 func (h *hintView) Hints() [][2]string {
 	return append(append([][2]string{}, h.View.Hints()...), h.extra...)
 }
 
-// liveContextView recomputes chrome context cues on every read.
 type liveContextView struct {
 	View
 	ctx func() [][2]string
@@ -42,5 +37,4 @@ func WithLiveContext(inner View, fn func() [][2]string) View {
 	return &liveContextView{View: inner, ctx: fn}
 }
 
-// Context evaluates the supplied function, so callers see current values.
 func (v *liveContextView) Context() [][2]string { return v.ctx() }

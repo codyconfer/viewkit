@@ -111,8 +111,6 @@ func (m *promptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// resync rebuilds the field set when the spec says an answer changed what
-// should be asked next, carrying entered values across the rebuild.
 func (m *promptModel) resync() {
 	if m.spec.Sync == nil {
 		return

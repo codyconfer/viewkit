@@ -51,8 +51,6 @@ type Field struct {
 	Delim string
 }
 
-// candidates asks the field's Suggester about the token currently being
-// typed. Secret fields never suggest: the ghost would leak the vocabulary.
 func (fd *Field) candidates() []string {
 	if fd.Suggest == nil || fd.Secret {
 		return nil
@@ -64,7 +62,6 @@ func (fd *Field) candidates() []string {
 	return fd.Suggest(tail)
 }
 
-// accept replaces the trailing token with pick.
 func (fd *Field) accept(pick string) {
 	head, _ := splitTail(fd.Text, fd.Delim)
 	fd.Text = joinTail(head, pick, fd.Delim)
@@ -150,8 +147,6 @@ func (fd *Field) activate() bool {
 	return false
 }
 
-// suggState is the focused field's live completion state, passed down from
-// the Form so a rebuilt Fields slice cannot lose it.
 type suggState struct {
 	cands []string
 	idx   int
@@ -233,9 +228,6 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 	}
 }
 
-// ghost is the unwritten remainder of the active candidate, shown inline
-// after the caret. It is rendered before truncation so an over-long
-// suggestion is clipped with the rest of the value rather than overflowing.
 func (fd *Field) ghost(sg suggState) string {
 	pick := sg.pick()
 	if pick == "" || fd.Secret {
@@ -249,8 +241,6 @@ func (fd *Field) ghost(sg suggState) string {
 	return theme.Cur().Dim.Render(rest)
 }
 
-// suggestions lists the alternatives beneath the field, so cycling has
-// somewhere to point. Only the focused field gets one.
 func (fd *Field) suggestions(f layout.Frame, focused bool, sg suggState) []string {
 	if !focused || len(sg.cands) == 0 {
 		return nil

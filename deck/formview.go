@@ -151,8 +151,6 @@ func (v *FormView) panelTitle() string {
 	return v.Title()
 }
 
-// keyMap resolves the map to route keys through. It is rebuilt per call when
-// the spec left Map nil so a scheme swap mid-session takes effect.
 func (v *FormView) keyMap() *keys.Map {
 	if v.spec.Keys.Map != nil {
 		return v.spec.Keys.Map
@@ -160,12 +158,8 @@ func (v *FormView) keyMap() *keys.Map {
 	return formMap()
 }
 
-// formMap is the default form action map: the active scheme's editor bindings,
-// which drop single-character keys so ordinary typing is not swallowed.
 func formMap() *keys.Map {
 	sc := keys.Cur()
-	// Complete leads so a scheme that deliberately rebinds tab to something
-	// else still wins: NewMap resolves a shared key to the last binding.
 	return keys.NewMap(sc.EditorBindings(
 		keys.Complete, keys.CompleteNext, keys.CompletePrev,
 		keys.Up, keys.Down, keys.Left, keys.Right,
@@ -208,8 +202,6 @@ func (v *FormView) Update(a *Model, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// insert types an unbound key into the focused field. Space arrives as a key
-// with no runes on some terminals, so it is matched by name.
 func (v *FormView) insert(key tea.KeyMsg) {
 	switch {
 	case key.String() == " ":

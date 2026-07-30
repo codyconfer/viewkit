@@ -26,6 +26,10 @@ type HomeShell struct {
 	BoxTitle string
 	// SideLabel is shown above the side list when SideFetch is set.
 	SideLabel string
+	// SideLabelFn, when set, supplies the side label on every read instead of
+	// SideLabel — the shape a long-lived shell needs when the side pane's
+	// subject can change beneath it. Returning "" hides the side pane.
+	SideLabelFn func() string
 	// SideHint is the tab-target label when menu-focused (default "side").
 	SideHint string
 	// SideFetch loads opaque side content once (nil disables the side pane).
@@ -34,6 +38,8 @@ type HomeShell struct {
 	SideBind func(width int, fetched any) []list.Item
 	// SideLoading shown while SideFetch has not completed.
 	SideLoading string
+	// ReloadHint is the footer label for the reload key (default "reload").
+	ReloadHint string
 
 	// IsAction maps a key string to a keys.Action, fully replacing the active
 	// scheme map (keys.Cur); map PageUp/PageDown and FocusNext to keep paging
@@ -65,7 +71,17 @@ func NewHomeShell(title string, ctx [][2]string, items []MenuItem, sideLabel str
 	}
 }
 
-type homeShellLoadedMsg struct{ data any }
+type homeShellLoadedMsg struct {
+	own  *HomeShell
+	data any
+}
+
+func (m homeShellLoadedMsg) recipient() View { return m.own }
+
+// ReloadMsg asks the active view to discard what it fetched and fetch again.
+// Views that load lazily honour it; the rest ignore it, so it is safe to emit
+// from a global key hook without knowing what is on top of the stack.
+type ReloadMsg struct{}
 
 func (h *HomeShell) Title() string        { return h.title }
 func (h *HomeShell) Context() [][2]string { return h.ctx }
@@ -84,9 +100,13 @@ func (h *HomeShell) Hints() [][2]string {
 		} else {
 			hints = append(hints, km.HintLabeled(keys.Confirm, "open"))
 		}
-		return append(hints,
+		hints = append(hints,
 			km.HintLabeled(keys.PageUp, "page"),
 			km.HintLabeled(keys.FocusNext, "menu"))
+		if h.SideFetch != nil {
+			hints = append(hints, km.HintLabeled(keys.Reload, h.reloadHint()))
+		}
+		return hints
 	}
 	hints := [][2]string{
 		km.HintLabeled(keys.Up, "move"),
@@ -99,16 +119,49 @@ func (h *HomeShell) Hints() [][2]string {
 		}
 		hints = append(hints, km.HintLabeled(keys.FocusNext, hint))
 	}
+	if h.SideFetch != nil {
+		hints = append(hints, km.HintLabeled(keys.Reload, h.reloadHint()))
+	}
 	return hints
 }
 
-func (h *HomeShell) hasSide() bool { return h.SideLabel != "" && h.SideFetch != nil }
+func (h *HomeShell) hasSide() bool { return h.sideLabel() != "" && h.SideFetch != nil }
+
+func (h *HomeShell) reloadHint() string {
+	if h.ReloadHint != "" {
+		return h.ReloadHint
+	}
+	return "reload"
+}
+
+func (h *HomeShell) sideLabel() string {
+	if h.SideLabelFn != nil {
+		return h.SideLabelFn()
+	}
+	return h.SideLabel
+}
 
 func (h *HomeShell) Init() tea.Cmd {
 	if !h.hasSide() {
 		return nil
 	}
-	return func() tea.Msg { return homeShellLoadedMsg{data: h.SideFetch()} }
+	return h.fetchSide()
+}
+
+// Reload drops fetched side content and re-runs SideFetch, showing SideLoading
+// until the new data lands. No-op when there is nothing to fetch.
+func (h *HomeShell) Reload() tea.Cmd {
+	if h.SideFetch == nil {
+		return nil
+	}
+	h.fetched, h.loaded = nil, false
+	h.refresh()
+	return h.fetchSide()
+}
+
+func (h *HomeShell) fetchSide() tea.Cmd {
+	fetch := h.SideFetch
+	return func() tea.Msg { return homeShellLoadedMsg{own: h, data: fetch()} }
 }
 
 func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
@@ -121,6 +174,8 @@ func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 		h.fetched, h.loaded = m.data, true
 		h.refresh()
 		return nil
+	case ReloadMsg:
+		return h.Reload()
 	case tea.KeyMsg:
 		return h.handleKey(host, m)
 	}
@@ -135,6 +190,9 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 	if h.hasSide() && (act == keys.FocusNext || act == keys.FocusPrev) {
 		h.toggleFocus()
 		return nil
+	}
+	if act == keys.Reload && h.SideFetch != nil {
+		return h.Reload()
 	}
 	if h.focus == homeFocusSide {
 		switch act {
@@ -274,7 +332,7 @@ func (h *HomeShell) Body(width, height int) string {
 		return menuBox
 	}
 	th := theme.Cur()
-	label := "◈ " + h.SideLabel
+	label := "◈ " + h.sideLabel()
 	if h.focus == homeFocusSide {
 		label = th.Accent.Render(label)
 	} else {

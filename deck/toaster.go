@@ -11,19 +11,10 @@ import (
 	"github.com/codyconfer/viewkit/panels"
 )
 
-// toastInterval is how often an armed Toaster wakes to expire notifications.
 const toastInterval = time.Second
 
-// toasterSeq numbers Toaster instances so their prune ticks can be told apart.
 var toasterSeq atomic.Uint64
 
-// toastPruneMsg is a Toaster's prune tick.
-//
-// Bubble Tea has one message bus: a Cmd's message goes to the program root,
-// and deck's Host hands it to whatever view is on top — not necessarily the
-// view that armed it. A shared tick type would therefore let one view's
-// Toaster consume another's tick, so every tick carries the id of the Toaster
-// that armed it and is ignored everywhere else.
 type toastPruneMsg struct {
 	id uint64
 	at time.Time

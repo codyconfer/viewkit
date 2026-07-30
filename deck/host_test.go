@@ -96,6 +96,45 @@ func TestHostMsgHook(t *testing.T) {
 	}
 }
 
+func TestHostInitCmd(t *testing.T) {
+	h := New(stubView{title: "Root"},
+		WithInitCmd(func() tea.Msg { return settleTestMsg{n: 1} }),
+		WithInitCmd(func() tea.Msg { return settleTestMsg{n: 2} }),
+		WithInitCmd(nil),
+	)
+	if got := len(h.initCmds); got != 2 {
+		t.Fatalf("initCmds = %d, want 2 (nil dropped)", got)
+	}
+	if h.Init() == nil {
+		t.Fatal("Init() returned no command")
+	}
+}
+
+func TestHostInitCmdSurvivesPush(t *testing.T) {
+	var seen []int
+	h := New(stubView{title: "Root"},
+		WithInitCmd(func() tea.Msg { return settleTestMsg{n: 1} }),
+		WithMsgHook(func(m *Model, msg tea.Msg) (tea.Cmd, bool) {
+			s, ok := msg.(settleTestMsg)
+			if !ok {
+				return nil, false
+			}
+			seen = append(seen, s.n)
+			return nil, true
+		}),
+	)
+	_ = h.Push(stubView{title: "Child"})
+	if _, cmd := h.Update(settleTestMsg{n: 1}); cmd != nil {
+		_ = cmd()
+	}
+	if _, cmd := h.Update(settleTestMsg{n: 2}); cmd != nil {
+		_ = cmd()
+	}
+	if len(seen) != 2 || seen[0] != 1 || seen[1] != 2 {
+		t.Fatalf("hook saw %v while a child view was on top, want [1 2]", seen)
+	}
+}
+
 type ctxView struct {
 	stubView
 	ctx [][2]string
@@ -144,7 +183,6 @@ func TestHostBrandWithoutGlyphNoExtraPad(t *testing.T) {
 	m, _ := h.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 	h = m.(*Model)
 	plain := ansi.Strip(h.View())
-	// AppMarginX + one strip pad space, then brand — not an extra blank column.
 	wantLead := theme.AppMarginX + 1
 	for _, ln := range strings.Split(plain, "\n") {
 		if !strings.Contains(ln, "MUNIN") {
@@ -198,5 +236,48 @@ func TestHostRefreshStatusReloadsStrip(t *testing.T) {
 	bare := New(stubView{title: "root"})
 	if bare.RefreshStatus() != nil {
 		t.Fatal("RefreshStatus without WithStatus should be nil")
+	}
+}
+
+func TestLoadLandingOffTopReachesItsView(t *testing.T) {
+	shell := homeShellWithRows(2)
+	h := New(shell)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	slow := shell.Init()
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := h.Push(stubView{title: "detail"}); cmd != nil {
+		cmd()
+	}
+
+	h = driveHost(h, slow())
+	if cmd := h.Pop(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+
+	body := ansi.Strip(h.View())
+	if strings.Contains(body, "loading") {
+		t.Fatalf("side pane stuck on loading after the fetch landed off-top:\n%s", body)
+	}
+	if !strings.Contains(body, "row-000") {
+		t.Fatalf("side pane missing loaded rows:\n%s", body)
+	}
+}
+
+func TestLoadDeliveryDoesNotCrossViews(t *testing.T) {
+	first, second := homeShellWithRows(1), homeShellWithRows(3)
+	h := New(first)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := h.Push(second); cmd != nil {
+		cmd()
+	}
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	h = driveHost(h, first.Init()())
+	if second.loaded {
+		t.Fatal("first view's load marked the second view loaded")
+	}
+	if !first.loaded {
+		t.Fatal("first view's load did not reach it")
 	}
 }

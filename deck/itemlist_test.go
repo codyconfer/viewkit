@@ -1,6 +1,7 @@
 package deck
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -75,7 +76,6 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	if labelAt < 0 || rowAt <= labelAt {
 		t.Fatalf("side title/results missing or out of order\n%s", view)
 	}
-	// Host margin padding may leave spaces on the blank separator line.
 	blank := false
 	for _, ln := range strings.Split(view[labelAt:rowAt], "\n")[1:] {
 		if strings.TrimSpace(ln) == "" {
@@ -107,5 +107,83 @@ func TestHomeShellBoxTitle(t *testing.T) {
 	view := h.View()
 	if !strings.Contains(view, "MAIN MENU") {
 		t.Fatalf("BoxTitle should appear in titled box\n%s", view)
+	}
+}
+
+func TestItemListReloadRefetches(t *testing.T) {
+	payload := "first"
+	fetches := 0
+	il := NewItemList("results", nil,
+		func() any { fetches++; return payload },
+		func(_ int, fetched any) []list.Item {
+			return []list.Item{{Block: "body " + fmt.Sprint(fetched)}}
+		})
+	il.ReloadHint = "rerun"
+
+	h := New(il)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := il.Init(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "body first") {
+		t.Fatalf("initial load missing:\n%s", got)
+	}
+	if !strings.Contains(ansi.Strip(h.View()), "rerun") {
+		t.Errorf("footer missing the reload hint:\n%s", ansi.Strip(h.View()))
+	}
+
+	payload = "second"
+	h = driveSettled(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if fetches != 2 {
+		t.Fatalf("reload key fetched %d times, want 2", fetches)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "body second") {
+		t.Fatalf("reload key did not refetch:\n%s", got)
+	}
+
+	payload = "third"
+	h = driveSettled(h, ReloadMsg{})
+	if fetches != 3 {
+		t.Fatalf("ReloadMsg fetched %d times, want 3", fetches)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "body third") {
+		t.Fatalf("ReloadMsg did not refetch:\n%s", got)
+	}
+}
+
+func TestScrollReloadReRendersBody(t *testing.T) {
+	body := "first"
+	loads := 0
+	sc := NewScroll("report", nil, nil, func() string { loads++; return body })
+	sc.ReloadHint = "rerun report"
+
+	h := New(sc)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := sc.Init(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "first") {
+		t.Fatalf("initial load missing:\n%s", got)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "rerun report") {
+		t.Errorf("footer missing the reload hint:\n%s", got)
+	}
+
+	body = "second"
+	h = driveSettled(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if loads != 2 {
+		t.Fatalf("reload key loaded %d times, want 2", loads)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "second") {
+		t.Fatalf("reload key did not re-render:\n%s", got)
+	}
+
+	body = "third"
+	h = driveSettled(h, ReloadMsg{})
+	if loads != 3 {
+		t.Fatalf("ReloadMsg loaded %d times, want 3", loads)
+	}
+	if got := ansi.Strip(h.View()); !strings.Contains(got, "third") {
+		t.Fatalf("ReloadMsg did not re-render:\n%s", got)
 	}
 }

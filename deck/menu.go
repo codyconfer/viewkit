@@ -71,7 +71,6 @@ func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// menuBoxChrome is the line count TitledBox adds around the rows.
 const menuBoxChrome = 2
 
 func (m *Menu) Body(width, height int) string {
@@ -150,7 +149,12 @@ func NewScrollContent(title string, ctx, hints [][2]string, load func() string) 
 	return &ScrollContent{title: title, load: load, ctx: ctx, hints: hints}
 }
 
-type scrollLoadedMsg struct{ body string }
+type scrollLoadedMsg struct {
+	own  *ScrollContent
+	body string
+}
+
+func (m scrollLoadedMsg) recipient() View { return m.own }
 
 func (c *ScrollContent) Title() string        { return c.title }
 func (c *ScrollContent) Context() [][2]string { return c.ctx }
@@ -163,7 +167,7 @@ func (c *ScrollContent) Hints() [][2]string {
 }
 
 func (c *ScrollContent) Init() tea.Cmd {
-	return func() tea.Msg { return scrollLoadedMsg{body: c.load()} }
+	return func() tea.Msg { return scrollLoadedMsg{own: c, body: c.load()} }
 }
 
 func (c *ScrollContent) Update(h *Model, msg tea.Msg) tea.Cmd {

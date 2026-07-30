@@ -45,7 +45,6 @@ func TestWithExtraHintsEmptyReturnsInnerUnchanged(t *testing.T) {
 }
 
 func TestWithExtraHintsLeavesInnerSliceAlone(t *testing.T) {
-	// A slice with spare capacity is the case a naive append corrupts.
 	base := make([][2]string, 1, 4)
 	base[0] = [2]string{"↑/↓", "move"}
 	inner := &decoView{hints: base}

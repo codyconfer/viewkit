@@ -33,6 +33,8 @@ type ItemList struct {
 	OnSelect func(h *Model, key string) tea.Cmd
 	// LoadingText shown before load completes.
 	LoadingText string
+	// ReloadHint is the footer label for the reload key (default "reload").
+	ReloadHint string
 
 	lst     list.Model
 	width   int
@@ -57,32 +59,65 @@ func NewItemList(title string, ctx [][2]string, fetch func() any, bind func(widt
 	return r
 }
 
-type itemListLoadedMsg struct{ data any }
+type itemListLoadedMsg struct {
+	own  *ItemList
+	data any
+}
+
+func (m itemListLoadedMsg) recipient() View { return m.own }
 
 func (r *ItemList) Title() string        { return r.title }
 func (r *ItemList) Context() [][2]string { return r.ctx }
+
+// Selected returns the highlighted row, if any. Hosts that decorate an
+// ItemList with their own row commands need it to know what the command
+// applies to.
+func (r *ItemList) Selected() (list.Item, bool) { return r.lst.Selected() }
 func (r *ItemList) Hints() [][2]string {
 	km := navMap()
+	hints := [][2]string{km.HintLabeled(keys.Up, "move")}
 	if r.OnSelect != nil {
-		return [][2]string{
-			km.HintLabeled(keys.Up, "move"),
+		hints = append(hints,
 			km.HintLabeled(keys.Confirm, "details"),
-			km.HintLabeled(keys.Open, "open"),
-			km.HintLabeled(keys.PageUp, "page"),
-		}
+			km.HintLabeled(keys.Open, "open"))
+	} else {
+		hints = append(hints, km.HintLabeled(keys.Confirm, "open"))
 	}
-	return [][2]string{
-		km.HintLabeled(keys.Up, "move"),
-		km.HintLabeled(keys.Confirm, "open"),
-		km.HintLabeled(keys.PageUp, "page"),
+	hints = append(hints, km.HintLabeled(keys.PageUp, "page"))
+	if r.Fetch != nil {
+		hints = append(hints, km.HintLabeled(keys.Reload, r.reloadHint()))
 	}
+	return hints
+}
+
+func (r *ItemList) reloadHint() string {
+	if r.ReloadHint != "" {
+		return r.ReloadHint
+	}
+	return "reload"
 }
 
 func (r *ItemList) Init() tea.Cmd {
 	if r.Fetch == nil {
-		return func() tea.Msg { return itemListLoadedMsg{} }
+		return func() tea.Msg { return itemListLoadedMsg{own: r} }
 	}
-	return func() tea.Msg { return itemListLoadedMsg{data: r.Fetch()} }
+	return r.fetchCmd()
+}
+
+// Reload drops fetched content and re-runs Fetch, showing LoadingText until the
+// new data lands. No-op when there is nothing to fetch.
+func (r *ItemList) Reload() tea.Cmd {
+	if r.Fetch == nil {
+		return nil
+	}
+	r.fetched, r.loaded = nil, false
+	r.refresh()
+	return r.fetchCmd()
+}
+
+func (r *ItemList) fetchCmd() tea.Cmd {
+	fetch := r.Fetch
+	return func() tea.Msg { return itemListLoadedMsg{own: r, data: fetch()} }
 }
 
 func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
@@ -97,6 +132,8 @@ func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 		r.fetched, r.loaded = m.data, true
 		r.refresh()
 		return nil
+	case ReloadMsg:
+		return r.Reload()
 	case tea.KeyMsg:
 		return r.handleKey(h, m)
 	}
@@ -121,6 +158,8 @@ func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
 		return r.confirmSelected(h)
 	case keys.Open:
 		return r.openSelected()
+	case keys.Reload:
+		return r.Reload()
 	case keys.Cancel:
 		return h.Pop()
 	}

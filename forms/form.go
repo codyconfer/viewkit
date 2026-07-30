@@ -61,8 +61,6 @@ func (fm *Form) CycleSuggestion(delta int) {
 	fm.sugg.idx = ((fm.sugg.idx+delta)%n + n) % n
 }
 
-// resuggest recomputes the focused field's candidates and returns to the
-// first of them, so a fresh keystroke never leaves a stale ghost on screen.
 func (fm *Form) resuggest() {
 	fm.sugg = suggState{}
 	if fd := fm.Focused(); fd != nil {
@@ -155,8 +153,6 @@ func (fm *Form) render(f layout.Frame, title string, maxLines int) string {
 
 const moreMarker = "⋯"
 
-// windowAround returns exactly maxLines of lines containing [focusStart,
-// focusEnd), marking clipped edges so the field list does not look complete.
 func windowAround(lines []string, focusStart, focusEnd, maxLines int) []string {
 	if maxLines < 3 {
 		maxLines = 3

@@ -16,9 +16,6 @@ func tableLines(t *testing.T, out string) []string {
 
 func tableCells(line string) []string { return strings.Split(line, tableCellSep) }
 
-// A column of wide (CJK) runes must line up with an ASCII column: display
-// width, not rune count, decides the padding. Padding by rune count makes
-// every wide cell two columns too long per character and breaks alignment.
 func TestTableAlignsWideRunes(t *testing.T) {
 	headers := []string{"name", "note"}
 	rows := [][]string{

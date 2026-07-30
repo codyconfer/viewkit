@@ -11,8 +11,6 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 )
 
-// testSave stands in for an app-specific save action, the way munin binds
-// ctrl+s to its own keys.Action rather than a viewkit one.
 const testSave = keys.Action("test.save")
 
 func testFormKeys() FormKeys {
@@ -28,8 +26,6 @@ func nameFields() []forms.Field {
 
 func rune1(r rune) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}} }
 
-// hostWith pushes v onto a two-deep stack so Pop is observable (a Pop from the
-// root quits instead).
 func hostWith(v View) *Model {
 	h := New(stubView{title: "root"})
 	h.Push(v)
@@ -106,7 +102,6 @@ func TestFormViewTypingReachesTheForm(t *testing.T) {
 }
 
 func TestFormViewSpaceIsNotSwallowedByConfirm(t *testing.T) {
-	// The default scheme binds " " to Confirm; a form must still type it.
 	v := NewFormView(FormSpec{Title: "edit", Fields: nameFields()})
 	h := hostWith(v)
 
@@ -163,7 +158,6 @@ func TestFormViewUnknownKeysGoToOnKeyThenAreIgnored(t *testing.T) {
 	}
 	h.Push(v)
 
-	// A key OnKey declines and nothing is bound to leaves no trace.
 	if cmd := v.Update(h, tea.KeyMsg{Type: tea.KeyF5}); cmd != nil {
 		t.Errorf("unhandled key returned %v, want nil", cmd)
 	}
@@ -209,7 +203,6 @@ func TestFormViewOnMsgSeesNonKeyMessages(t *testing.T) {
 	if !strings.Contains(v.Body(60, 20), "title required") {
 		t.Fatalf("status line missing from body:\n%s", v.Body(60, 20))
 	}
-	// Unclaimed non-key messages are still inert.
 	if cmd := v.Update(h, struct{}{}); cmd != nil {
 		t.Errorf("unclaimed message returned %v, want nil", cmd)
 	}

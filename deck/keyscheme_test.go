@@ -13,8 +13,6 @@ import (
 	"github.com/codyconfer/viewkit/list"
 )
 
-// useScheme installs a scheme for one test and restores the default after.
-// keys.Cur is process-global, so every case must clean up after itself.
 func useScheme(t *testing.T, overrides ...keys.Binding) {
 	t.Helper()
 	keys.Use(keys.Default().With(overrides...))
@@ -54,7 +52,6 @@ func TestHostQuitFollowsScheme(t *testing.T) {
 		t.Fatalf("want tea.QuitMsg from scheme Quit key, got %T", cmd())
 	}
 
-	// ctrl+c was the old hardcoded default; it must not quit once rebound.
 	if _, cmd = h.Update(tea.KeyMsg{Type: tea.KeyCtrlC}); cmd != nil {
 		if _, ok := cmd().(tea.QuitMsg); ok {
 			t.Fatal("ctrl+c quit even though the scheme rebound Quit to ctrl+x")
@@ -127,7 +124,6 @@ func TestScrollPagesViaScheme(t *testing.T) {
 		t.Fatalf("rebound PageDown did not page the viewport:\n%s", got)
 	}
 
-	// pgdown is the default PageDown key; the override must have replaced it.
 	h = driveHost(h, tea.KeyMsg{Type: tea.KeyPgDown})
 	first := firstContentLine(t, ansi.Strip(h.View()))
 	h = driveHost(h, tea.KeyMsg{Type: tea.KeyPgDown})
@@ -136,7 +132,6 @@ func TestScrollPagesViaScheme(t *testing.T) {
 	}
 }
 
-// firstContentLine returns the first rendered body line, used to detect scrolling.
 func firstContentLine(t *testing.T, view string) string {
 	t.Helper()
 	for ln := range strings.SplitSeq(view, "\n") {

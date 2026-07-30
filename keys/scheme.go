@@ -16,6 +16,7 @@ const (
 	PageUp    Action = "page.up"
 	PageDown  Action = "page.down"
 	Open      Action = "open"
+	Reload    Action = "reload"
 
 	// Complete accepts the suggestion a text field is showing. It shares tab
 	// with FocusNext: a host that binds both resolves the conflict by build
@@ -61,6 +62,7 @@ func Default() Scheme {
 		PageUp:    {Keys: []string{"pgup"}, Action: PageUp, Glyph: "pgup/pgdn"},
 		PageDown:  {Keys: []string{"pgdown"}, Action: PageDown},
 		Open:      {Keys: []string{"o"}, Action: Open, Glyph: "o", Label: "open"},
+		Reload:    {Keys: []string{"r", "f5"}, Action: Reload, Glyph: "r", Label: "reload"},
 
 		Complete:     {Keys: []string{"tab"}, Action: Complete, Glyph: "tab", Label: "accept"},
 		CompleteNext: {Keys: []string{"ctrl+n"}, Action: CompleteNext, Glyph: "ctrl+n/ctrl+p", Label: "suggestion"},

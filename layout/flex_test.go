@@ -130,8 +130,6 @@ func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
 	out := scr.Render(NewFrame(w), TierTall, 0)
 	lines := strings.Split(out, "\n")
 
-	// Every composited row must be gap-free full width (blank separator
-	// lines between rows come from Stack and are skipped).
 	for _, ln := range lines {
 		if ln == "" {
 			continue
@@ -141,8 +139,6 @@ func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
 		}
 	}
 
-	// First row holds two boxes side by side; the ragged last row holds one
-	// box that expands to fill the full width.
 	firstTop := stripANSI(lines[0])
 	if strings.Count(firstTop, "╭") != 2 {
 		t.Fatalf("first row should hold two boxes, got: %q", firstTop)

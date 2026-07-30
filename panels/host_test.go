@@ -24,7 +24,6 @@ func TestDualHostInlineAndDeck(t *testing.T) {
 
 func TestPanelRegistry(t *testing.T) {
 	id := "test.static"
-	// clean slate for this id if re-run in same process
 	regMu.Lock()
 	delete(panels, id)
 	regMu.Unlock()
