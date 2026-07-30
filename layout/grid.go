@@ -23,6 +23,11 @@ type Grid struct {
 
 const SlimMinWidth = 20
 
+// MinTrackWidth is the narrowest column a tiling layout will create. It is the
+// same floor Slim panes use: below it a track holds no readable body, so
+// layouts drop columns instead of tiling slivers that box helpers overflow.
+const MinTrackWidth = SlimMinWidth
+
 type gridCell struct {
 	x, y, w, h int
 }
@@ -50,7 +55,12 @@ func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) stri
 	if width < 1 {
 		width = theme.BodyWidth
 	}
-	cells, cols, rows := g.place(visible)
+	fitted := g
+	fitted.Cols = FitCols(g.Cols, width)
+	if fitted.Cols < g.Cols {
+		visible = autoFlow(visible)
+	}
+	cells, cols, rows := fitted.place(visible)
 	rects := make([]rect, len(visible))
 	slim := make([]bool, len(visible))
 	for i, p := range visible {
@@ -69,6 +79,29 @@ func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) stri
 		blocks[i] = p.Render(pf)
 	}
 	return composite(width, height, rects, blocks)
+}
+
+// FitCols reduces a requested column count until every column is at least
+// MinTrackWidth wide, never dropping below a single column.
+func FitCols(cols, width int) int {
+	if cols < 1 {
+		cols = 1
+	}
+	if width < 1 {
+		return cols
+	}
+	return min(cols, max(width/MinTrackWidth, 1))
+}
+
+// autoFlow strips explicit grid positions so panes reflow into the narrowed
+// column count instead of colliding on clamped coordinates.
+func autoFlow(panes []Pane) []Pane {
+	out := make([]Pane, len(panes))
+	copy(out, panes)
+	for i := range out {
+		out[i].Pos = nil
+	}
+	return out
 }
 
 func (g Grid) place(panes []Pane) (cells []gridCell, cols, rows int) {
@@ -263,7 +296,7 @@ func composite(width, height int, rects []rect, blocks []string) string {
 			b.WriteString(s.text)
 			cursor += ansi.StringWidth(s.text)
 		}
-		out[y] = b.String()
+		out[y] = padTo(b.String(), width)
 	}
 	return strings.Join(out, "\n")
 }
@@ -293,6 +326,9 @@ func fitLines(block string, w, h int) []string {
 }
 
 func padTo(line string, w int) string {
+	if w < 0 {
+		w = 0
+	}
 	lw := ansi.StringWidth(line)
 	switch {
 	case lw > w:

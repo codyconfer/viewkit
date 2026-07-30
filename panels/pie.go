@@ -11,11 +11,11 @@ import (
 func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(float64) string, empty string) string {
 	total := 0.0
 	for _, d := range data {
-		if d.Value > 0 {
-			total += d.Value
+		if v := finite(d.Value); v > 0 {
+			total += v
 		}
 	}
-	if total <= 0 {
+	if total = finite(total); total <= 0 {
 		return f.Panel(title, theme.Cur().Dim.Render(empty))
 	}
 	if barWidth < 1 {
@@ -29,15 +29,13 @@ func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(f
 	var legend []string
 	filled := 0
 	for i, d := range data {
-		if d.Value <= 0 {
+		v := finite(d.Value)
+		if v <= 0 {
 			continue
 		}
-		frac := d.Value / total
+		frac := v / total
 		sty := theme.Cur().Series[i%len(theme.Cur().Series)]
-		n := int(frac*float64(barWidth) + 0.5)
-		if filled+n > barWidth {
-			n = barWidth - filled
-		}
+		n := min(max(int(frac*float64(barWidth)+0.5), 0), barWidth-filled)
 		filled += n
 		bar.WriteString(sty.Render(strings.Repeat("█", n)))
 		legend = append(legend, f.Spread(

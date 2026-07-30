@@ -69,15 +69,26 @@ func SpreadBG(bg lipgloss.TerminalColor, left, right string, width int) string {
 	if width <= 0 {
 		width = theme.BodyWidth
 	}
+	ell := lipgloss.NewStyle().Background(bg).Foreground(theme.Cur().Dim.GetForeground()).Render("…")
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
-	if avail := width - rw - 1; avail > 0 && lw > avail {
-		ell := lipgloss.NewStyle().Background(bg).Foreground(theme.Cur().Dim.GetForeground()).Render("…")
-		left = ansi.Truncate(left, avail, ell)
-		lw = ansi.StringWidth(left)
+	if lw+rw+1 > width {
+		switch {
+		case rw >= width:
+			left, right = "", ansi.Truncate(right, width, ell)
+		case width-rw > 1:
+			left = ansi.Truncate(left, width-rw-1, ell)
+		default:
+			left = ""
+		}
+		lw, rw = ansi.StringWidth(left), ansi.StringWidth(right)
 	}
 	gap := max(width-lw-rw, 0)
 	pad := lipgloss.NewStyle().Background(bg).Render(strings.Repeat(" ", gap))
-	return left + pad + right
+	line := left + pad + right
+	if ansi.StringWidth(line) > width {
+		line = ansi.Truncate(line, width, "")
+	}
+	return line
 }
 
 func FillHeight(body string, height int) string {
@@ -89,6 +100,9 @@ func FillHeight(body string, height int) string {
 }
 
 func IndentLines(s string, n int) string {
+	if n <= 0 {
+		return s
+	}
 	pad := strings.Repeat(" ", n)
 	return pad + strings.ReplaceAll(s, "\n", "\n"+pad)
 }
@@ -153,11 +167,15 @@ func Box(lines ...string) string {
 }
 
 func (f Frame) Box(lines ...string) string {
+	return f.boxAt(f.BodyWidth(), lines...)
+}
+
+func (f Frame) boxAt(inner int, lines ...string) string {
 	sty := theme.Cur().Panel
 	if f.Focused {
 		sty = theme.Cur().PanelFocus
 	}
-	return sty.Width(f.BodyWidth() + 2).Render(strings.Join(lines, "\n"))
+	return sty.Width(inner + 2).Render(strings.Join(lines, "\n"))
 }
 
 func Panel(title string, lines ...string) string {
@@ -165,7 +183,12 @@ func Panel(title string, lines ...string) string {
 }
 
 func (f Frame) Panel(title string, lines ...string) string {
-	return f.Box(append([]string{theme.Cur().PanelTitle.Render(ansi.Truncate(title, f.BodyWidth(), "…"))}, lines...)...)
+	return f.panelAt(f.BodyWidth(), title, lines...)
+}
+
+func (f Frame) panelAt(inner int, title string, lines ...string) string {
+	head := theme.Cur().PanelTitle.Render(ansi.Truncate(title, inner, "…"))
+	return f.boxAt(inner, append([]string{head}, lines...)...)
 }
 
 func Row(label, value string) string {

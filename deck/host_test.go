@@ -281,3 +281,31 @@ func TestLoadDeliveryDoesNotCrossViews(t *testing.T) {
 		t.Fatal("first view's load did not reach it")
 	}
 }
+
+func TestWithoutClockDropsTheClockAndItsTick(t *testing.T) {
+	ticking := New(stubView{title: "root"})
+	ticking = driveHost(ticking, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if ticking.Init() == nil || ticking.tick() == nil {
+		t.Fatal("a deck showing the clock must schedule the 1 Hz tick")
+	}
+	if !strings.Contains(ansi.Strip(ticking.View()), ticking.clock) {
+		t.Fatalf("clock missing from the header:\n%s", ansi.Strip(ticking.View()))
+	}
+
+	quiet := New(stubView{title: "root"}, WithoutClock())
+	quiet = driveHost(quiet, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := quiet.tick(); cmd != nil {
+		t.Fatal("WithoutClock must not schedule a repaint tick")
+	}
+	if cmd := quiet.Init(); cmd != nil {
+		t.Fatal("Init armed a repaint tick for a deck with no clock")
+	}
+	if got := ansi.Strip(quiet.View()); strings.Contains(got, quiet.clock) {
+		t.Fatalf("WithoutClock still rendered the clock:\n%s", got)
+	}
+
+	quiet.SetStatus(StatusInfo{Identity: "who@example.test"})
+	if got := ansi.Strip(quiet.View()); !strings.Contains(got, "who@example.test") {
+		t.Fatalf("identity should still render without the clock:\n%s", got)
+	}
+}

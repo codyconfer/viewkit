@@ -135,6 +135,139 @@ func TestSetItemsSelectsFirstSelectable(t *testing.T) {
 	}
 }
 
+func TestSetItemsKeepingCursorSurvivesIdenticalRebind(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+
+	for range 3 {
+		m.Move(1)
+	}
+	wantKey, wantCursor, wantOffset := "u4", m.cursor, m.offset
+	if it, _ := m.Selected(); it.Key != wantKey {
+		t.Fatalf("precondition: cursor = %q, want %q", it.Key, wantKey)
+	}
+	if wantCursor == 0 || wantOffset == 0 {
+		t.Fatalf("precondition: want a non-zero cursor and offset, got %d/%d", wantCursor, wantOffset)
+	}
+
+	m.SetItemsKeepingCursor(flightSample())
+
+	if it, _ := m.Selected(); it.Key != wantKey {
+		t.Fatalf("cursor = %q, want %q: rebind discarded the selection", it.Key, wantKey)
+	}
+	if m.cursor != wantCursor {
+		t.Fatalf("cursor index = %d, want %d", m.cursor, wantCursor)
+	}
+	if m.offset != wantOffset {
+		t.Fatalf("offset = %d, want %d: rebind discarded the scroll position", m.offset, wantOffset)
+	}
+}
+
+func TestSetItemsKeepingCursorTracksMovedItemAcrossChangedList(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+	m.Move(1)
+	if it, _ := m.Selected(); it.Key != "u2" {
+		t.Fatalf("precondition: cursor = %q, want u2", it.Key)
+	}
+
+	grown := append([]Item{
+		{Block: "flight  (2)"},
+		{Block: "Open PRs  (4)"},
+		{Block: "pr zero", Key: "u0", Selectable: true},
+	}, flightSample()[2:]...)
+	m.SetItemsKeepingCursor(grown)
+
+	if it, _ := m.Selected(); it.Key != "u2" {
+		t.Fatalf("cursor = %q, want u2: a new row above the selection stole the cursor", it.Key)
+	}
+}
+
+func TestSetItemsKeepingCursorFallsBackWhenKeyIsGone(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+	for range 3 {
+		m.Move(1)
+	}
+
+	m.SetItemsKeepingCursor([]Item{
+		{Block: "Open PRs  (1)"},
+		{Block: "pr new", Key: "z1", Selectable: true},
+	})
+
+	if it, ok := m.Selected(); !ok || it.Key != "z1" {
+		t.Fatalf("cursor = %q (%v), want z1 (first selectable)", it.Key, ok)
+	}
+	if m.cursor != m.firstSelectable() {
+		t.Fatalf("cursor = %d, want firstSelectable %d", m.cursor, m.firstSelectable())
+	}
+	if m.offset != 0 {
+		t.Fatalf("offset = %d, want 0 on fallback", m.offset)
+	}
+}
+
+func TestSetItemsKeepingCursorHandlesEmptyAndUnselectableLists(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+	m.Move(1)
+
+	m.SetItemsKeepingCursor(nil)
+	if _, ok := m.Selected(); ok {
+		t.Fatal("empty rebind kept a selection")
+	}
+
+	m.SetItemsKeepingCursor([]Item{{Block: "nothing to show"}})
+	if _, ok := m.Selected(); ok {
+		t.Fatal("rebind onto an unselectable list assigned a cursor")
+	}
+
+	m.SetItemsKeepingCursor(flightSample())
+	if it, ok := m.Selected(); !ok || it.Key != "u1" {
+		t.Fatalf("cursor = %q (%v), want u1 once rows are selectable again", it.Key, ok)
+	}
+}
+
+func TestSetItemsKeepingCursorKeepsScrollWithoutSelectables(t *testing.T) {
+	rows := []Item{{Block: "a\nb\nc\nd\ne\nf"}}
+	m := New()
+	m.SetItems(rows)
+	m.SetSize(80, 2)
+	m.Scroll(3)
+	if m.offset != 3 {
+		t.Fatalf("precondition: offset = %d, want 3", m.offset)
+	}
+
+	m.SetItemsKeepingCursor(rows)
+	if m.offset != 3 {
+		t.Fatalf("offset = %d, want 3: rebind reset a scroll-only list", m.offset)
+	}
+	if _, ok := m.Selected(); ok {
+		t.Fatal("rebind assigned a cursor to a list with no selectable items")
+	}
+}
+
+func TestSetItemsStillResetsSelection(t *testing.T) {
+	m := New()
+	m.SetItems(flightSample())
+	m.SetSize(80, 5)
+	for range 3 {
+		m.Move(1)
+	}
+
+	m.SetItems(flightSample())
+
+	if it, _ := m.Selected(); it.Key != "u1" {
+		t.Fatalf("cursor = %q, want u1: SetItems must keep its reset semantics", it.Key)
+	}
+	if m.offset != 0 {
+		t.Fatalf("offset = %d, want 0", m.offset)
+	}
+}
+
 func TestMoveSkipsHeadersAndClamps(t *testing.T) {
 	m := New()
 	m.SetItems(sample())

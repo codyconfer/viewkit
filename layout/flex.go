@@ -8,10 +8,15 @@ const (
 )
 
 // FlexColCount returns how many equal-width tracks fit in width, given a
-// minimum track width and a hard cap, clamped to [1, maxCols].
+// minimum track width and a hard cap, clamped to [1, maxCols]. The requested
+// minimum is itself floored at MinTrackWidth: a track narrower than that
+// cannot hold a box, so asking for one yields fewer, wider columns instead.
 func FlexColCount(width, minWidth, maxCols int) int {
 	if minWidth < 1 {
 		minWidth = DefaultFlexMinWidth
+	}
+	if minWidth < MinTrackWidth {
+		minWidth = MinTrackWidth
 	}
 	if maxCols < 1 {
 		maxCols = DefaultFlexMaxCols

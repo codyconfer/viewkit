@@ -45,6 +45,10 @@ func WithQuitHint(glyph string) Option {
 	return func(h *Host) { h.quitHint = glyph }
 }
 
+func WithoutClock() Option {
+	return func(h *Host) { h.noClock = true }
+}
+
 // WithKeyMapQuit installs a quit matcher from keys.Cur() Quit binding.
 // This is also the default; the option remains for explicit call sites.
 func WithKeyMapQuit() Option {
@@ -107,6 +111,7 @@ type Host struct {
 	keyHook   KeyHook
 	msgHook   MsgHook
 	initCmds  []tea.Cmd
+	noClock   bool
 }
 
 // New builds a Model with root view.
@@ -186,6 +191,9 @@ func (h *Host) Init() tea.Cmd {
 }
 
 func (h *Host) tick() tea.Cmd {
+	if h.noClock {
+		return nil
+	}
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
@@ -268,14 +276,20 @@ func (h *Host) header(v View) string {
 	if h.chrome.Subtitle != "" {
 		brand += st(muted, " · "+h.chrome.Subtitle)
 	}
-	clockGlyph := h.chrome.ClockGlyph
-	if clockGlyph != "" {
-		clockGlyph += " "
+	right := ""
+	if !h.noClock {
+		clockGlyph := h.chrome.ClockGlyph
+		if clockGlyph != "" {
+			clockGlyph += " "
+		}
+		right = sb(th.Accent.GetForeground(), clockGlyph+h.clock)
 	}
-	clock := sb(th.Accent.GetForeground(), clockGlyph+h.clock)
-	right := clock
 	if h.hasStatus && h.status.Identity != "" {
-		right = h.status.Identity + st(muted, "   ") + clock
+		if right == "" {
+			right = h.status.Identity
+		} else {
+			right = h.status.Identity + st(muted, "   ") + right
+		}
 	}
 	return theme.StripBlock(full,
 		layout.SpreadBG(theme.StripBg(), brand, right+st(muted, " "), full),

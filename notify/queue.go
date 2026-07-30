@@ -35,8 +35,12 @@ func (q *Queue) PushFor(n Notification, now time.Time, d time.Duration) {
 
 func (q *Queue) append(item queued) {
 	q.items = append(q.items, item)
-	if q.cap > 0 && len(q.items) > q.cap {
-		q.items = append(q.items[:1], q.items[2:]...)
+	for q.cap > 0 && len(q.items) > q.cap {
+		drop := 1
+		if len(q.items) < 3 {
+			drop = 0
+		}
+		q.items = append(q.items[:drop], q.items[drop+1:]...)
 	}
 }
 

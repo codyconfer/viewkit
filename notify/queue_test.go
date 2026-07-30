@@ -87,3 +87,64 @@ func TestQueueCapDropsOldestPending(t *testing.T) {
 		t.Fatalf("want surviving pending to be new, got %q ok=%v", cur.Title, ok)
 	}
 }
+
+func TestQueueCapOneShowsTheNewest(t *testing.T) {
+	q := NewQueue(1)
+	q.Push(n("first"), 5)
+	q.Push(n("second"), 5)
+
+	if q.Len() != 1 {
+		t.Fatalf("cap 1 should hold one notification, got %d", q.Len())
+	}
+	cur, ok := q.Current()
+	if !ok || cur.Title != "second" {
+		t.Fatalf("cap 1 must show the newest push, got %q ok=%v", cur.Title, ok)
+	}
+}
+
+func TestQueueCapOneRefreshesTheTTL(t *testing.T) {
+	q := NewQueue(1)
+	q.Push(n("first"), 1)
+	q.Push(n("second"), 3)
+
+	q.Beat()
+	cur, ok := q.Current()
+	if !ok || cur.Title != "second" {
+		t.Fatalf("the replacing notification should carry its own TTL, got %q ok=%v", cur.Title, ok)
+	}
+	q.Beat()
+	q.Beat()
+	if q.Active() {
+		t.Fatalf("queue should drain after the newest TTL elapses, got %v", q.Snapshot())
+	}
+}
+
+func TestQueueNeverDropsTheNewestPush(t *testing.T) {
+	for _, cap := range []int{1, 2, 3, 5} {
+		q := NewQueue(cap)
+		for i := range 12 {
+			q.Push(Notification{Title: string(rune('a' + i))}, 10)
+			if q.Len() > cap {
+				t.Fatalf("cap %d: queue grew to %d", cap, q.Len())
+			}
+			snap := q.Snapshot()
+			newest := snap[len(snap)-1]
+			if want := string(rune('a' + i)); newest.Title != want {
+				t.Fatalf("cap %d: push %d was dropped, tail is %q want %q (%v)", cap, i, newest.Title, want, snap)
+			}
+		}
+	}
+}
+
+func TestQueueCapKeepsTheHeadAndTheNewest(t *testing.T) {
+	q := NewQueue(3)
+	q.Push(n("head"), 10)
+	q.Push(n("p1"), 10)
+	q.Push(n("p2"), 10)
+	q.Push(n("p3"), 10)
+
+	snap := q.Snapshot()
+	if len(snap) != 3 || snap[0].Title != "head" || snap[1].Title != "p2" || snap[2].Title != "p3" {
+		t.Fatalf("cap 3 should drop the oldest pending only, got %v", snap)
+	}
+}

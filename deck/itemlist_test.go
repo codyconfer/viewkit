@@ -43,6 +43,103 @@ func TestItemListLoadsAndShows(t *testing.T) {
 	}
 }
 
+func cursorRows() []list.Item {
+	return []list.Item{
+		{Block: "Open PRs  (3)"},
+		{Block: "alpha", Key: "u1", Selectable: true},
+		{Block: "beta", Key: "u2", Selectable: true},
+		{Block: "gamma", Key: "u3", Selectable: true},
+	}
+}
+
+func loadedItemList(t *testing.T, il *ItemList) *Model {
+	t.Helper()
+	h := New(il)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := il.Init(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+	return h
+}
+
+func moveTo(t *testing.T, h *Model, il *ItemList, key string) *Model {
+	t.Helper()
+	for range 8 {
+		if it, ok := il.Selected(); ok && it.Key == key {
+			return h
+		}
+		h = driveHost(h, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	it, _ := il.Selected()
+	t.Fatalf("could not reach %q, stuck on %q", key, it.Key)
+	return h
+}
+
+func TestItemListKeepsCursorAcrossDetailRoundTrip(t *testing.T) {
+	il := NewItemList("results", nil, func() any { return cursorRows() }, nil)
+	h := loadedItemList(t, il)
+	h = moveTo(t, h, il, "u3")
+
+	if cmd := h.Push(stubView{title: "detail"}); cmd != nil {
+		h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	}
+	cmd := h.Pop()
+	if cmd == nil {
+		t.Fatal("Pop returned no relayout command")
+	}
+	h = driveHost(h, cmd())
+
+	if it, ok := il.Selected(); !ok || it.Key != "u3" {
+		t.Fatalf("cursor = %q (%v), want u3: the pop relayout reset the list", it.Key, ok)
+	}
+}
+
+func TestItemListSameSizeResizeKeepsCursor(t *testing.T) {
+	binds := 0
+	il := NewItemList("results", nil, func() any { return "payload" },
+		func(int, any) []list.Item { binds++; return cursorRows() })
+	h := loadedItemList(t, il)
+	h = moveTo(t, h, il, "u2")
+	before := binds
+
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if binds != before {
+		t.Fatalf("Bind ran %d extra times on an unchanged size, want 0", binds-before)
+	}
+	if it, ok := il.Selected(); !ok || it.Key != "u2" {
+		t.Fatalf("cursor = %q (%v), want u2 after a no-op resize", it.Key, ok)
+	}
+
+	h = driveHost(h, tea.WindowSizeMsg{Width: 100, Height: 24})
+	if binds == before {
+		t.Fatal("a real resize must re-bind the rows")
+	}
+	if it, ok := il.Selected(); !ok || it.Key != "u2" {
+		t.Fatalf("cursor = %q (%v), want u2 preserved across a real resize", it.Key, ok)
+	}
+}
+
+func TestItemListKeepsCursorWhenLiveRowsArrive(t *testing.T) {
+	rows := cursorRows()
+	il := NewItemList("results", nil, nil, func(int, any) []list.Item { return rows })
+	h := loadedItemList(t, il)
+	h = moveTo(t, h, il, "u2")
+
+	rows = append(cursorRows(), list.Item{Block: "delta", Key: "u4", Selectable: true})
+	h = driveHost(h, itemListLoadedMsg{own: il})
+	if it, ok := il.Selected(); !ok || it.Key != "u2" {
+		t.Fatalf("cursor = %q (%v), want u2: an inbound row reset the cursor", it.Key, ok)
+	}
+
+	rows = []list.Item{{Block: "Open PRs  (1)"}, {Block: "zeta", Key: "z9", Selectable: true}}
+	h = driveHost(h, itemListLoadedMsg{own: il})
+	if it, ok := il.Selected(); !ok || it.Key != "z9" {
+		t.Fatalf("cursor = %q (%v), want z9: a vanished key must fall back to the first selectable", it.Key, ok)
+	}
+	_ = h
+}
+
 func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	menuOnly := NewHomeShell("home", nil, []MenuItem{{Label: "Quit"}}, "")
 	h := New(menuOnly)

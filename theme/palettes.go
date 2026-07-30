@@ -1,6 +1,10 @@
 package theme
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"sync"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	defaultPalette = Palette{
@@ -130,6 +134,8 @@ type registryEntry struct {
 	palette Palette
 }
 
+var registryMu sync.RWMutex
+
 var registry = []registryEntry{
 	{key: "default", name: "Default", palette: defaultPalette},
 	{key: "solarized-dark", name: "Solarized Dark", palette: solarizedDarkPalette},
@@ -142,6 +148,8 @@ var registry = []registryEntry{
 }
 
 func Register(key, name string, p Palette) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	for i := range registry {
 		if registry[i].key == key {
 			registry[i].name = name
@@ -153,6 +161,8 @@ func Register(key, name string, p Palette) {
 }
 
 func Keys() []string {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	out := make([]string, len(registry))
 	for i, e := range registry {
 		out[i] = e.key
@@ -161,6 +171,8 @@ func Keys() []string {
 }
 
 func Named(key string) (Theme, bool) {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	for _, e := range registry {
 		if e.key == key {
 			return New(e.palette), true
@@ -170,6 +182,8 @@ func Named(key string) (Theme, bool) {
 }
 
 func DisplayName(key string) string {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	for _, e := range registry {
 		if e.key == key {
 			return e.name

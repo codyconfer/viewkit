@@ -46,19 +46,23 @@ func SeverityGlyph(s glyph.Severity) string {
 	}
 }
 
-func StripBg() lipgloss.TerminalColor {
-	if bg := Cur().Panel.GetBorderTopForeground(); bg != nil {
+func stripBgOf(t Theme) lipgloss.TerminalColor {
+	if bg := t.Panel.GetBorderTopForeground(); bg != nil {
 		return bg
 	}
-	return Cur().Dim.GetForeground()
+	return t.Dim.GetForeground()
+}
+
+func StripBg() lipgloss.TerminalColor {
+	return Cur().stripBg
 }
 
 func StripText(fg lipgloss.TerminalColor, s string) string {
-	return lipgloss.NewStyle().Background(StripBg()).Foreground(fg).Render(s)
+	return Cur().stripText.Foreground(fg).Render(s)
 }
 
 func StripBold(fg lipgloss.TerminalColor, s string) string {
-	return lipgloss.NewStyle().Background(StripBg()).Foreground(fg).Bold(true).Render(s)
+	return Cur().stripBold.Foreground(fg).Render(s)
 }
 
 func StripBlock(width int, lines ...string) string {

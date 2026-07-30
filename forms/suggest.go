@@ -3,6 +3,8 @@ package forms
 import (
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Suggester proposes completions for the token a text field is currently
@@ -74,8 +76,13 @@ func ghostOf(pick, tail string) string {
 	if pick == "" {
 		return ""
 	}
-	if !strings.HasPrefix(strings.ToLower(pick), strings.ToLower(tail)) {
-		return ""
+	rest := pick
+	for _, want := range tail {
+		r, size := utf8.DecodeRuneInString(rest)
+		if size == 0 || unicode.ToLower(r) != unicode.ToLower(want) {
+			return ""
+		}
+		rest = rest[size:]
 	}
-	return pick[len(tail):]
+	return rest
 }

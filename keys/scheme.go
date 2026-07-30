@@ -1,5 +1,10 @@
 package keys
 
+import (
+	"sync"
+	"sync/atomic"
+)
+
 const (
 	Up        Action = "nav.up"
 	Down      Action = "nav.down"
@@ -70,11 +75,17 @@ func Default() Scheme {
 	}}
 }
 
-var current = Default()
+var current = func() *atomic.Pointer[Scheme] {
+	p := new(atomic.Pointer[Scheme])
+	s := Default()
+	p.Store(&s)
+	return p
+}()
 
-func Cur() Scheme { return current }
+func Cur() Scheme { return *current.Load() }
 
-func Use(s Scheme) { current = s }
+// Use makes s the active scheme. Safe to call while other goroutines read Cur.
+func Use(s Scheme) { current.Store(&s) }
 
 type registryEntry struct {
 	key    string
@@ -82,11 +93,16 @@ type registryEntry struct {
 	scheme Scheme
 }
 
-var registry = []registryEntry{
-	{key: "default", name: "Default", scheme: Default()},
-}
+var (
+	registryMu sync.RWMutex
+	registry   = []registryEntry{
+		{key: "default", name: "Default", scheme: Default()},
+	}
+)
 
 func Register(key, name string, s Scheme) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	for i := range registry {
 		if registry[i].key == key {
 			registry[i].name = name
@@ -98,6 +114,8 @@ func Register(key, name string, s Scheme) {
 }
 
 func Keys() []string {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	out := make([]string, len(registry))
 	for i, e := range registry {
 		out[i] = e.key
@@ -106,6 +124,8 @@ func Keys() []string {
 }
 
 func Named(key string) (Scheme, bool) {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	for _, e := range registry {
 		if e.key == key {
 			return e.scheme, true
@@ -115,6 +135,8 @@ func Named(key string) (Scheme, bool) {
 }
 
 func DisplayName(key string) string {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	for _, e := range registry {
 		if e.key == key {
 			return e.name

@@ -1,6 +1,7 @@
 package panels
 
 import (
+	"math"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -19,20 +20,25 @@ func NotificationCard(f layout.Frame, n notify.Notification) string {
 	return toneStyle(n.Tone).Render(body)
 }
 
+func finite(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return v
+}
+
 func ProgressBar(frac float64, width int) string {
 	if width < 0 {
 		width = 0
 	}
+	frac = finite(frac)
 	if frac < 0 {
 		frac = 0
 	}
 	if frac > 1 {
 		frac = 1
 	}
-	filled := int(frac * float64(width))
-	if filled > width {
-		filled = width
-	}
+	filled := min(max(int(frac*float64(width)), 0), width)
 	return theme.Cur().Accent.Render(strings.Repeat("█", filled)) + theme.Cur().Dim.Render(strings.Repeat("░", width-filled))
 }
 

@@ -161,12 +161,32 @@ func (s suggState) pick() string {
 
 const suggListMax = 5
 
+func fieldLabel(text string, focused bool) string {
+	t := theme.Cur()
+	if focused {
+		return layout.Cursor(true) + t.Accent.Render(text)
+	}
+	return layout.Cursor(false) + t.Dim.Render(text)
+}
+
+const (
+	fieldRowChrome = 4
+	fieldValueMin  = 8
+)
+
+func fieldRowBudget(body, label int) (labelW, valW int) {
+	room := max(body-fieldRowChrome, 2)
+	labelW = max(label, 1)
+	if labelW > room-fieldValueMin {
+		labelW = max(room-fieldValueMin, room/2)
+	}
+	labelW = min(labelW, room-1)
+	return labelW, room - labelW
+}
+
 func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 	t := theme.Cur()
-	label := layout.Cursor(false) + t.Dim.Render(fd.Label)
-	if focused {
-		label = layout.Cursor(true) + t.Accent.Render(fd.Label)
-	}
+	label := fieldLabel(fd.Label, focused)
 
 	switch fd.Kind {
 	case FieldToggle:
@@ -216,11 +236,15 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 		return append(lines, fd.suggestions(f, focused, sg)...)
 
 	default:
+		labelW, valW := fieldRowBudget(f.BodyWidth(), ansi.StringWidth(fd.Label))
+		if labelW < ansi.StringWidth(fd.Label) {
+			label = fieldLabel(ansi.Truncate(fd.Label, labelW, "…"), focused)
+		}
 		val := fd.display()
 		if focused {
-			val += "▎" + fd.ghost(sg)
+			val = ansi.Truncate(val, max(valW-1, 1), "…") + "▎" + fd.ghost(sg)
 		}
-		shown := t.Val.Render(ansi.Truncate(val, f.BodyWidth()-ansi.StringWidth(fd.Label)-4, "…"))
+		shown := t.Val.Render(ansi.Truncate(val, valW, "…"))
 		if fd.Text == "" && !focused {
 			shown = t.Dim.Render("…")
 		}

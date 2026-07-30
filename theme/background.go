@@ -13,10 +13,16 @@ func AppMargin(body string) string {
 }
 
 func FillLine(c lipgloss.TerminalColor, width int) string {
+	if width < 0 {
+		width = 0
+	}
 	return lipgloss.NewStyle().Background(c).Render(strings.Repeat(" ", width))
 }
 
 func PadBlock(c lipgloss.TerminalColor, width, rows int, lines ...string) string {
+	if rows < 0 {
+		rows = 0
+	}
 	pad := FillLine(c, width)
 	out := make([]string, 0, len(lines)+2*rows)
 	for range rows {

@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"github.com/charmbracelet/x/term"
 )
@@ -16,11 +17,11 @@ const (
 	ModeNone
 )
 
-var mode = ModeNerd
+var mode atomic.Int32
 
-func SetMode(m Mode) { mode = m }
+func SetMode(m Mode) { mode.Store(int32(m)) }
 
-func CurrentMode() Mode { return mode }
+func CurrentMode() Mode { return Mode(mode.Load()) }
 
 func ParseMode(s string) (Mode, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
@@ -36,14 +37,14 @@ func ParseMode(s string) (Mode, bool) {
 
 func Detect(w io.Writer, env string) {
 	if m, ok := ParseMode(env); ok {
-		mode = m
+		SetMode(m)
 		return
 	}
 	if strings.EqualFold(os.Getenv("TERM"), "dumb") || !isTerminal(w) {
-		mode = ModeNone
+		SetMode(ModeNone)
 		return
 	}
-	mode = ModeNerd
+	SetMode(ModeNerd)
 }
 
 func isTerminal(w io.Writer) bool {
@@ -60,15 +61,28 @@ type Variants struct {
 	ASCII string
 }
 
+// String returns the variant for the active mode, degrading to the nearest
+// filled variant when a Variants is only partially populated. A plugin that
+// registers a Nerd-only glyph still shows something in unicode/ASCII mode
+// instead of silently rendering nothing.
 func (v Variants) String() string {
-	switch mode {
+	switch CurrentMode() {
 	case ModeUnicode:
-		return v.Uni
+		return firstNonEmpty(v.Uni, v.ASCII, v.Nerd)
 	case ModeNone:
-		return v.ASCII
+		return firstNonEmpty(v.ASCII, v.Uni, v.Nerd)
 	default:
-		return v.Nerd
+		return firstNonEmpty(v.Nerd, v.Uni, v.ASCII)
 	}
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func Pad(s string) string {
@@ -82,7 +96,7 @@ func Lead(s string) string {
 	if s == "" {
 		return ""
 	}
-	if mode == ModeNerd {
+	if CurrentMode() == ModeNerd {
 		return s + "  "
 	}
 	return s + " "

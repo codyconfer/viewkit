@@ -20,7 +20,7 @@ func TestNamedReturnsRegisteredTheme(t *testing.T) {
 	}
 }
 
-func TestUseSyncsExportedVars(t *testing.T) {
+func TestUseUpdatesCur(t *testing.T) {
 	orig := *Cur()
 	defer Use(orig)
 
@@ -30,11 +30,25 @@ func TestUseSyncsExportedVars(t *testing.T) {
 	if Cur().Accent.GetForeground() != solarizedDarkPalette.Accent {
 		t.Fatal("Cur() not updated by Use()")
 	}
-	if AccentSty.GetForeground() != solarizedDarkPalette.Accent {
-		t.Fatalf("AccentSty not synced: %v", AccentSty.GetForeground())
+	if Cur().Dim.GetForeground() != solarizedDarkPalette.Muted {
+		t.Fatalf("Cur().Dim = %v, want %v", Cur().Dim.GetForeground(), solarizedDarkPalette.Muted)
 	}
-	if DimSty.GetForeground() != solarizedDarkPalette.Muted {
-		t.Fatalf("DimSty not synced: %v", DimSty.GetForeground())
+}
+
+// The exported style vars are a write-once snapshot of the default theme: that
+// is what makes them safe to read from a render goroutine while Use runs.
+func TestExportedVarsSnapshotDefaultTheme(t *testing.T) {
+	orig := *Cur()
+	defer Use(orig)
+
+	th, _ := Named("solarized-dark")
+	Use(th)
+
+	if got := AccentSty.GetForeground(); got != defaultPalette.Accent {
+		t.Fatalf("AccentSty = %v, want the default-theme snapshot %v", got, defaultPalette.Accent)
+	}
+	if got := DimSty.GetForeground(); got != defaultPalette.Muted {
+		t.Fatalf("DimSty = %v, want the default-theme snapshot %v", got, defaultPalette.Muted)
 	}
 }
 

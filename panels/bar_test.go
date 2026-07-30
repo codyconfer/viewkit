@@ -1,11 +1,67 @@
 package panels
 
 import (
+	"math"
 	"strings"
 	"testing"
 
 	"github.com/codyconfer/viewkit/layout"
 )
+
+func barRowCells(out, label string) (int, bool) {
+	for _, l := range strings.Split(stripANSI(out), "\n") {
+		if strings.Contains(l, label) {
+			return strings.Count(l, "█"), true
+		}
+	}
+	return 0, false
+}
+
+func TestBarNonFiniteValues(t *testing.T) {
+	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}, {"neginf", math.Inf(-1)}, {"ok", 5}}
+	out := Bar(layout.DefaultFrame(), "Flow", data, 20, fnum, "")
+	if len(out) > 1<<16 {
+		t.Fatalf("Bar with non-finite data rendered %d bytes", len(out))
+	}
+	for _, label := range []string{"posinf", "nan", "neginf"} {
+		got, ok := barRowCells(out, label)
+		if !ok {
+			t.Fatalf("Bar output has no row for %q:\n%s", label, out)
+		}
+		if got != 0 {
+			t.Errorf("Bar row %q drew %d cells, want 0", label, got)
+		}
+	}
+	got, ok := barRowCells(out, "ok")
+	if !ok {
+		t.Fatalf("Bar output has no row for finite datum:\n%s", out)
+	}
+	if got < 1 || got > 20 {
+		t.Errorf("Bar row for finite datum drew %d cells, want 1..20", got)
+	}
+}
+
+func TestBarAllNonFiniteValues(t *testing.T) {
+	data := []Datum{{"a", math.NaN()}, {"b", math.Inf(1)}}
+	out := Bar(layout.DefaultFrame(), "Flow", data, 20, fnum, "")
+	if len(out) > 1<<16 {
+		t.Fatalf("Bar with all non-finite data rendered %d bytes", len(out))
+	}
+	if got := strings.Count(stripANSI(out), "█"); got != 0 {
+		t.Errorf("Bar with all non-finite data drew %d cells, want 0", got)
+	}
+}
+
+func TestBarScrollNonFiniteValues(t *testing.T) {
+	data := []Datum{{"posinf", math.Inf(1)}, {"ok", 5}}
+	out := BarScroll(layout.DefaultFrame(), "Flow", data, 20, fnum, "", 2, 0)
+	if len(out) > 1<<16 {
+		t.Fatalf("BarScroll with non-finite data rendered %d bytes", len(out))
+	}
+	if got, _ := barRowCells(out, "posinf"); got != 0 {
+		t.Errorf("BarScroll row posinf drew %d cells, want 0", got)
+	}
+}
 
 func TestBarEmpty(t *testing.T) {
 	out := Bar(layout.DefaultFrame(), "Flow", nil, 20, fnum, "no data")

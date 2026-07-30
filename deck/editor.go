@@ -158,6 +158,21 @@ func (e *Editor) Value(key string) string {
 	return forms.Str(e.form.Values(), key)
 }
 
+// Remembered returns every value the Editor is carrying, including those of
+// fields a later rebuild stopped rendering. Live form values win over
+// remembered ones. A document whose field set shrinks reads this rather than
+// Form().Values() when it must not silently discard what is still held.
+func (e *Editor) Remembered() map[string]any {
+	out := make(map[string]any, len(e.sticky)+len(e.form.Fields))
+	for k, val := range e.sticky {
+		out[k] = val
+	}
+	for k, val := range e.form.Values() {
+		out[k] = val
+	}
+	return out
+}
+
 // SelectedOf returns the chosen option index of the select field under key,
 // or -1 when no such field exists.
 func (e *Editor) SelectedOf(key string) int {
@@ -431,7 +446,9 @@ func (e *Editor) syncFields() {
 	}
 	e.status = ""
 	e.remember()
+	focus := e.form.FocusedKey()
 	e.form = forms.NewForm(e.doc.Fields(e.sticky)...)
+	e.form.FocusKey(focus)
 }
 
 func (e *Editor) remember() {

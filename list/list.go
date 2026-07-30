@@ -31,6 +31,38 @@ func (m *Model) SetItems(items []Item) {
 	m.offset = 0
 }
 
+func (m *Model) SetItemsKeepingCursor(items []Item) {
+	prevKey, hadCursor, prevOffset := "", m.cursor >= 0, m.offset
+	if it, ok := m.Selected(); ok {
+		prevKey = it.Key
+	}
+	m.items = items
+	if prevKey != "" {
+		if i := m.indexOfSelectable(prevKey); i >= 0 {
+			m.cursor, m.offset = i, prevOffset
+			m.clampOffset(m.totalLines())
+			m.ensureVisible()
+			return
+		}
+	}
+	m.cursor = m.firstSelectable()
+	if !hadCursor && m.cursor < 0 {
+		m.offset = prevOffset
+		m.clampOffset(m.totalLines())
+		return
+	}
+	m.offset = 0
+}
+
+func (m *Model) indexOfSelectable(key string) int {
+	for i, it := range m.items {
+		if it.Selectable && it.Key == key {
+			return i
+		}
+	}
+	return -1
+}
+
 func (m *Model) SetSize(w, h int) { m.width, m.height = w, h }
 
 func (m *Model) Height() int { return m.height }

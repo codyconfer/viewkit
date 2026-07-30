@@ -123,9 +123,11 @@ func (r *ItemList) fetchCmd() tea.Cmd {
 func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
-		r.width = m.Width
-		r.height = max(m.Height-r.ChromeReserve, 1)
-		r.ready = true
+		w, ht := m.Width, max(m.Height-r.ChromeReserve, 1)
+		if r.ready && w == r.width && ht == r.height {
+			return nil
+		}
+		r.width, r.height, r.ready = w, ht, true
 		r.refresh()
 		return nil
 	case itemListLoadedMsg:
@@ -209,11 +211,11 @@ func (r *ItemList) refresh() {
 	}
 	r.lst.SetSize(r.width, r.height)
 	if r.Bind != nil {
-		r.lst.SetItems(r.Bind(r.width, r.fetched))
+		r.lst.SetItemsKeepingCursor(r.Bind(r.width, r.fetched))
 		return
 	}
 	if items, ok := r.fetched.([]list.Item); ok {
-		r.lst.SetItems(items)
+		r.lst.SetItemsKeepingCursor(items)
 	}
 }
 

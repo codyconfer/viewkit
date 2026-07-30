@@ -1,6 +1,10 @@
 package theme
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"sync/atomic"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 const (
 	BodyWidth    = 81
@@ -74,6 +78,12 @@ func New(p Palette) Theme {
 	}
 }
 
+// These package-level styles are a snapshot of the default theme taken during
+// package initialization. They are written once, before any goroutine can
+// observe them, and are never written again — so they are safe to read
+// concurrently but they do not follow Use. Cur() is the sanctioned path to the
+// active theme; prefer Cur().Dim over DimSty in anything that renders after a
+// theme has been applied.
 var (
 	TitleSty  lipgloss.Style
 	AccentSty lipgloss.Style
@@ -135,17 +145,35 @@ type Theme struct {
 	TooNarrowTitle string
 	TooNarrowNeed  string
 	TooNarrowBody  string
+
+	stripBg   lipgloss.TerminalColor
+	stripText lipgloss.Style
+	stripBold lipgloss.Style
 }
 
 func Default() Theme { return New(defaultPalette) }
 
-var current = func() *Theme { t := Default(); syncExported(t); return &t }()
-
-func Cur() *Theme { return current }
-
-func Use(t Theme) {
-	current = &t
+var current = func() *atomic.Pointer[Theme] {
+	p := new(atomic.Pointer[Theme])
+	t := withCachedStyles(Default())
+	p.Store(&t)
 	syncExported(t)
+	return p
+}()
+
+func Cur() *Theme { return current.Load() }
+
+// Use makes t the active theme. Safe to call while other goroutines render.
+func Use(t Theme) {
+	t = withCachedStyles(t)
+	current.Store(&t)
+}
+
+func withCachedStyles(t Theme) Theme {
+	t.stripBg = stripBgOf(t)
+	t.stripText = lipgloss.NewStyle().Background(t.stripBg)
+	t.stripBold = t.stripText.Bold(true)
+	return t
 }
 
 func syncExported(t Theme) {

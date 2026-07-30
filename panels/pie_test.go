@@ -1,11 +1,51 @@
 package panels
 
 import (
+	"math"
 	"strings"
 	"testing"
 
 	"github.com/codyconfer/viewkit/layout"
 )
+
+func TestPieNonFiniteValues(t *testing.T) {
+	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}, {"neginf", math.Inf(-1)}, {"ok", 4}}
+	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
+	if len(out) > 1<<16 {
+		t.Fatalf("Pie with non-finite data rendered %d bytes", len(out))
+	}
+	stripped := stripANSI(out)
+	for _, l := range strings.Split(stripped, "\n") {
+		if got := strings.Count(l, "█"); got > 10 {
+			t.Errorf("Pie bar line is %d cells, want <= width 10", got)
+		}
+	}
+	if !strings.Contains(stripped, "ok") {
+		t.Errorf("Pie dropped the finite datum:\n%s", stripped)
+	}
+}
+
+func TestPieAllNonFiniteValues(t *testing.T) {
+	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}}
+	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
+	if len(out) > 1<<16 {
+		t.Fatalf("Pie with all non-finite data rendered %d bytes", len(out))
+	}
+	if !strings.Contains(out, "nothing here") {
+		t.Errorf("Pie with all non-finite data missing placeholder:\n%s", out)
+	}
+}
+
+func TestPieTotalOverflowsToInf(t *testing.T) {
+	data := []Datum{{"a", math.MaxFloat64}, {"b", math.MaxFloat64}}
+	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
+	if len(out) > 1<<16 {
+		t.Fatalf("Pie with overflowing total rendered %d bytes", len(out))
+	}
+	if !strings.Contains(out, "nothing here") {
+		t.Errorf("Pie with overflowing total missing placeholder:\n%s", out)
+	}
+}
 
 func TestPieEmpty(t *testing.T) {
 	out := Pie(layout.DefaultFrame(), "Mix", []Datum{{"a", 0}, {"b", -5}}, 20, fnum, "nothing here")

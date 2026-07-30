@@ -28,6 +28,36 @@ func (fm *Form) Focused() *Field {
 	return &fm.Fields[fm.cursor]
 }
 
+// FocusedKey is the Key of the focused field, or "" when the form has no
+// fields. Paired with FocusKey it lets a host rebuild a form without losing
+// the caret.
+func (fm *Form) FocusedKey() string {
+	if fd := fm.Focused(); fd != nil {
+		return fd.Key
+	}
+	return ""
+}
+
+// FocusKey moves focus to the field carrying key and reports whether one was
+// found. Focus is left untouched when no field has that key, and an empty key
+// never matches.
+func (fm *Form) FocusKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := range fm.Fields {
+		if fm.Fields[i].Key != key {
+			continue
+		}
+		if fm.cursor != i {
+			fm.cursor = i
+			fm.resuggest()
+		}
+		return true
+	}
+	return false
+}
+
 // Suggestions lists the completions offered for the focused field, most
 // relevant first. It is empty when the field has no Suggester or nothing
 // matches what has been typed.
