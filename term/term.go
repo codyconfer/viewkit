@@ -1,3 +1,7 @@
+// Package term opens commands in a new terminal window/tab across macOS
+// (iTerm or Terminal.app), WSL (Windows Terminal or cmd.exe), and Linux
+// ($TERMINAL or a list of known emulators), and reports whether a writer is
+// attached to a TTY.
 package term
 
 import (
@@ -9,11 +13,6 @@ import (
 	"runtime"
 	"strings"
 )
-
-// Self returns the path of the current executable.
-func Self() (string, error) {
-	return os.Executable()
-}
 
 // Open launches argv in a new terminal window/tab.
 func Open(argv []string) error {

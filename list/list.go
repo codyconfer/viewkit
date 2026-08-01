@@ -1,3 +1,8 @@
+// Package list renders a cursor-and-scroll list over pre-rendered row blocks.
+//
+// Rows arrive as Items whose Block text is already styled and wrapped; the
+// model owns only selection and viewport state. It is not a tea model — deck
+// views and CLI panes drive it by calling Move/Scroll and printing View.
 package list
 
 import (
@@ -7,13 +12,23 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Item is one list row. Block is the pre-rendered (possibly multi-line) body;
+// Key identifies the row to the caller; unselectable rows are skipped by the
+// cursor. GapStem, when set, is repeated in the blank line drawn after the row
+// so tree rules survive the gap.
 type Item struct {
 	Block      string
 	Key        string
 	Selectable bool
 	GapStem    string
+	// Payload carries the caller's domain value for the row, handed back by
+	// Selected and selection callbacks so callers need no key→value side table.
+	Payload any
 }
 
+// Model is the list state: rows plus cursor, scroll offset, size, and focus.
+// Callers mutate it with SetItems/Move/Scroll and render it with View; it is
+// not a Bubble Tea model and has no Update loop.
 type Model struct {
 	items   []Item
 	cursor  int
@@ -23,14 +38,19 @@ type Model struct {
 	focused bool
 }
 
+// New returns an empty model with no selection.
 func New() Model { return Model{cursor: -1} }
 
+// SetItems replaces the rows and resets cursor and scroll to the top.
 func (m *Model) SetItems(items []Item) {
 	m.items = items
 	m.cursor = m.firstSelectable()
 	m.offset = 0
 }
 
+// SetItemsKeepingCursor replaces the rows while trying to keep the current
+// selection: first by Key, then by index, falling back to the first
+// selectable row.
 func (m *Model) SetItemsKeepingCursor(items []Item) {
 	prevIdx, prevOffset := m.cursor, m.offset
 	hadCursor := m.cursor >= 0
@@ -75,16 +95,22 @@ func (m *Model) indexOfSelectable(key string) int {
 	return -1
 }
 
+// SetSize sets the viewport dimensions in cells; height bounds View's output.
 func (m *Model) SetSize(w, h int) { m.width, m.height = w, h }
 
+// EnsureVisible scrolls just enough to bring the selected row into view.
 func (m *Model) EnsureVisible() { m.ensureVisible() }
 
+// Height returns the viewport height set by SetSize.
 func (m *Model) Height() int { return m.height }
 
+// SetFocused switches the cursor glyph between focused and dimmed styles.
 func (m *Model) SetFocused(f bool) { m.focused = f }
 
+// Selectable reports whether any row currently holds the cursor.
 func (m *Model) Selectable() bool { return m.cursor >= 0 }
 
+// Selected returns the row under the cursor, if any.
 func (m *Model) Selected() (Item, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.items) {
 		return Item{}, false
@@ -110,6 +136,8 @@ func (m *Model) lastSelectable() int {
 	return -1
 }
 
+// Move steps the cursor by delta over selectable rows, scrolling as needed;
+// with no selectable rows it scrolls the viewport instead.
 func (m *Model) Move(delta int) {
 	if m.cursor < 0 {
 		m.Scroll(delta)
@@ -129,6 +157,8 @@ func (m *Model) Move(delta int) {
 	}
 }
 
+// Scroll shifts the viewport by delta lines and drags the cursor along so it
+// stays on a visible row.
 func (m *Model) Scroll(delta int) {
 	m.offset += delta
 	m.clampOffset(m.totalLines())
@@ -263,6 +293,7 @@ func (m *Model) clampOffset(total int) {
 	}
 }
 
+// View renders the visible window of rows as a plain string.
 func (m *Model) View() string {
 	lines := m.render()
 	if m.height <= 0 || len(lines) <= m.height {

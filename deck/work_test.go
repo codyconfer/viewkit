@@ -114,20 +114,20 @@ func TestWorkDuplicateDoneIgnored(t *testing.T) {
 	}
 }
 
-func TestExecuteErrgroupOrder(t *testing.T) {
+func TestCollectErrgroupOrder(t *testing.T) {
 	var n atomic.Int32
 	w := Work{
-		{Label: "a", Do: func(context.Context) (Content, error) {
+		{Label: "a", Run: func(context.Context) (Content, error) {
 			n.Add(1)
 			time.Sleep(20 * time.Millisecond)
 			return Text("A"), nil
 		}},
-		{Label: "b", Do: func(context.Context) (Content, error) {
+		{Label: "b", Run: func(context.Context) (Content, error) {
 			n.Add(1)
 			return Text("B"), nil
 		}},
 	}
-	out, err := w.Execute(context.Background())
+	out, err := w.Collect(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,11 +139,11 @@ func TestExecuteErrgroupOrder(t *testing.T) {
 	}
 }
 
-func TestExecutePropagatesError(t *testing.T) {
+func TestCollectPropagatesError(t *testing.T) {
 	boom := errors.New("boom")
 	_, err := Work{
-		{Do: func(context.Context) (Content, error) { return nil, boom }},
-	}.Execute(context.Background())
+		{Run: func(context.Context) (Content, error) { return nil, boom }},
+	}.Collect(context.Background())
 	if !errors.Is(err, boom) {
 		t.Fatalf("err = %v", err)
 	}

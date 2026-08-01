@@ -368,7 +368,7 @@ func TestMdInlineBoldsEvenWhenTheThemeAccentIsNot(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 	lipgloss.SetColorProfile(termenv.TrueColor)
 
-	orig := *theme.Cur()
+	orig := theme.Cur()
 	t.Cleanup(func() { theme.Use(orig) })
 	if !orig.Accent.GetBold() {
 		t.Skip("the active theme's Accent is already non-bold, so the byte-for-byte tests cover this")

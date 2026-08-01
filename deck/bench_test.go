@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
+	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -40,24 +41,24 @@ func (benchView) Init() tea.Cmd                  { return nil }
 func (benchView) Update(*Model, tea.Msg) tea.Cmd { return nil }
 func (benchView) Body(int, int) string           { return "body" }
 
-func (benchView) Hints() [][2]string {
-	return [][2]string{
-		{"↑↓", "move"},
-		{"enter", "open"},
-		{"r", "refresh"},
-		{"f", "filter"},
+func (benchView) Hints() []keys.Hint {
+	return []keys.Hint{
+		{Key: "↑↓", Label: "move"},
+		{Key: "enter", Label: "open"},
+		{Key: "r", Label: "refresh"},
+		{Key: "f", Label: "filter"},
 	}
 }
 
-func (benchView) Context() [][2]string {
-	return [][2]string{
-		{"env", "prod"},
-		{"scope", "all"},
+func (benchView) Context() []keys.Hint {
+	return []keys.Hint{
+		{Key: "env", Label: "prod"},
+		{Key: "scope", Label: "all"},
 	}
 }
 
-func benchHost() *Host {
-	return &Host{
+func benchModel() *Model {
+	return &Model{
 		stack:  []View{benchView{}, benchView{}},
 		width:  benchScreenWidth,
 		height: benchScreenHeight,
@@ -86,7 +87,7 @@ func TestBenchmarksMeasureTrueColorRendering(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 	requireTrueColor(t)
 
-	h := benchHost()
+	h := benchModel()
 	v := h.top()
 	for name, out := range map[string]string{
 		"header":         h.header(v),
@@ -105,7 +106,7 @@ func TestBenchmarksUnderstateCostInAsciiProfile(t *testing.T) {
 	prev := lipgloss.ColorProfile()
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 
-	h := benchHost()
+	h := benchModel()
 	v := h.top()
 
 	lipgloss.SetColorProfile(termenv.Ascii)
@@ -123,7 +124,7 @@ func TestBenchmarksUnderstateCostInAsciiProfile(t *testing.T) {
 
 func BenchmarkChromeHeader(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	v := h.top()
 	b.ReportAllocs()
 	for b.Loop() {
@@ -133,7 +134,7 @@ func BenchmarkChromeHeader(b *testing.B) {
 
 func BenchmarkChromeFooter(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	v := h.top()
 	b.ReportAllocs()
 	for b.Loop() {
@@ -143,7 +144,7 @@ func BenchmarkChromeFooter(b *testing.B) {
 
 func BenchmarkChromeHeaderPlusFooterPerFrame(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	v := h.top()
 	b.ReportAllocs()
 	for b.Loop() {
@@ -153,7 +154,7 @@ func BenchmarkChromeHeaderPlusFooterPerFrame(b *testing.B) {
 
 func BenchmarkChromeBreadcrumbs(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	b.ReportAllocs()
 	for b.Loop() {
 		benchSink = h.breadcrumbs()
@@ -162,7 +163,7 @@ func BenchmarkChromeBreadcrumbs(b *testing.B) {
 
 func BenchmarkChromeStatusSegments(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	b.ReportAllocs()
 	for b.Loop() {
 		benchSink = h.statusSegments()
@@ -171,7 +172,7 @@ func BenchmarkChromeStatusSegments(b *testing.B) {
 
 func BenchmarkHostViewWholeFrame(b *testing.B) {
 	requireTrueColor(b)
-	h := benchHost()
+	h := benchModel()
 	b.ReportAllocs()
 	for b.Loop() {
 		benchSink = h.View()

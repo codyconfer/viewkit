@@ -19,6 +19,15 @@ var (
 	mdOrdered = regexp.MustCompile(`^(\d+)\. +(.*)$`)
 )
 
+// Markdown renders a small markdown subset as themed terminal text wrapped to
+// the frame body width, without a surrounding panel. Supported: #/##/###
+// headings, ---/***/___ rules, > quotes, -/* and numbered lists, ``` fenced
+// code (rendered dim, verbatim, and truncated rather than wrapped; the fence
+// lines themselves are dropped), and inline `code`, **bold**, *italic* or
+// _italic_, and [text](url) links, which render as "text (url)". Quote, list,
+// and plain lines word-wrap with continuation lines indented under the
+// marker; headings and rules truncate with an ellipsis. Anything else passes
+// through as plain text.
 func Markdown(f layout.Frame, src string) string {
 	width := f.BodyWidth()
 	t := theme.Cur()
@@ -66,6 +75,7 @@ func Markdown(f layout.Frame, src string) string {
 	return strings.Join(out, "\n")
 }
 
+// MarkdownPanel wraps Markdown's output in a titled panel.
 func MarkdownPanel(f layout.Frame, title, src string) string {
 	return f.Panel(title, strings.Split(Markdown(f, src), "\n")...)
 }
@@ -75,24 +85,24 @@ func MarkdownPanel(f layout.Frame, title, src string) string {
 // pattern cannot be dead on arrival behind a stale fast-path guard.
 type mdPass struct {
 	re     *regexp.Regexp
-	render func(b *strings.Builder, t *theme.Theme, src string, loc []int)
+	render func(b *strings.Builder, t theme.Theme, src string, loc []int)
 }
 
 var mdInlinePasses = []mdPass{
-	{mdCode, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+	{mdCode, func(b *strings.Builder, t theme.Theme, src string, loc []int) {
 		b.WriteString(t.Key.Render(mdGroup(src, loc, 1)))
 	}},
-	{mdBold, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+	{mdBold, func(b *strings.Builder, t theme.Theme, src string, loc []int) {
 		b.WriteString(t.Accent.Bold(true).Render(mdGroup(src, loc, 1)))
 	}},
-	{mdItalic, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+	{mdItalic, func(b *strings.Builder, t theme.Theme, src string, loc []int) {
 		text := mdGroup(src, loc, 1)
 		if text == "" {
 			text = mdGroup(src, loc, 2)
 		}
 		b.WriteString(t.Val.Italic(true).Render(text))
 	}},
-	{mdLink, func(b *strings.Builder, t *theme.Theme, src string, loc []int) {
+	{mdLink, func(b *strings.Builder, t theme.Theme, src string, loc []int) {
 		b.WriteString(t.Accent.Render(mdGroup(src, loc, 1)))
 		b.WriteString(t.Dim.Render(" (" + mdGroup(src, loc, 2) + ")"))
 	}},
@@ -148,8 +158,8 @@ func mdInline(s string) string {
 	return s
 }
 
-func mdReplace(s string, re *regexp.Regexp, t *theme.Theme,
-	render func(*strings.Builder, *theme.Theme, string, []int)) string {
+func mdReplace(s string, re *regexp.Regexp, t theme.Theme,
+	render func(*strings.Builder, theme.Theme, string, []int)) string {
 	locs := re.FindAllStringSubmatchIndex(mdMask(s), -1)
 	if len(locs) == 0 {
 		return s

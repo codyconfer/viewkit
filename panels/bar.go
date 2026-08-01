@@ -9,11 +9,19 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Datum is one labeled value for the Bar, BarScroll, and Pie charts.
 type Datum struct {
 	Label string
 	Value float64
 }
 
+// Bar renders a horizontal bar chart panel: one row per Datum with the label
+// on the left, a bar of block glyphs scaled against the largest absolute
+// value, and the fmtNum-formatted value right-aligned. Negative values get the
+// "can't" (negative) style; NaN/Inf values are treated as 0. width is the
+// maximum bar length in terminal cells and is shrunk to fit the frame body
+// after reserving room for the widest label and formatted value. With no data
+// the panel shows empty in the dim style instead.
 func Bar(f layout.Frame, title string, data []Datum, width int, fmtNum func(float64) string, empty string) string {
 	lines, ok := barLines(f, data, width, fmtNum)
 	if !ok {
@@ -22,6 +30,10 @@ func Bar(f layout.Frame, title string, data []Datum, width int, fmtNum func(floa
 	return f.Panel(title, lines...)
 }
 
+// BarScroll is Bar in a scroll panel: only visible rows are shown starting at
+// row offset, with a scroll-position footer when the data overflows. Bars are
+// still scaled against the whole dataset, not just the visible window. With no
+// data the panel shows empty in the dim style.
 func BarScroll(f layout.Frame, title string, data []Datum, width int, fmtNum func(float64) string, empty string, visible, offset int) string {
 	lines, ok := barLines(f, data, width, fmtNum)
 	if !ok {

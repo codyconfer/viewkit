@@ -15,7 +15,7 @@ type syncDoc struct{}
 
 func (d *syncDoc) Kind() string           { return "query" }
 func (d *syncDoc) Title() string          { return "new query" }
-func (d *syncDoc) Context() [][2]string   { return nil }
+func (d *syncDoc) Context() []keys.Hint   { return nil }
 func (d *syncDoc) SavedName() string      { return "" }
 func (d *syncDoc) Sync() bool             { return true }
 func (d *syncDoc) Summary() string        { return "draft" }

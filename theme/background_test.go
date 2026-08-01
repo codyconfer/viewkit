@@ -63,14 +63,15 @@ func TestScreenPaintsEveryCell(t *testing.T) {
 	prev := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(prev)
-	orig := *Cur()
+	orig := Cur()
 	defer Use(orig)
 
-	th, _ := Named("solarized-light")
-	Use(th)
+	light, _ := Named("solarized-light")
+	Use(light)
 
-	line := "AAA" + ValSty.Render("BBB") + "   " + AccentSty.Render("CCC") + "  plain tail"
-	body := AppFrame.Render(line + "\n" + DimSty.Render("second") + "   gap")
+	th := Cur()
+	line := "AAA" + th.Val.Render("BBB") + "   " + th.Accent.Render("CCC") + "  plain tail"
+	body := th.AppFrame.Render(line + "\n" + th.Dim.Render("second") + "   gap")
 	out := Screen(body, 40, 8)
 
 	if bad, ok := bgActiveEverywhere(out); !ok {
@@ -100,7 +101,7 @@ func TestAppMarginEvenInset(t *testing.T) {
 }
 
 func TestScreenNoBgReturnsBodyUnchanged(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	defer Use(orig)
 
 	Use(New(Palette{Text: lipgloss.Color("#ffffff")}))

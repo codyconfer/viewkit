@@ -5,11 +5,17 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// LedgerRow is one labeled signed change for Ledger.
 type LedgerRow struct {
 	Label string
 	Delta float64
 }
 
+// Ledger renders rows of label/delta pairs in a scroll panel showing visible
+// rows starting at row offset. Positive deltas render as "+<n> <unit>" in the
+// positive style, negative as "<n> <unit>" in the negative style, and exactly
+// zero as a dim em dash with no unit. fmtNum formats the delta magnitude.
+// With no rows the panel shows empty in the dim style.
 func Ledger(f layout.Frame, title string, rows []LedgerRow, unit string, fmtNum func(float64) string, visible, offset int, empty string) string {
 	if len(rows) == 0 {
 		return f.Panel(title, theme.Cur().Dim.Render(empty))

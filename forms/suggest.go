@@ -14,12 +14,12 @@ type Suggester func(prefix string) []string
 
 // Static suggests from a fixed vocabulary.
 func Static(vals ...string) Suggester {
-	return From(func() []string { return vals })
+	return SuggestFunc(func() []string { return vals })
 }
 
-// From suggests from a vocabulary read fresh on every keystroke, for values
-// that change while the form is open.
-func From(load func() []string) Suggester {
+// SuggestFunc suggests from a vocabulary read fresh on every keystroke, for
+// values that change while the form is open.
+func SuggestFunc(load func() []string) Suggester {
 	if load == nil {
 		return nil
 	}

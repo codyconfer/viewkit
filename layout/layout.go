@@ -2,6 +2,11 @@ package layout
 
 import "strings"
 
+// ViewportLayout scrolls body inside rows of height while keeping a sticky
+// footer pinned to the bottom. The footer is whatever follows the last blank
+// line (see SplitStickyFooter); only the content above it scrolls with offset.
+// If the footer alone fills the budget the content is dropped entirely, and
+// rows <= 0 returns the body unscrolled.
 func ViewportLayout(body string, rows, offset int) string {
 	if rows <= 0 {
 		return body
@@ -40,6 +45,9 @@ func ViewportLayout(body string, rows, offset int) string {
 	}
 }
 
+// ScrollableBody returns the part of body that ViewportLayout would scroll:
+// the content above the sticky footer. A body with no footer scrolls whole
+// and is returned as is; if the footer leaves no room to scroll it returns "".
 func ScrollableBody(body string, rows int) string {
 	content, footer := SplitStickyFooter(body)
 	if footer == "" {
@@ -51,6 +59,9 @@ func ScrollableBody(body string, rows int) string {
 	return content
 }
 
+// ScrollableRows returns how many of the given rows ViewportLayout would give
+// the scrolling content once the sticky footer (and the separator line before
+// it) is paid for. Callers use it to clamp scroll offsets.
 func ScrollableRows(body string, rows int) int {
 	if rows <= 0 {
 		return 0
@@ -73,6 +84,9 @@ func ScrollableRows(body string, rows int) int {
 	return max(contentRows, 0)
 }
 
+// SplitStickyFooter splits body at its *last* blank line: everything after it
+// is the sticky footer, everything before it the scrollable content. A body
+// with no blank line has no footer.
 func SplitStickyFooter(body string) (content, footer string) {
 	idx := strings.LastIndex(body, "\n\n")
 	if idx < 0 {
@@ -81,6 +95,9 @@ func SplitStickyFooter(body string) (content, footer string) {
 	return body[:idx], body[idx+2:]
 }
 
+// CountLines reports how many display lines s occupies. Unlike
+// strings.Count+1 conventions elsewhere, an empty string still counts as one
+// line, and a trailing newline adds a final (empty) line.
 func CountLines(s string) int {
 	lines := 0
 	for range strings.SplitSeq(s, "\n") {
@@ -92,6 +109,9 @@ func CountLines(s string) int {
 	return lines
 }
 
+// PadLines pads body with trailing newlines until it spans rows display lines.
+// It never trims: a body already at or over the budget is returned unchanged.
+// rows <= 0 returns "".
 func PadLines(body string, rows int) string {
 	if rows <= 0 {
 		return ""

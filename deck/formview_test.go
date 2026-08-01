@@ -238,9 +238,9 @@ func TestFormViewTitleAndContextFuncsWinAndReEvaluate(t *testing.T) {
 	name := ""
 	v := NewFormView(FormSpec{
 		Title:       "ignored",
-		Context:     [][2]string{{"role", "ignored"}},
+		Context:     []keys.Hint{{Key: "role", Label: "ignored"}},
 		TitleFunc:   func() string { return "edit " + name },
-		ContextFunc: func() [][2]string { return [][2]string{{"name", name}} },
+		ContextFunc: func() []keys.Hint { return []keys.Hint{{Key: "name", Label: name}} },
 		Fields:      nameFields(),
 		Keys:        testFormKeys(),
 	})
@@ -252,13 +252,13 @@ func TestFormViewTitleAndContextFuncsWinAndReEvaluate(t *testing.T) {
 	if v.Title() != "edit sre" {
 		t.Errorf("title = %q, want edit sre", v.Title())
 	}
-	if got := v.Context(); !reflect.DeepEqual(got, [][2]string{{"name", "sre"}}) {
+	if got := v.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "name", Label: "sre"}}) {
 		t.Errorf("context = %v", got)
 	}
 }
 
 func TestFormViewStaticTitleAndContextPlumbThrough(t *testing.T) {
-	ctx := [][2]string{{"role", "sre"}}
+	ctx := []keys.Hint{{Key: "role", Label: "sre"}}
 	v := NewFormView(FormSpec{Title: "edit config", Context: ctx, Fields: nameFields(), Keys: testFormKeys()})
 	if v.Title() != "edit config" {
 		t.Errorf("title = %q", v.Title())
@@ -272,7 +272,7 @@ func TestFormViewStaticTitleAndContextPlumbThrough(t *testing.T) {
 }
 
 func TestFormViewHintsOverrideWins(t *testing.T) {
-	want := [][2]string{{"↑/↓", "field"}, {"ctrl+s", "save"}}
+	want := []keys.Hint{{Key: "↑/↓", Label: "field"}, {Key: "ctrl+s", Label: "save"}}
 	v := NewFormView(FormSpec{Title: "edit", Fields: nameFields(), Keys: testFormKeys(), Hints: want})
 	if got := v.Hints(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("hints = %v, want %v", got, want)
@@ -285,10 +285,10 @@ func TestFormViewDefaultHintsAdvertiseTheSaveBinding(t *testing.T) {
 	if len(hints) != 3 {
 		t.Fatalf("hints = %v, want field/change/save", hints)
 	}
-	if hints[0][1] != "field" || hints[1][1] != "change" {
+	if hints[0].Label != "field" || hints[1].Label != "change" {
 		t.Errorf("hints = %v, want field then change", hints)
 	}
-	if hints[2] != [2]string{"ctrl+s", "save"} {
+	if hints[2] != (keys.Hint{Key: "ctrl+s", Label: "save"}) {
 		t.Errorf("save hint = %v, want the bound glyph and label", hints[2])
 	}
 }
@@ -296,7 +296,7 @@ func TestFormViewDefaultHintsAdvertiseTheSaveBinding(t *testing.T) {
 func TestFormViewDefaultHintsOmitAnUnboundSave(t *testing.T) {
 	v := NewFormView(FormSpec{Title: "edit", Fields: nameFields()})
 	for _, h := range v.Hints() {
-		if h[1] == "save" {
+		if h.Label == "save" {
 			t.Fatalf("hints advertise a save the view cannot honour: %v", v.Hints())
 		}
 	}

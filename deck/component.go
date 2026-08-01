@@ -30,8 +30,8 @@ func RegisterComponent(id string, ctor func() Component) {
 	components[id] = ctor
 }
 
-// LookupComponent returns a fresh Component for id.
-func LookupComponent(id string) (Component, bool) {
+// NamedComponent returns a fresh Component for id.
+func NamedComponent(id string) (Component, bool) {
 	compMu.RLock()
 	ctor, ok := components[id]
 	compMu.RUnlock()
@@ -41,8 +41,8 @@ func LookupComponent(id string) (Component, bool) {
 	return ctor(), true
 }
 
-// ComponentIDs returns registered component ids sorted.
-func ComponentIDs() []string {
+// ComponentKeys returns registered component ids sorted.
+func ComponentKeys() []string {
 	compMu.RLock()
 	defer compMu.RUnlock()
 	out := make([]string, 0, len(components))

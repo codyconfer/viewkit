@@ -9,11 +9,11 @@ import (
 
 func TestDualHostInlineAndDeck(t *testing.T) {
 	p := StaticPanel{Title: "STATUS", Lines: []string{"ok", "ready"}}
-	inline := Render(p, Inline, layout.NewFrame(40), 0, 0)
+	inline := Render(p, TargetInline, layout.NewFrame(40), 0, 0)
 	if !strings.Contains(inline, "STATUS") || !strings.Contains(inline, "ok") {
 		t.Fatalf("inline missing content:\n%s", inline)
 	}
-	deck := Render(p, Deck, layout.Frame{}, 40, 8)
+	deck := Render(p, TargetDeck, layout.Frame{}, 40, 8)
 	if !strings.Contains(deck, "STATUS") || !strings.Contains(deck, "ready") {
 		t.Fatalf("deck missing content:\n%s", deck)
 	}
@@ -31,7 +31,7 @@ func TestPanelRegistry(t *testing.T) {
 	Register(id, func() DualHost {
 		return StaticPanel{Title: "T", Lines: []string{"x"}}
 	})
-	p, ok := Lookup(id)
+	p, ok := Named(id)
 	if !ok {
 		t.Fatal("lookup failed")
 	}
@@ -40,12 +40,12 @@ func TestPanelRegistry(t *testing.T) {
 		t.Fatalf("render = %q", out)
 	}
 	found := false
-	for _, k := range IDs() {
+	for _, k := range Keys() {
 		if k == id {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("IDs missing %q: %v", id, IDs())
+		t.Fatalf("IDs missing %q: %v", id, Keys())
 	}
 }

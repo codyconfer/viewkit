@@ -15,12 +15,16 @@ const (
 	homeFocusSide
 )
 
-// HomeShell is a dual-pane View: navigable menu + optional side Item list.
-// SideFetch/SideBind keep domain types out of deck (caller maps → list.Item).
-type HomeShell struct {
-	title string
-	ctx   [][2]string
-	items []MenuItem
+// HomeShellSpec configures a HomeShell, following the FormSpec pattern: every
+// field beyond Title and Items is optional. SideLabel empty + SideFetch nil →
+// menu-only shell.
+type HomeShellSpec struct {
+	// Title heads the breadcrumb trail.
+	Title string
+	// Ctx supplies chrome context cues.
+	Ctx []keys.Hint
+	// Items are the menu rows.
+	Items []MenuItem
 
 	// BoxTitle is the menu TitledBox title. Empty (default) omits the title.
 	BoxTitle string
@@ -36,18 +40,40 @@ type HomeShell struct {
 	SideFetch func() any
 	// SideBind maps fetched data → rows using current width.
 	SideBind func(width int, fetched any) []list.Item
-	// SideLoading shown while SideFetch has not completed.
+	// SideLoading shown while SideFetch has not completed (default "░▒▓ loading…").
 	SideLoading string
 	// ReloadHint is the footer label for the reload key (default "reload").
 	ReloadHint string
 
-	// IsAction maps a key string to a keys.Action, fully replacing the active
-	// scheme map (keys.Cur); map PageUp/PageDown and FocusNext to keep paging
-	// and pane switching.
+	// IsAction maps a key string to a keys.Action. It is consulted first; keys
+	// it does not claim fall back to the active scheme map (keys.Cur), so
+	// paging and pane switching keep working without re-mapping them.
 	IsAction func(string) (keys.Action, bool)
 	// OnOpen overrides browser.Open when a side item Key is opened.
-	OnOpen   func(url string) error
-	OnSelect func(h *Model, key string) tea.Cmd
+	OnOpen func(url string) error
+	// OnSelect handles Confirm on the highlighted side row. The full item is
+	// passed so its Payload (and Key) are available without a side table.
+	OnSelect func(h *Model, it list.Item) tea.Cmd
+}
+
+// HomeShell is a dual-pane View: navigable menu + optional side Item list.
+// SideFetch/SideBind keep domain types out of deck (caller maps → list.Item).
+type HomeShell struct {
+	title string
+	ctx   []keys.Hint
+	items []MenuItem
+
+	boxTitle    string
+	staticLabel string
+	sideLabelFn func() string
+	sideHint    string
+	sideFetch   func() any
+	sideBindFn  func(width int, fetched any) []list.Item
+	sideLoading string
+	reloadHint  string
+	isAction    func(string) (keys.Action, bool)
+	onOpen      func(url string) error
+	onSelect    func(h *Model, it list.Item) tea.Cmd
 
 	cursor  int
 	focus   int
@@ -62,21 +88,36 @@ type HomeShell struct {
 type sideBind struct {
 	width int
 	label string
-	theme *theme.Theme
+	gen   uint64
+	set   bool
 }
 
-// NewHomeShell builds a HomeShell. sideLabel empty + SideFetch nil → menu-only.
-// BoxTitle defaults empty (no menu titled-box title); set after construction if desired.
-func NewHomeShell(title string, ctx [][2]string, items []MenuItem, sideLabel string) *HomeShell {
-	return &HomeShell{
-		title:       title,
-		ctx:         ctx,
-		items:       items,
-		SideLabel:   sideLabel,
-		SideHint:    "side",
-		SideLoading: "░▒▓ loading…",
+// NewHomeShell builds a HomeShell from spec.
+func NewHomeShell(spec HomeShellSpec) *HomeShell {
+	h := &HomeShell{
+		title:       spec.Title,
+		ctx:         spec.Ctx,
+		items:       spec.Items,
+		boxTitle:    spec.BoxTitle,
+		staticLabel: spec.SideLabel,
+		sideLabelFn: spec.SideLabelFn,
+		sideHint:    spec.SideHint,
+		sideFetch:   spec.SideFetch,
+		sideBindFn:  spec.SideBind,
+		sideLoading: spec.SideLoading,
+		reloadHint:  spec.ReloadHint,
+		isAction:    spec.IsAction,
+		onOpen:      spec.OnOpen,
+		onSelect:    spec.OnSelect,
 		side:        list.New(),
 	}
+	if h.sideHint == "" {
+		h.sideHint = "side"
+	}
+	if h.sideLoading == "" {
+		h.sideLoading = "░▒▓ loading…"
+	}
+	return h
 }
 
 type homeShellLoadedMsg struct {
@@ -91,17 +132,21 @@ func (m homeShellLoadedMsg) recipient() View { return m.own }
 // from a global key hook without knowing what is on top of the stack.
 type ReloadMsg struct{}
 
-func (h *HomeShell) Title() string        { return h.title }
-func (h *HomeShell) Context() [][2]string { return h.ctx }
+// Title implements View.
+func (h *HomeShell) Title() string { return h.title }
+
+// Context implements View.
+func (h *HomeShell) Context() []keys.Hint { return h.ctx }
 
 // FocusSide reports whether the side pane has keyboard focus (for tests/adapters).
 func (h *HomeShell) FocusSide() bool { return h.focus == homeFocusSide }
 
-func (h *HomeShell) Hints() [][2]string {
+// Hints implements View; the legend follows which pane has focus.
+func (h *HomeShell) Hints() []keys.Hint {
 	km := navMap()
 	if h.focus == homeFocusSide {
-		hints := [][2]string{km.HintLabeled(keys.Up, "move")}
-		if h.OnSelect != nil {
+		hints := []keys.Hint{km.HintLabeled(keys.Up, "move")}
+		if h.onSelect != nil {
 			hints = append(hints,
 				km.HintLabeled(keys.Confirm, "details"),
 				km.HintLabeled(keys.Open, "open"))
@@ -111,44 +156,41 @@ func (h *HomeShell) Hints() [][2]string {
 		hints = append(hints,
 			km.HintLabeled(keys.PageUp, "page"),
 			km.HintLabeled(keys.FocusNext, "menu"))
-		if h.SideFetch != nil {
-			hints = append(hints, km.HintLabeled(keys.Reload, h.reloadHint()))
+		if h.sideFetch != nil {
+			hints = append(hints, km.HintLabeled(keys.Reload, h.reloadLabel()))
 		}
 		return hints
 	}
-	hints := [][2]string{
+	hints := []keys.Hint{
 		km.HintLabeled(keys.Up, "move"),
 		km.HintLabeled(keys.Confirm, "open"),
 	}
 	if h.hasSide() {
-		hint := h.SideHint
-		if hint == "" {
-			hint = "side"
-		}
-		hints = append(hints, km.HintLabeled(keys.FocusNext, hint))
+		hints = append(hints, km.HintLabeled(keys.FocusNext, h.sideHint))
 	}
-	if h.SideFetch != nil {
-		hints = append(hints, km.HintLabeled(keys.Reload, h.reloadHint()))
+	if h.sideFetch != nil {
+		hints = append(hints, km.HintLabeled(keys.Reload, h.reloadLabel()))
 	}
 	return hints
 }
 
-func (h *HomeShell) hasSide() bool { return h.sideLabel() != "" && h.SideFetch != nil }
+func (h *HomeShell) hasSide() bool { return h.sideLabel() != "" && h.sideFetch != nil }
 
-func (h *HomeShell) reloadHint() string {
-	if h.ReloadHint != "" {
-		return h.ReloadHint
+func (h *HomeShell) reloadLabel() string {
+	if h.reloadHint != "" {
+		return h.reloadHint
 	}
 	return "reload"
 }
 
 func (h *HomeShell) sideLabel() string {
-	if h.SideLabelFn != nil {
-		return h.SideLabelFn()
+	if h.sideLabelFn != nil {
+		return h.sideLabelFn()
 	}
-	return h.SideLabel
+	return h.staticLabel
 }
 
+// Init implements View, starting the side fetch when a side pane is configured.
 func (h *HomeShell) Init() tea.Cmd {
 	if !h.hasSide() {
 		return nil
@@ -156,10 +198,10 @@ func (h *HomeShell) Init() tea.Cmd {
 	return h.fetchSide()
 }
 
-// Reload drops fetched side content and re-runs SideFetch, showing SideLoading
-// until the new data lands. No-op when there is nothing to fetch.
+// Reload drops fetched side content and re-runs SideFetch, showing the side
+// loading text until the new data lands. No-op when there is nothing to fetch.
 func (h *HomeShell) Reload() tea.Cmd {
-	if h.SideFetch == nil {
+	if h.sideFetch == nil {
 		return nil
 	}
 	h.fetched, h.loaded = nil, false
@@ -168,10 +210,12 @@ func (h *HomeShell) Reload() tea.Cmd {
 }
 
 func (h *HomeShell) fetchSide() tea.Cmd {
-	fetch := h.SideFetch
+	fetch := h.sideFetch
 	return func() tea.Msg { return homeShellLoadedMsg{own: h, data: fetch()} }
 }
 
+// Update implements View, handling resize, side-load completion, ReloadMsg
+// and keys for whichever pane has focus.
 func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -203,7 +247,7 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 		h.toggleFocus()
 		return nil
 	}
-	if act == keys.Reload && h.SideFetch != nil {
+	if act == keys.Reload && h.sideFetch != nil {
 		return h.Reload()
 	}
 	if h.focus == homeFocusSide {
@@ -236,8 +280,8 @@ func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
 			h.cursor++
 		}
 	case keys.Confirm:
-		if len(h.items) > 0 && h.items[h.cursor].Do != nil {
-			return h.items[h.cursor].Do(host)
+		if len(h.items) > 0 && h.items[h.cursor].OnSelect != nil {
+			return h.items[h.cursor].OnSelect(host)
 		}
 	case keys.Cancel:
 		return host.Pop()
@@ -255,21 +299,23 @@ func (h *HomeShell) toggleFocus() {
 }
 
 func (h *HomeShell) action(key string) (keys.Action, bool) {
-	if h.IsAction != nil {
-		return h.IsAction(key)
+	if h.isAction != nil {
+		if act, ok := h.isAction(key); ok {
+			return act, true
+		}
 	}
 	return navMap().Action(key)
 }
 
 func (h *HomeShell) confirmSelected(host *Model) tea.Cmd {
-	if h.OnSelect == nil {
+	if h.onSelect == nil {
 		return h.openSelected()
 	}
 	it, ok := h.side.Selected()
-	if !ok || it.Key == "" {
+	if !ok || (it.Key == "" && it.Payload == nil) {
 		return nil
 	}
-	return h.OnSelect(host, it.Key)
+	return h.onSelect(host, it)
 }
 
 func (h *HomeShell) openSelected() tea.Cmd {
@@ -278,7 +324,7 @@ func (h *HomeShell) openSelected() tea.Cmd {
 		return nil
 	}
 	url := it.Key
-	open := h.OnOpen
+	open := h.onOpen
 	if open == nil {
 		open = browser.Open
 	}
@@ -289,7 +335,7 @@ func (h *HomeShell) openSelected() tea.Cmd {
 }
 
 func (h *HomeShell) bindKey() sideBind {
-	return sideBind{width: h.width, label: h.sideLabel(), theme: theme.Cur()}
+	return sideBind{width: h.width, label: h.sideLabel(), gen: theme.Generation(), set: true}
 }
 
 func (h *HomeShell) refresh() {
@@ -299,15 +345,11 @@ func (h *HomeShell) refresh() {
 	}
 	th := theme.Cur()
 	if !h.loaded {
-		txt := h.SideLoading
-		if txt == "" {
-			txt = "░▒▓ loading…"
-		}
-		h.side.SetItems([]list.Item{{Block: th.Dim.Render(txt)}})
+		h.side.SetItems([]list.Item{{Block: th.Dim.Render(h.sideLoading)}})
 		return
 	}
-	if h.SideBind != nil {
-		h.side.SetItemsKeepingCursor(h.SideBind(h.width, h.fetched))
+	if h.sideBindFn != nil {
+		h.side.SetItemsKeepingCursor(h.sideBindFn(h.width, h.fetched))
 		return
 	}
 	if items, ok := h.fetched.([]list.Item); ok {
@@ -351,10 +393,12 @@ func (h *HomeShell) menuRows(f layout.Frame) []string {
 	return rows
 }
 
+// Body implements View: the menu box, then the side list sized to the
+// remaining height when a side pane is configured.
 func (h *HomeShell) Body(width, height int) string {
 	f := layout.ScreenFrame(width)
 	f.Focused = h.focus == homeFocusMenu
-	menuBox := f.TitledBox(h.BoxTitle, h.menuRows(f)...)
+	menuBox := f.TitledBox(h.boxTitle, h.menuRows(f)...)
 	if !h.hasSide() {
 		return menuBox
 	}

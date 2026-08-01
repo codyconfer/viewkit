@@ -12,9 +12,12 @@
 package tree
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/codyconfer/viewkit/glyph"
+	"github.com/codyconfer/viewkit/list"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -32,6 +35,21 @@ type Row struct {
 	// tree's vertical rules survive the gap. It matches the field of the same
 	// name on list.Item.
 	GapStem string
+	// Payload carries the caller's domain value for the row; Item copies it
+	// through so list selection hands the value back without a side table.
+	Payload any
+}
+
+// Item converts the row to a list.Item, joining its rendered lines into one
+// block. Key, Selectable, GapStem and Payload copy through unchanged.
+func (r Row) Item() list.Item {
+	return list.Item{
+		Block:      strings.Join(r.Lines, "\n"),
+		Key:        r.Key,
+		Selectable: r.Selectable,
+		GapStem:    r.GapStem,
+		Payload:    r.Payload,
+	}
 }
 
 // Connectors is the glyph set used to draw tree edges. Mid, End, Vert and Space

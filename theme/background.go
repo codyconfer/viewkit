@@ -8,10 +8,14 @@ import (
 
 const resetSeq = "\x1b[0m"
 
+// AppMargin indents body by the standard horizontal app margin (AppMarginX
+// columns each side), adding no vertical margin.
 func AppMargin(body string) string {
 	return lipgloss.NewStyle().Margin(0, AppMarginX).Render(body)
 }
 
+// FillLine returns a width-column run of spaces painted with background c.
+// Negative widths yield an empty line.
 func FillLine(c lipgloss.TerminalColor, width int) string {
 	if width < 0 {
 		width = 0
@@ -19,6 +23,9 @@ func FillLine(c lipgloss.TerminalColor, width int) string {
 	return lipgloss.NewStyle().Background(c).Render(strings.Repeat(" ", width))
 }
 
+// PadBlock joins lines with rows blank filler lines above and below, each
+// width columns of background c, giving the block vertical breathing room on
+// a colored strip.
 func PadBlock(c lipgloss.TerminalColor, width, rows int, lines ...string) string {
 	if rows < 0 {
 		rows = 0
@@ -35,6 +42,10 @@ func PadBlock(c lipgloss.TerminalColor, width, rows int, lines ...string) string
 	return strings.Join(out, "\n")
 }
 
+// Screen paints the active theme's background across a width-by-height area
+// behind body. Every ANSI reset inside body is re-followed by the background
+// sequence so embedded styles do not punch holes in the fill. When the theme
+// has no background color, body is returned unchanged.
 func Screen(body string, width, height int) string {
 	bg := Cur().Bg
 	if bg == "" {

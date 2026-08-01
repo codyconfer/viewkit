@@ -30,7 +30,7 @@ type EditorDoc interface {
 	// Title heads the form panel.
 	Title() string
 	// Context supplies the chrome context pairs.
-	Context() [][2]string
+	Context() []keys.Hint
 	// SavedName is the persisted name, or "" when never saved. Delete and
 	// the delete hint are suppressed while it is empty.
 	SavedName() string
@@ -140,7 +140,7 @@ type Editor struct {
 
 	bound      bool
 	boundWidth int
-	boundTheme *theme.Theme
+	boundGen   uint64
 }
 
 // NewEditor builds an Editor over doc. seed pre-fills the form and is
@@ -213,35 +213,42 @@ func (e *Editor) Selected() (list.Item, bool) { return e.results.Selected() }
 // values, when the document reports that its field set is value-dependent.
 func (e *Editor) SyncFields() { e.syncFields() }
 
-func (e *Editor) Title() string        { return e.doc.Title() }
-func (e *Editor) Init() tea.Cmd        { return nil }
-func (e *Editor) Context() [][2]string { return e.doc.Context() }
+// Title implements View, delegating to the document.
+func (e *Editor) Title() string { return e.doc.Title() }
 
-func (e *Editor) Hints() [][2]string {
+// Init implements View; an Editor needs no startup command.
+func (e *Editor) Init() tea.Cmd { return nil }
+
+// Context implements View, delegating to the document.
+func (e *Editor) Context() []keys.Hint { return e.doc.Context() }
+
+// Hints implements View. The legend follows the current mode: delete
+// confirmation, results pane, suggestion completion, or plain form editing.
+func (e *Editor) Hints() []keys.Hint {
 	if e.confirm != nil {
-		return [][2]string{{"←/→", "choose"}, {"enter", "confirm"}}
+		return []keys.Hint{{Key: "←/→", Label: "choose"}, {Key: "enter", Label: "confirm"}}
 	}
 	if e.onResults {
-		hints := [][2]string{
-			{"↑/↓", "item"},
-			{"pgup/pgdn", "page"},
-			{"enter", "open"},
+		hints := []keys.Hint{
+			{Key: "↑/↓", Label: "item"},
+			{Key: "pgup/pgdn", Label: "page"},
+			{Key: "enter", Label: "open"},
 		}
 		hints = e.withHint(hints, e.keys.Focus, "edit")
 		return e.withHint(hints, e.keys.Run, "rerun")
 	}
 	if len(e.form.Suggestions()) > 0 {
-		hints := [][2]string{
-			{"tab", "accept"},
-			{"ctrl+n/ctrl+p", "suggestion"},
-			{"↑/↓", "field"},
+		hints := []keys.Hint{
+			{Key: "tab", Label: "accept"},
+			{Key: "ctrl+n/ctrl+p", Label: "suggestion"},
+			{Key: "↑/↓", Label: "field"},
 		}
 		hints = e.withHint(hints, e.keys.Run, "run")
 		return e.withHint(hints, e.keys.Save, "save")
 	}
-	hints := [][2]string{
-		{"↑/↓", "field"},
-		{"←/→", "adjust"},
+	hints := []keys.Hint{
+		{Key: "↑/↓", Label: "field"},
+		{Key: "←/→", Label: "adjust"},
 	}
 	hints = e.withHint(hints, e.keys.Run, "run")
 	hints = e.withHint(hints, e.keys.Validate, "validate")
@@ -260,13 +267,16 @@ func (e *Editor) Hints() [][2]string {
 // withHint appends the hint for a host-supplied action, taking the glyph from the
 // binding the host actually installed rather than assuming one. An action the host
 // left unbound contributes no hint, so the footer never advertises a dead key.
-func (e *Editor) withHint(hints [][2]string, act keys.Action, label string) [][2]string {
+func (e *Editor) withHint(hints []keys.Hint, act keys.Action, label string) []keys.Hint {
 	if act == "" || e.keys.Map == nil || !e.keys.Map.Has(act) {
 		return hints
 	}
 	return append(hints, e.keys.Map.HintLabeled(act, label))
 }
 
+// Update implements View. Keys go to the delete-confirm dialog when it is
+// open, otherwise to the focused pane (form or results); it also handles
+// resize, run completion (editorRanMsg) and ReloadMsg re-runs.
 func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -294,11 +304,11 @@ func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (e *Editor) outputHints() [][2]string {
+func (e *Editor) outputHints() []keys.Hint {
 	if _, ok := e.doc.(EditorOutput); !ok {
 		return nil
 	}
-	var out [][2]string
+	var out []keys.Hint
 	for _, act := range []keys.Action{e.keys.Copy, e.keys.Write} {
 		if act == "" || !e.keys.Map.Has(act) {
 			continue
@@ -490,7 +500,7 @@ func (e *Editor) save(a *Model) tea.Cmd {
 }
 
 func (e *Editor) relayoutResults() {
-	if e.bound && e.bodyWidth == e.boundWidth && e.boundTheme == theme.Cur() {
+	if e.bound && e.bodyWidth == e.boundWidth && e.boundGen == theme.Generation() {
 		return
 	}
 	e.bindResults(e.results.SetItemsKeepingCursor)
@@ -506,7 +516,7 @@ func (e *Editor) bindResults(install func([]list.Item)) {
 	}
 	items := e.set.Items(layout.ScreenFrame(e.bodyWidth - editorListIndent))
 	install(items)
-	e.bound, e.boundWidth, e.boundTheme = true, e.bodyWidth, theme.Cur()
+	e.bound, e.boundWidth, e.boundGen = true, e.bodyWidth, theme.Generation()
 	lines := 0
 	for i, it := range items {
 		if i > 0 {
@@ -555,6 +565,9 @@ func (e *Editor) openSelected() tea.Cmd {
 	}
 }
 
+// Body implements View. When both panes exceed the height budget it
+// collapses the unfocused pane — then both — to one-line summaries, and it
+// overlays the delete-confirm dialog when that is open.
 func (e *Editor) Body(width, height int) string {
 	if height > 0 {
 		e.bodyHeight = height

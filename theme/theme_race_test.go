@@ -3,7 +3,7 @@ package theme
 import "testing"
 
 func TestUseIsRaceFreeWhileRendering(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	dark, _ := Named("solarized-dark")
@@ -38,8 +38,8 @@ func TestUseIsRaceFreeWhileRendering(t *testing.T) {
 	<-done
 }
 
-func TestExportedStyleVarsAreRaceFreeWhileUse(t *testing.T) {
-	orig := *Cur()
+func TestCurStylesAreRaceFreeWhileUse(t *testing.T) {
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	dark, _ := Named("solarized-dark")
@@ -53,10 +53,11 @@ func TestExportedStyleVarsAreRaceFreeWhileUse(t *testing.T) {
 			case <-stop:
 				return
 			default:
-				_ = DimSty.Render("dim")
-				_ = AccentSty.Render("accent")
-				_ = AppFrame.Render("frame")
-				_ = len(Series)
+				th := Cur()
+				_ = th.Dim.Render("dim")
+				_ = th.Accent.Render("accent")
+				_ = th.AppFrame.Render("frame")
+				_ = len(th.Series)
 			}
 		}
 	}()

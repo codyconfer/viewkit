@@ -7,6 +7,14 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Line renders a scatter-style line chart panel plotting series as one '•'
+// per value, scaled between the series min and max. width and height are the
+// plot size in terminal cells; width is capped to the frame body minus the
+// axis gutter, and when the series is longer than width only the most recent
+// values are shown (shorter series are right-aligned). fmtVal formats the
+// max/min axis labels on the first and last rows. Any footer lines are
+// appended inside the panel. An empty series or non-positive width/height
+// yields a panel containing only the footer.
 func Line(f layout.Frame, title string, series []float64, width, height int, fmtVal func(float64) string, footer ...string) string {
 	if max := f.BodyWidth() - 7; max > 0 && width > max {
 		width = max

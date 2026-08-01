@@ -8,18 +8,33 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// ScrollSpec configures a Scroll, following the FormSpec pattern: every field
+// beyond Title and Load is optional.
+type ScrollSpec struct {
+	// Title heads the breadcrumb trail.
+	Title string
+	// Ctx supplies chrome context cues.
+	Ctx []keys.Hint
+	// Hints are appended to the footer legend after the built-in ones.
+	Hints []keys.Hint
+	// Load produces the scrollable text; invoked once on Init.
+	Load func() string
+	// IsCancel reports whether a key string should pop the view.
+	IsCancel func(string) bool
+	// ReloadHint is the footer label for the reload key (default "reload").
+	ReloadHint string
+}
+
 // Scroll is a lazy-loaded scrollable text view (bubbles viewport).
 // Hosted only in the deck module so tea stays out of viewkit core.
 type Scroll struct {
 	title string
 	load  func() string
-	hints [][2]string
-	ctx   [][2]string
+	hints []keys.Hint
+	ctx   []keys.Hint
 
-	// IsCancel reports whether a key string should pop the view.
-	IsCancel func(string) bool
-	// ReloadHint is the footer label for the reload key (default "reload").
-	ReloadHint string
+	isCancel   func(string) bool
+	reloadHint string
 
 	vp     viewport.Model
 	ready  bool
@@ -27,13 +42,15 @@ type Scroll struct {
 	loaded bool
 }
 
-// NewScroll builds a Scroll view. load is invoked once on Init.
-func NewScroll(title string, ctx, hints [][2]string, load func() string) *Scroll {
+// NewScroll builds a Scroll view from spec.
+func NewScroll(spec ScrollSpec) *Scroll {
 	return &Scroll{
-		title: title,
-		load:  load,
-		ctx:   ctx,
-		hints: hints,
+		title:      spec.Title,
+		load:       spec.Load,
+		ctx:        spec.Ctx,
+		hints:      spec.Hints,
+		isCancel:   spec.IsCancel,
+		reloadHint: spec.ReloadHint,
 	}
 }
 
@@ -44,27 +61,33 @@ type scrollViewLoadedMsg struct {
 
 func (m scrollViewLoadedMsg) recipient() View { return m.own }
 
-func (c *Scroll) Title() string        { return c.title }
-func (c *Scroll) Context() [][2]string { return c.ctx }
-func (c *Scroll) Hints() [][2]string {
+// Title implements View.
+func (c *Scroll) Title() string { return c.title }
+
+// Context implements View.
+func (c *Scroll) Context() []keys.Hint { return c.ctx }
+
+// Hints implements View: scrolling legend plus any spec-supplied hints.
+func (c *Scroll) Hints() []keys.Hint {
 	km := navMap()
-	hints := [][2]string{
+	hints := []keys.Hint{
 		km.HintLabeled(keys.Up, "scroll"),
 		km.HintLabeled(keys.PageUp, "page"),
 	}
 	if c.load != nil {
-		hints = append(hints, km.HintLabeled(keys.Reload, c.reloadHint()))
+		hints = append(hints, km.HintLabeled(keys.Reload, c.reloadLabel()))
 	}
 	return append(hints, c.hints...)
 }
 
-func (c *Scroll) reloadHint() string {
-	if c.ReloadHint != "" {
-		return c.ReloadHint
+func (c *Scroll) reloadLabel() string {
+	if c.reloadHint != "" {
+		return c.reloadHint
 	}
 	return "reload"
 }
 
+// Init implements View, kicking off Load when one was supplied.
 func (c *Scroll) Init() tea.Cmd {
 	if c.load == nil {
 		return nil
@@ -88,6 +111,8 @@ func (c *Scroll) loadCmd() tea.Cmd {
 	return func() tea.Msg { return scrollViewLoadedMsg{own: c, body: load()} }
 }
 
+// Update implements View: navigation keys scroll the viewport, Reload
+// re-runs Load, Cancel (or an IsCancel match) pops the view.
 func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -106,14 +131,14 @@ func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 	case ReloadMsg:
 		return c.Reload()
 	case tea.KeyMsg:
-		if c.IsCancel != nil && c.IsCancel(m.String()) {
+		if c.isCancel != nil && c.isCancel(m.String()) {
 			return h.Pop()
 		}
 		act, ok := navMap().Action(m.String())
 		if !ok {
 			return nil
 		}
-		if act == keys.Cancel && c.IsCancel == nil {
+		if act == keys.Cancel && c.isCancel == nil {
 			return h.Pop()
 		}
 		if act == keys.Reload {
@@ -147,6 +172,8 @@ func (c *Scroll) refresh() {
 	c.vp.SetContent(c.body)
 }
 
+// Body implements View, resizing the viewport to the frame before rendering
+// so the scroll offset stays within the content.
 func (c *Scroll) Body(width, height int) string {
 	if !c.ready {
 		return theme.Cur().Dim.Render("loading…")

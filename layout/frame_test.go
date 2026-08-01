@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -15,7 +16,7 @@ var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
 func TestHeaderRendersTitleDetailAndRule(t *testing.T) {
-	out := stripANSI(Header("DASHBOARD", "live status"))
+	out := stripANSI(DefaultFrame().Header("DASHBOARD", "live status"))
 	if !strings.Contains(out, "DASHBOARD") || !strings.Contains(out, "live status") {
 		t.Fatalf("header missing title or detail:\n%s", out)
 	}
@@ -49,9 +50,9 @@ func TestFrameSpreadFitsWidth(t *testing.T) {
 
 func TestFrameHintLineWrapsToWidth(t *testing.T) {
 	out := NewFrame(24).HintLine(
-		[2]string{"enter", "choose"},
-		[2]string{"pgup/pgdn", "history"},
-		[2]string{"esc", "back"},
+		keys.Hint{Key: "enter", Label: "choose"},
+		keys.Hint{Key: "pgup/pgdn", Label: "history"},
+		keys.Hint{Key: "esc", Label: "back"},
 	)
 	if !strings.Contains(out, "\n") {
 		t.Fatalf("hint line did not wrap:\n%s", stripANSI(out))

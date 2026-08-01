@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+// Rel formats t relative to now ("3h ago", "in 2d").
 func Rel(t time.Time) string {
 	return RelAt(t, time.Now())
 }
 
+// RelAt formats t relative to now; now is explicit for tests.
 func RelAt(t, now time.Time) string {
 	d := now.Sub(t)
 	future := d < 0

@@ -46,12 +46,12 @@ type FormSpec struct {
 
 	// Context supplies chrome context cues. ContextFunc wins when both are
 	// set; use it when the cues can change while the form is open.
-	Context [][2]string
+	Context []keys.Hint
 	// ContextFunc computes context cues on every read.
-	ContextFunc func() [][2]string
+	ContextFunc func() []keys.Hint
 	// Hints overrides the footer legend. When nil, the legend is derived from
 	// Keys: field movement, value change, and the save binding.
-	Hints [][2]string
+	Hints []keys.Hint
 
 	// OnSubmit runs on the save action with the form's current values. It
 	// receives the Model so it can Pop back and Push a result view. A nil
@@ -104,7 +104,7 @@ func (v *FormView) Title() string {
 func (v *FormView) Init() tea.Cmd { return nil }
 
 // Context reports the chrome context cues.
-func (v *FormView) Context() [][2]string {
+func (v *FormView) Context() []keys.Hint {
 	if v.spec.ContextFunc != nil {
 		return v.spec.ContextFunc()
 	}
@@ -113,19 +113,19 @@ func (v *FormView) Context() [][2]string {
 
 // Hints reports the footer legend: the spec's override, else one derived from
 // the bound keys so the legend cannot advertise a binding the view ignores.
-func (v *FormView) Hints() [][2]string {
+func (v *FormView) Hints() []keys.Hint {
 	if v.spec.Hints != nil {
 		return v.spec.Hints
 	}
 	km := v.keyMap()
 	if len(v.form.Suggestions()) > 0 && km.Has(keys.Complete) {
-		return [][2]string{
+		return []keys.Hint{
 			km.Hint(keys.Complete),
 			km.Hint(keys.CompleteNext),
 			km.HintLabeled(keys.Up, "field"),
 		}
 	}
-	hints := [][2]string{
+	hints := []keys.Hint{
 		km.HintLabeled(keys.Up, "field"),
 		km.HintLabeled(keys.Left, "change"),
 	}

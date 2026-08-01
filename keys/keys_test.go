@@ -29,7 +29,7 @@ func TestMatcherOnlyBindingEmitsNoHint(t *testing.T) {
 	if len(hints) != 1 {
 		t.Fatalf("Hints len = %d; want 1 (Down is matcher-only)", len(hints))
 	}
-	if hints[0] != [2]string{"↑/↓/j/k", "select"} {
+	if hints[0] != (Hint{Key: "↑/↓/j/k", Label: "select"}) {
 		t.Fatalf("Hints[0] = %v; want [↑/↓/j/k select]", hints[0])
 	}
 	if !m.Has(Down) {
@@ -46,7 +46,7 @@ func TestDisplayGlyphFallsBackToKeys(t *testing.T) {
 
 func TestHintLabeledOverridesLabel(t *testing.T) {
 	m := NewMap(Binding{Keys: []string{"up"}, Action: Up, Glyph: "↑/↓/j/k", Label: "select"})
-	if got := m.HintLabeled(Up, "scroll feed"); got != [2]string{"↑/↓/j/k", "scroll feed"} {
+	if got := m.HintLabeled(Up, "scroll feed"); got != (Hint{Key: "↑/↓/j/k", Label: "scroll feed"}) {
 		t.Fatalf("HintLabeled = %v; want [↑/↓/j/k scroll feed]", got)
 	}
 }

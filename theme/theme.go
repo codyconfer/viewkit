@@ -6,6 +6,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Layout metrics shared by every viewkit screen. BodyWidth is the content
+// column that panels and cards wrap (they add their own border and padding);
+// the Min*/Tall* values are the terminal sizes screens are designed against,
+// and RuleWidth is the horizontal-rule span covering body plus panel chrome.
 const (
 	BodyWidth    = 81
 	MinBodyWidth = 24
@@ -22,6 +26,9 @@ const (
 	RuleWidth = BodyWidth + 4
 )
 
+// Palette is the twelve-color input to New: semantic roles (Accent, Success,
+// Failure, ...) plus extra chart series colors and the screen background.
+// Registering a Palette is all a custom theme needs; New derives every style.
 type Palette struct {
 	Accent   lipgloss.Color
 	Border   lipgloss.Color
@@ -37,6 +44,9 @@ type Palette struct {
 	Bg       lipgloss.Color
 }
 
+// New derives a full Theme from p: text styles, panel/card borders,
+// notification frames, and a seven-entry Series ramp, with the too-narrow
+// messages set to their defaults.
 func New(p Palette) Theme {
 	return Theme{
 		Title:  lipgloss.NewStyle().Bold(true).Foreground(p.Accent),
@@ -78,44 +88,19 @@ func New(p Palette) Theme {
 	}
 }
 
-// These package-level styles are a snapshot of the default theme taken during
-// package initialization. They are written once, before any goroutine can
-// observe them, and are never written again — so they are safe to read
-// concurrently but they do not follow Use. Cur() is the sanctioned path to the
-// active theme; prefer Cur().Dim over DimSty in anything that renders after a
-// theme has been applied.
-var (
-	TitleSty  lipgloss.Style
-	AccentSty lipgloss.Style
-	DimSty    lipgloss.Style
-	ValSty    lipgloss.Style
-	KeySty    lipgloss.Style
-	CanSty    lipgloss.Style
-	CantSty   lipgloss.Style
-
-	AppFrame lipgloss.Style
-
-	PanelSty      lipgloss.Style
-	PanelFocusSty lipgloss.Style
-	PanelTitleSty lipgloss.Style
-	CardSty       lipgloss.Style
-
-	NotifPositiveSty lipgloss.Style
-	NotifNeutralSty  lipgloss.Style
-	NotifWarningSty  lipgloss.Style
-	NotifNegativeSty lipgloss.Style
-	NotifIdleSty     lipgloss.Style
-	NotifTitleSty    lipgloss.Style
-
-	Series []lipgloss.Style
-)
-
+// Default text for the too-narrow-terminal screen. TooNarrowNeed takes the
+// required column count; TooNarrowBody takes the current width (as a string)
+// and the required column count.
 const (
 	DefaultTooNarrowTitle = "TERMINAL TOO NARROW"
 	DefaultTooNarrowNeed  = "Need at least %d columns."
 	DefaultTooNarrowBody  = "Current width: %s columns. Resize the terminal to at least %d characters wide to use this screen."
 )
 
+// Theme is a bundle of ready-to-use lipgloss styles: text roles, panel and
+// notification frames, chart Series styles, the screen background color, and
+// the too-narrow-screen message templates. Build one with New and install it
+// with Use; read the active theme with Cur.
 type Theme struct {
 	Title  lipgloss.Style
 	Accent lipgloss.Style
@@ -151,22 +136,31 @@ type Theme struct {
 	stripBold lipgloss.Style
 }
 
+// Default returns the theme built from the built-in default palette.
 func Default() Theme { return New(defaultPalette) }
 
 var current = func() *atomic.Pointer[Theme] {
 	p := new(atomic.Pointer[Theme])
 	t := withCachedStyles(Default())
 	p.Store(&t)
-	syncExported(t)
 	return p
 }()
 
-func Cur() *Theme { return current.Load() }
+var generation atomic.Uint64
+
+// Cur returns the active theme by value (matching keys.Cur).
+func Cur() Theme { return *current.Load() }
+
+// Generation returns a counter incremented by every Use. Views that cache
+// theme-derived render state compare generations instead of theme identity
+// to detect a theme change.
+func Generation() uint64 { return generation.Load() }
 
 // Use makes t the active theme. Safe to call while other goroutines render.
 func Use(t Theme) {
 	t = withCachedStyles(t)
 	current.Store(&t)
+	generation.Add(1)
 }
 
 func withCachedStyles(t Theme) Theme {
@@ -174,30 +168,4 @@ func withCachedStyles(t Theme) Theme {
 	t.stripText = lipgloss.NewStyle().Background(t.stripBg)
 	t.stripBold = t.stripText.Bold(true)
 	return t
-}
-
-func syncExported(t Theme) {
-	TitleSty = t.Title
-	AccentSty = t.Accent
-	DimSty = t.Dim
-	ValSty = t.Val
-	KeySty = t.Key
-	CanSty = t.Can
-	CantSty = t.Cant
-
-	AppFrame = t.AppFrame
-
-	PanelSty = t.Panel
-	PanelFocusSty = t.PanelFocus
-	PanelTitleSty = t.PanelTitle
-	CardSty = t.Card
-
-	NotifPositiveSty = t.NotifPositive
-	NotifNeutralSty = t.NotifNeutral
-	NotifWarningSty = t.NotifWarning
-	NotifNegativeSty = t.NotifNegative
-	NotifIdleSty = t.NotifIdle
-	NotifTitleSty = t.NotifTitle
-
-	Series = t.Series
 }

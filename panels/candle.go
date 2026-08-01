@@ -7,8 +7,18 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// OHLC is one candlestick's open, high, low, and close prices.
 type OHLC struct{ Open, High, Low, Close float64 }
 
+// Candle renders a candlestick chart panel at one column per candle, using
+// half-block glyphs for two price levels per row and │ for wicks. Falling
+// candles (Close < Open) use the negative style, others the positive one.
+// width and height are the plot size in terminal cells; width is capped to
+// the frame body minus the axis gutter, and when there are more candles than
+// columns only the most recent ones are shown (fewer candles are right-
+// aligned). fmtVal formats the high/low axis labels on the first and last
+// rows. Any footer lines are appended inside the panel. Empty candles or a
+// non-positive width/height yields a panel containing only the footer.
 func Candle(f layout.Frame, title string, candles []OHLC, width, height int, fmtVal func(float64) string, footer ...string) string {
 	if max := f.BodyWidth() - 7; max > 0 && width > max {
 		width = max

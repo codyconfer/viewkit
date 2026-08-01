@@ -34,8 +34,8 @@ func Register(id string, v Variants) {
 	regMu.Unlock()
 }
 
-// Lookup returns registered variants for id (normalized).
-func Lookup(id string) (Variants, bool) {
+// Named returns registered variants for id (normalized).
+func Named(id string) (Variants, bool) {
 	id = NormalizeID(id)
 	if id == "" {
 		return Variants{}, false
@@ -48,7 +48,7 @@ func Lookup(id string) (Variants, bool) {
 
 // ResolveID returns the mode-appropriate glyph string for a registered id.
 func ResolveID(id string) string {
-	if v, ok := Lookup(id); ok {
+	if v, ok := Named(id); ok {
 		return v.String()
 	}
 	return ""
@@ -62,11 +62,11 @@ type StatusContribution struct {
 	Status     func() (glyph string, tone Severity)
 }
 
-// StatusChip is one right-strip entry carrying glyph text and Severity tone
+// StatusChip is one right-strip entry carrying glyph text and its Severity
 // so hosts can color via theme.
 type StatusChip struct {
-	Glyph string
-	Tone  Severity
+	Glyph    string
+	Severity Severity
 }
 
 // StatusStrip aggregates left (brand/role/context) and right (status) slots.
@@ -91,9 +91,9 @@ func BuildStatusStrip(brand, role string, contexts []string, contribs []StatusCo
 		if c.Status == nil {
 			continue
 		}
-		g, tone := c.Status()
+		g, sev := c.Status()
 		if g != "" {
-			right = append(right, StatusChip{Glyph: g, Tone: tone})
+			right = append(right, StatusChip{Glyph: g, Severity: sev})
 		}
 	}
 	return StatusStrip{Left: left, Right: right}

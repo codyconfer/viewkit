@@ -8,11 +8,17 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// FlexSections is FlexColumns applied per pane Group: panes sharing a Group
+// value are flowed together under a titled section header (a rule line
+// labeled with the group name), sections stacked in first-appearance order.
+// Panes with an empty Group render without a header.
 type FlexSections struct {
 	MinWidth int
 	MaxCols  int
 }
 
+// Arrange implements Arranger by grouping tier-visible panes by Group and
+// laying each group out with FlexColumns.
 func (g FlexSections) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
 	width := f.Width
 	if width < 1 {

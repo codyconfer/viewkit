@@ -158,3 +158,21 @@ func TestCheckAndCrossAreTheSameWidth(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusForMapsByNamedConstant(t *testing.T) {
+	cases := []struct {
+		sev  Severity
+		want string
+	}{
+		{SeverityPositive, StatusOK()},
+		{SeverityWarning, StatusWarn()},
+		{SeverityNegative, StatusBad()},
+		{SeverityNeutral, StatusMuted()},
+		{Severity(99), StatusMuted()},
+	}
+	for _, tc := range cases {
+		if got := StatusFor(tc.sev); got != tc.want {
+			t.Errorf("StatusFor(%v) = %q, want %q", tc.sev, got, tc.want)
+		}
+	}
+}

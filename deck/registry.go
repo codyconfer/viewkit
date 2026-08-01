@@ -24,8 +24,8 @@ func RegisterView(id string, ctor func() View) {
 	views[id] = ctor
 }
 
-// LookupView returns a fresh View for id.
-func LookupView(id string) (View, bool) {
+// NamedView returns a fresh View for id.
+func NamedView(id string) (View, bool) {
 	regMu.RLock()
 	ctor, ok := views[id]
 	regMu.RUnlock()
@@ -35,8 +35,8 @@ func LookupView(id string) (View, bool) {
 	return ctor(), true
 }
 
-// ViewIDs returns registered view ids sorted.
-func ViewIDs() []string {
+// ViewKeys returns registered view ids sorted.
+func ViewKeys() []string {
 	regMu.RLock()
 	defer regMu.RUnlock()
 	out := make([]string, 0, len(views))

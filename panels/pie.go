@@ -8,6 +8,15 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Pie renders proportions as a panel with a single stacked horizontal bar —
+// one block-glyph segment per positive Datum, colored from the theme's series
+// palette — followed by a legend line per segment showing a color swatch, the
+// label, the fmtNum-formatted value, and its rounded percentage of the total.
+// barWidth is the bar length in terminal cells, clamped to [1, body width];
+// rounding never overflows it because later segments are capped to the cells
+// left. Zero, negative, and NaN/Inf values are skipped entirely (bar and
+// legend), and if no value is positive the panel shows empty in the dim
+// style.
 func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(float64) string, empty string) string {
 	total := 0.0
 	for _, d := range data {

@@ -7,16 +7,23 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Result is the outcome of feeding a key action to a Confirm dialog.
 type Result int
 
 const (
+	// Pending means the dialog is still open awaiting a decision.
 	Pending Result = iota
 
+	// Submitted means the confirm key was pressed; the chosen answer is in
+	// Confirm.Yes.
 	Submitted
 
+	// Cancelled means the dialog was dismissed with the cancel key.
 	Cancelled
 )
 
+// Confirm is a modal yes/no dialog. The zero value is usable: YesLabel and
+// NoLabel default to "Yes" and "No", and Yes holds the current selection.
 type Confirm struct {
 	Title    string
 	Message  string
@@ -36,6 +43,9 @@ func (c Confirm) labels() (yes, no string) {
 	return yes, no
 }
 
+// Handle applies a key action: Left/Dec selects yes, Right/Inc selects no,
+// Confirm returns Submitted (with the answer left in c.Yes), and Cancel
+// returns Cancelled. Every other action leaves the dialog Pending.
 func (c *Confirm) Handle(a keys.Action) Result {
 	switch a {
 	case keys.Left, keys.Dec:
@@ -50,6 +60,8 @@ func (c *Confirm) Handle(a keys.Action) Result {
 	return Pending
 }
 
+// Render draws the dialog as a titled panel sized to f: the optional Message
+// followed by the yes/no toggle.
 func (c Confirm) Render(f layout.Frame) string {
 	yes, no := c.labels()
 	lines := []string{}
@@ -61,6 +73,8 @@ func (c Confirm) Render(f layout.Frame) string {
 	return f.Panel(c.Title, lines...)
 }
 
+// Overlay renders the dialog and composes it over the background bg with
+// layout.Overlay, placed at pos (centered by default).
 func (c Confirm) Overlay(bg string, f layout.Frame, pos ...layout.OverlayPos) string {
 	return layout.Overlay(bg, c.Render(f), pos...)
 }

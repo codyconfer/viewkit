@@ -5,8 +5,12 @@ import (
 	"fmt"
 )
 
+// Params carries layout options from a ScreenSpec (typically decoded JSON or
+// YAML) into a LayoutFactory.
 type Params map[string]any
 
+// Int returns the value under key as an int, accepting int, int64, float64
+// (truncated), and json.Number; missing keys and any other type return def.
 func (p Params) Int(key string, def int) int {
 	v, ok := p[key]
 	if !ok {
@@ -27,6 +31,9 @@ func (p Params) Int(key string, def int) int {
 	return def
 }
 
+// PaneRef names a registered pane in a ScreenSpec and optionally overrides
+// the placement fields (Pos, MinTier, Slim) of the Pane its factory builds.
+// Slim only sets the flag — a spec cannot clear a factory's Slim.
 type PaneRef struct {
 	Key     string   `json:"key"`
 	Pos     *GridPos `json:"pos,omitempty"`
@@ -34,12 +41,19 @@ type PaneRef struct {
 	Slim    bool     `json:"slim,omitempty"`
 }
 
+// ScreenSpec is the declarative, serializable description of a Screen: a
+// layout key with its params plus the panes to place. BuildScreen resolves it
+// against a Registry.
 type ScreenSpec struct {
 	Layout       string    `json:"layout"`
 	LayoutParams Params    `json:"layoutParams,omitempty"`
 	Panes        []PaneRef `json:"panes"`
 }
 
+// BuildScreen resolves a ScreenSpec against the registry. Unknown layout or
+// pane keys (and a nil registry) are errors, but a pane factory returning
+// ok=false just omits that pane. Spec-level Pos/MinTier/Slim overrides are
+// applied to each built pane.
 func BuildScreen[Ctx any](s ScreenSpec, ctx Ctx, r *Registry[Ctx]) (Screen, error) {
 	if r == nil {
 		return Screen{}, fmt.Errorf("layout: nil registry")
@@ -54,7 +68,7 @@ func BuildScreen[Ctx any](s ScreenSpec, ctx Ctx, r *Registry[Ctx]) (Screen, erro
 		return Screen{}, fmt.Errorf("layout: build layout %q: %w", s.Layout, err)
 	}
 	if l == nil {
-		return Screen{}, fmt.Errorf("layout: layout %q produced nil Layout", s.Layout)
+		return Screen{}, fmt.Errorf("layout: layout %q produced nil Arranger", s.Layout)
 	}
 
 	panes := make([]Pane, 0, len(s.Panes))

@@ -7,6 +7,8 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// Form is a vertical stack of Fields with a single focus cursor. Build one
+// with NewForm so suggestions for the initially focused field are primed.
 type Form struct {
 	Fields []Field
 	cursor int
@@ -14,12 +16,16 @@ type Form struct {
 	sugg suggState
 }
 
+// NewForm builds a form over fields, focused on the first one, and computes
+// its initial suggestion candidates.
 func NewForm(fields ...Field) *Form {
 	fm := &Form{Fields: fields}
 	fm.resuggest()
 	return fm
 }
 
+// Focused returns a pointer to the field under the focus cursor (clamping the
+// cursor into range first), or nil when the form has no fields.
 func (fm *Form) Focused() *Field {
 	if len(fm.Fields) == 0 {
 		return nil
@@ -98,6 +104,11 @@ func (fm *Form) resuggest() {
 	}
 }
 
+// Handle applies a key action and reports whether it was consumed: Up/Down
+// and FocusPrev/FocusNext move focus, Left/Right (Dec/Inc) adjust the focused
+// field, Erase deletes its last rune, and CompleteNext/CompletePrev cycle
+// suggestions. Confirm activates toggle and multiselect fields; on other
+// kinds it returns false so a host can treat it as form submission.
 func (fm *Form) Handle(a keys.Action) bool {
 	if len(fm.Fields) == 0 {
 		return false
@@ -131,6 +142,10 @@ func (fm *Form) Handle(a keys.Action) bool {
 	return true
 }
 
+// Insert appends s to the end of the focused text or multiline field's Text
+// (there is no in-text caret) and refreshes suggestions. Non-printable runes
+// are dropped, newlines survive only in multiline fields, and other field
+// kinds ignore the input entirely.
 func (fm *Form) Insert(s string) {
 	if fd := fm.Focused(); fd != nil {
 		fd.insert(s)
@@ -138,6 +153,8 @@ func (fm *Form) Insert(s string) {
 	}
 }
 
+// Values returns every field's Value keyed by its Key. Fields sharing a key
+// collapse to the last one's value.
 func (fm *Form) Values() map[string]any {
 	out := make(map[string]any, len(fm.Fields))
 	for i := range fm.Fields {
@@ -146,6 +163,8 @@ func (fm *Form) Values() map[string]any {
 	return out
 }
 
+// Render draws every field as a titled panel sized to f, marking the focused
+// one and listing its suggestion candidates beneath it.
 func (fm *Form) Render(f layout.Frame, title string) string {
 	return fm.render(f, title, 0)
 }
@@ -212,6 +231,8 @@ func windowAround(lines []string, focusStart, focusEnd, maxLines int) []string {
 	return out
 }
 
+// Overlay renders the form and composes it over the background bg with
+// layout.Overlay, placed at pos (centered by default).
 func (fm *Form) Overlay(bg string, f layout.Frame, title string, pos ...layout.OverlayPos) string {
 	return layout.Overlay(bg, fm.Render(f, title), pos...)
 }

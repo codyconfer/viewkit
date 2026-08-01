@@ -5,6 +5,9 @@ import (
 	"sync/atomic"
 )
 
+// Standard actions every scheme is expected to bind: cursor and focus
+// movement, confirm/cancel/quit, value adjustment (Inc/Dec), paging, and the
+// text-completion trio. Default binds all of them.
 const (
 	Up        Action = "nav.up"
 	Down      Action = "nav.down"
@@ -31,14 +34,19 @@ const (
 	CompletePrev Action = "complete.prev"
 )
 
+// Scheme is a complete keymap: one Binding per Action. Schemes are treated as
+// immutable; With and WithDefaults return modified copies.
 type Scheme struct {
 	bindings map[Action]Binding
 }
 
+// Binding returns the binding for a, or the zero Binding when a is unbound.
 func (s Scheme) Binding(a Action) Binding {
 	return s.bindings[a]
 }
 
+// With returns a copy of s with overrides applied, each replacing any
+// existing binding for its action. s itself is not modified.
 func (s Scheme) With(overrides ...Binding) Scheme {
 	next := Scheme{bindings: make(map[Action]Binding, len(s.bindings))}
 	for k, v := range s.bindings {
@@ -50,6 +58,25 @@ func (s Scheme) With(overrides ...Binding) Scheme {
 	return next
 }
 
+// WithDefaults fills every action missing from s (or bound without keys) from
+// defaults; bindings already in s win. Use it to graft app-specific actions
+// onto a user-selected scheme instead of falling back at each lookup.
+func (s Scheme) WithDefaults(defaults ...Binding) Scheme {
+	next := Scheme{bindings: make(map[Action]Binding, len(s.bindings)+len(defaults))}
+	for k, v := range s.bindings {
+		next.bindings[k] = v
+	}
+	for _, b := range defaults {
+		if have, ok := next.bindings[b.Action]; !ok || len(have.Keys) == 0 {
+			next.bindings[b.Action] = b
+		}
+	}
+	return next
+}
+
+// Default returns the built-in scheme: arrow keys doubled with vi-style
+// h/j/k/l, enter/space to confirm, esc to cancel, ctrl+c to quit, tab focus
+// cycling, and bracket/plus/minus value adjustment.
 func Default() Scheme {
 	return Scheme{bindings: map[Action]Binding{
 		Up:        {Keys: []string{"up", "k"}, Action: Up, Glyph: "↑/↓/j/k"},
@@ -82,6 +109,8 @@ var current = func() *atomic.Pointer[Scheme] {
 	return p
 }()
 
+// Cur returns the active scheme by value (matching theme.Cur); a later Use
+// does not change a Scheme already returned.
 func Cur() Scheme { return *current.Load() }
 
 // Use makes s the active scheme. Safe to call while other goroutines read Cur.
@@ -100,6 +129,9 @@ var (
 	}
 )
 
+// Register adds scheme s to the registry under key with the given display
+// name. A later call with the same key replaces the earlier name and scheme
+// in place, so apps can override the built-in entry. Safe for concurrent use.
 func Register(key, name string, s Scheme) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
@@ -113,6 +145,8 @@ func Register(key, name string, s Scheme) {
 	registry = append(registry, registryEntry{key: key, name: name, scheme: s})
 }
 
+// Keys returns the registered scheme keys in registration order, "default"
+// first.
 func Keys() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -123,6 +157,20 @@ func Keys() []string {
 	return out
 }
 
+// Activate looks up the named scheme and makes it active, replacing the
+// Named-then-Use two-step. It reports whether key was registered; the active
+// scheme is left unchanged when it was not.
+func Activate(key string) bool {
+	s, ok := Named(key)
+	if !ok {
+		return false
+	}
+	Use(s)
+	return true
+}
+
+// Named returns the scheme registered under key. When key is not registered
+// it returns Default() and false.
 func Named(key string) (Scheme, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -134,6 +182,8 @@ func Named(key string) (Scheme, bool) {
 	return Default(), false
 }
 
+// DisplayName returns the human-readable name registered for key, or key
+// itself when it is not registered.
 func DisplayName(key string) string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()

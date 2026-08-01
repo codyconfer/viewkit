@@ -48,7 +48,7 @@ type stubDoc struct {
 
 func (d *stubDoc) Kind() string           { return "report" }
 func (d *stubDoc) Title() string          { return "build report" }
-func (d *stubDoc) Context() [][2]string   { return nil }
+func (d *stubDoc) Context() []keys.Hint   { return nil }
 func (d *stubDoc) SavedName() string      { return d.saved }
 func (d *stubDoc) Sync() bool             { return false }
 func (d *stubDoc) Summary() string        { return "draft" }
@@ -101,9 +101,9 @@ func editorTestKeys() EditorKeys {
 	}
 }
 
-func hasHint(hints [][2]string, glyph string) bool {
+func hasHint(hints []keys.Hint, glyph string) bool {
 	for _, h := range hints {
-		if h[0] == glyph {
+		if h.Key == glyph {
 			return true
 		}
 	}

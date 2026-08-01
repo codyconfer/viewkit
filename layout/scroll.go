@@ -7,15 +7,23 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// ScrollState is a scroll offset (in lines) with clamped mutation helpers.
+// Embed or hold it by value in a view and pass the current totals into Scroll
+// and Reveal; the state itself does not know the content size.
 type ScrollState struct {
 	Offset int
 }
 
+// Scroll moves the offset by delta lines and clamps it to [0, total-rows],
+// where total is the line count and rows the visible window height.
 func (s *ScrollState) Scroll(delta, total, rows int) {
 	s.Offset += delta
 	s.clamp(total, rows)
 }
 
+// Reveal adjusts the offset just enough to bring line index into the visible
+// window, then clamps like Scroll. Lines already visible leave the offset
+// untouched.
 func (s *ScrollState) Reveal(index, total, rows int) {
 	if rows < 1 {
 		rows = 1
@@ -60,14 +68,21 @@ func scrollWindow(lines []string, rows, offset int) (window []string, footer str
 	return lines[offset:end], fmt.Sprintf("↕ %d–%d of %d", offset+1, end, total), true
 }
 
+// ScrollPanel is Frame.ScrollPanel on the default-width frame.
 func ScrollPanel(title string, lines []string, rows, offset int) string {
 	return DefaultFrame().ScrollPanel(title, lines, rows, offset)
 }
 
+// ScrollPanel renders a Panel showing a rows-high window of lines starting at
+// offset. When lines overflow the window a dim "↕ a–b of n" footer line is
+// appended inside the panel; offsets are clamped, never wrapped.
 func (f Frame) ScrollPanel(title string, lines []string, rows, offset int) string {
 	return f.ScrollPanelWithPrefix(title, nil, lines, rows, offset)
 }
 
+// ScrollPanelWithPrefix is ScrollPanel with fixed prefix lines pinned above
+// the scrolling window (they do not scroll and do not count against rows).
+// With no lines at all, the panel shows just the prefix.
 func (f Frame) ScrollPanelWithPrefix(title string, prefix, lines []string, rows, offset int) string {
 	if len(lines) == 0 {
 		return f.Panel(title, prefix...)
@@ -82,6 +97,11 @@ func (f Frame) ScrollPanelWithPrefix(title string, prefix, lines []string, rows,
 	return f.Panel(title, out...)
 }
 
+// Viewport shows a scrolled window of body within a rows budget. A body that
+// fits is returned whole; otherwise the last row (plus, at rows >= 3, a blank
+// margin row) is spent on a "▲▼ pgup/pgdn · a–b of n" hint, so the content
+// window is ViewportContentRows(rows) tall. Offsets are clamped; rows < 1
+// returns "".
 func Viewport(body string, rows, offset int) string {
 	lines := strings.Split(body, "\n")
 	if rows < 1 {
@@ -112,6 +132,9 @@ func Viewport(body string, rows, offset int) string {
 	return strings.Join(out, "\n")
 }
 
+// ViewportContentRows reports how many content rows Viewport shows for a
+// given budget once the hint line and optional margin row are paid for —
+// use it to clamp offsets consistently with Viewport's own windowing.
 func ViewportContentRows(rows int) int {
 	if rows < 2 {
 		return 0

@@ -102,7 +102,7 @@ func styleSGR(tb testing.TB, sty lipgloss.Style) string {
 // theme.New always fills Series, but theme.Use accepts any Theme, and indexing
 // i%len(Series) on an empty slice is an integer divide by zero.
 func TestSeriesPanelsSurviveThemeWithoutSeries(t *testing.T) {
-	prev := *theme.Cur()
+	prev := theme.Cur()
 	t.Cleanup(func() { theme.Use(prev) })
 	theme.Use(theme.Theme{})
 

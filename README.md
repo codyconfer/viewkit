@@ -21,10 +21,10 @@ core + deck.
 | `keys` | Keybinding tables |
 | `forms` | Field builders |
 | `list` / `browser` | List/browser helpers |
-| `notify` | Notification tone helpers |
+| `notify` | Notifications (`glyph.Severity`) + TTL queue |
 | `timefmt` | Time formatting |
 | `term` | Terminal launcher helpers |
-| `deck` | Tea `Model` (+ `Host` alias) / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, `Work`) — **only** package that imports tea |
+| `deck` | Tea `Model` / screens (`Menu`, `Scroll`, `ItemList`, `HomeShell`, `Work`) — **only** package that imports tea |
 
 Longer API notes: [`skills/viewkit/references/api.md`](skills/viewkit/references/api.md).
 
@@ -77,7 +77,7 @@ per-view width via `layout.NewFrame(width)`.
 
 ### Deck Model + singletons
 
-Interactive apps use `deck.Model` (alias `deck.Host`) as the session tea root.
+Interactive apps use `deck.Model` as the session tea root.
 Install process-global theme/keys (and optional `RegisterView`) before
 `deck.Run`. Full contract: [`deck/INTERFACE.md`](deck/INTERFACE.md).
 

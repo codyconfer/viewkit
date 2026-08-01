@@ -34,24 +34,6 @@ func TestSeverityColorMapsByNamedConstant(t *testing.T) {
 	}
 }
 
-func TestSeverityGlyphMapsByNamedConstant(t *testing.T) {
-	cases := []struct {
-		sev  glyph.Severity
-		want string
-	}{
-		{glyph.SeverityPositive, glyph.StatusOK()},
-		{glyph.SeverityWarning, glyph.StatusWarn()},
-		{glyph.SeverityNegative, glyph.StatusBad()},
-		{glyph.SeverityNeutral, glyph.StatusMuted()},
-		{glyph.Severity(99), glyph.StatusMuted()},
-	}
-	for _, tc := range cases {
-		if got := SeverityGlyph(tc.sev); got != tc.want {
-			t.Errorf("SeverityGlyph(%v) = %q, want %q", tc.sev, got, tc.want)
-		}
-	}
-}
-
 func TestSeverityStyleIsDistinctPerSeverity(t *testing.T) {
 	th := Cur()
 	cases := []struct {
@@ -104,7 +86,7 @@ func TestSeverityStyleRendersWithSeverityColor(t *testing.T) {
 }
 
 func TestSeverityStyleFollowsActiveTheme(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	defer Use(orig)
 
 	th, ok := Named("solarized-dark")
@@ -122,7 +104,7 @@ func TestSeverityStyleFollowsActiveTheme(t *testing.T) {
 }
 
 func TestSeverityStyleWarningFallsBackToCantWithShortSeries(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	defer Use(orig)
 
 	short := orig

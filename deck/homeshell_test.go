@@ -12,19 +12,23 @@ import (
 )
 
 func homeShellWithRows(n int) *HomeShell {
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "home flight · morning")
-	shell.SideFetch = func() any { return n }
-	shell.SideBind = func(int, any) []list.Item {
-		items := []list.Item{
-			{Block: "morning  (1)"},
-			{Block: "Open PRs  (" + fmt.Sprint(n) + ")"},
-		}
-		for i := range n {
-			label := fmt.Sprintf("row-%03d", i)
-			items = append(items, list.Item{Block: label, Key: "https://example.com/" + label, Selectable: true})
-		}
-		return items
-	}
+	shell := NewHomeShell(HomeShellSpec{
+		Title:     "home",
+		Items:     []MenuItem{{Label: "Go"}},
+		SideLabel: "home flight · morning",
+		SideFetch: func() any { return n },
+		SideBind: func(int, any) []list.Item {
+			items := []list.Item{
+				{Block: "morning  (1)"},
+				{Block: "Open PRs  (" + fmt.Sprint(n) + ")"},
+			}
+			for i := range n {
+				label := fmt.Sprintf("row-%03d", i)
+				items = append(items, list.Item{Block: label, Key: "https://example.com/" + label, Selectable: true})
+			}
+			return items
+		},
+	})
 	return shell
 }
 
@@ -59,12 +63,16 @@ func driveSettled(h *Model, msg tea.Msg) *Model {
 func TestHomeShellReloadRefetchesAndFollowsLiveLabel(t *testing.T) {
 	subject := "morning"
 	fetches := 0
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "")
-	shell.SideLabelFn = func() string { return "home flight · " + subject }
-	shell.SideFetch = func() any { fetches++; return subject }
-	shell.SideBind = func(int, any) []list.Item {
-		return []list.Item{{Block: "loaded " + fmt.Sprint(shell.fetched)}}
-	}
+	var shell *HomeShell
+	shell = NewHomeShell(HomeShellSpec{
+		Title:       "home",
+		Items:       []MenuItem{{Label: "Go"}},
+		SideLabelFn: func() string { return "home flight · " + subject },
+		SideFetch:   func() any { fetches++; return subject },
+		SideBind: func(int, any) []list.Item {
+			return []list.Item{{Block: "loaded " + fmt.Sprint(shell.fetched)}}
+		},
+	})
 
 	h := New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -99,10 +107,13 @@ func TestHomeShellReloadRefetchesAndFollowsLiveLabel(t *testing.T) {
 
 func TestHomeShellEmptyLiveLabelHidesSidePane(t *testing.T) {
 	subject := ""
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "")
-	shell.SideLabelFn = func() string { return subject }
-	shell.SideFetch = func() any { return subject }
-	shell.SideBind = func(int, any) []list.Item { return []list.Item{{Block: "rows"}} }
+	shell := NewHomeShell(HomeShellSpec{
+		Title:       "home",
+		Items:       []MenuItem{{Label: "Go"}},
+		SideLabelFn: func() string { return subject },
+		SideFetch:   func() any { return subject },
+		SideBind:    func(int, any) []list.Item { return []list.Item{{Block: "rows"}} },
+	})
 
 	h := New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})

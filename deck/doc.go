@@ -2,7 +2,7 @@
 //
 // Invariant: tea lives ONLY in this package — viewkit core (glyph/theme/layout/panels/…)
 // must not import bubbletea. Apps and plugins implement View and register via
-// RegisterView; Model (alias Host) owns stack navigation + chrome.
+// RegisterView; Model owns stack navigation + chrome.
 //
 // Process-global singletons (install before Run):
 //   - theme.Use / theme.Cur — active palette

@@ -2,6 +2,8 @@ package notify
 
 import "time"
 
+// Queue holds pending notifications with wall-clock expiries, capped at a
+// maximum length that never evicts the on-screen head or the newest push.
 type Queue struct {
 	items []queued
 	cap   int
@@ -9,23 +11,18 @@ type Queue struct {
 
 type queued struct {
 	n      Notification
-	ttl    int
 	expiry time.Time
 }
 
-func NewQueue(cap int) *Queue { return &Queue{cap: cap} }
+// NewQueue returns a queue holding at most capacity notifications (0 = unbounded).
+func NewQueue(capacity int) *Queue { return &Queue{cap: capacity} }
 
-func (q *Queue) Push(n Notification, ttl int) {
-	if ttl <= 0 {
-		return
-	}
-	q.append(queued{n: n, ttl: ttl})
-}
-
+// PushUntil enqueues n until an absolute expiry.
 func (q *Queue) PushUntil(n Notification, expiry time.Time) {
 	q.append(queued{n: n, expiry: expiry})
 }
 
+// PushFor enqueues n for d measured from now. Non-positive durations drop n.
 func (q *Queue) PushFor(n Notification, now time.Time, d time.Duration) {
 	if d <= 0 {
 		return
@@ -44,19 +41,11 @@ func (q *Queue) append(item queued) {
 	}
 }
 
-func (q *Queue) Beat() {
-	if len(q.items) == 0 || !q.items[0].expiry.IsZero() {
-		return
-	}
-	if q.items[0].ttl--; q.items[0].ttl <= 0 {
-		q.items = q.items[1:]
-	}
-}
-
+// Prune drops every notification whose expiry is at or before now.
 func (q *Queue) Prune(now time.Time) {
 	kept := q.items[:0]
 	for _, it := range q.items {
-		if !it.expiry.IsZero() && !it.expiry.After(now) {
+		if !it.expiry.After(now) {
 			continue
 		}
 		kept = append(kept, it)
@@ -64,6 +53,7 @@ func (q *Queue) Prune(now time.Time) {
 	q.items = kept
 }
 
+// Current returns the notification being shown: the oldest unexpired entry.
 func (q *Queue) Current() (Notification, bool) {
 	if len(q.items) == 0 {
 		return Notification{}, false
@@ -71,6 +61,7 @@ func (q *Queue) Current() (Notification, bool) {
 	return q.items[0].n, true
 }
 
+// Snapshot copies the queued notifications, oldest first.
 func (q *Queue) Snapshot() []Notification {
 	out := make([]Notification, len(q.items))
 	for i, it := range q.items {
@@ -79,6 +70,8 @@ func (q *Queue) Snapshot() []Notification {
 	return out
 }
 
+// Active reports whether anything is queued.
 func (q *Queue) Active() bool { return len(q.items) > 0 }
 
+// Len returns the number of queued notifications.
 func (q *Queue) Len() int { return len(q.items) }

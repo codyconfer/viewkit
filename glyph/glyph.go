@@ -10,20 +10,27 @@ import (
 	"github.com/charmbracelet/x/term"
 )
 
+// Mode selects which Variants field glyphs render as.
 type Mode int
 
+// Glyph rendering modes, in order of decreasing symbol richness.
 const (
-	ModeNerd Mode = iota
-	ModeUnicode
-	ModeNone
+	ModeNerd    Mode = iota // nerd-font icons (the zero value and default)
+	ModeUnicode             // plain unicode symbols
+	ModeNone                // ASCII only
 )
 
 var mode atomic.Int32
 
+// SetMode sets the process-wide glyph mode.
 func SetMode(m Mode) { mode.Store(int32(m)) }
 
+// CurrentMode returns the process-wide glyph mode.
 func CurrentMode() Mode { return Mode(mode.Load()) }
 
+// ParseMode parses "nerd", "unicode"/"uni", or "none"/"ascii"/"off"
+// (case-insensitively, ignoring surrounding space) into a Mode. It returns
+// (ModeNerd, false) for anything else, including the empty string.
 func ParseMode(s string) (Mode, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "nerd":
@@ -36,8 +43,12 @@ func ParseMode(s string) (Mode, bool) {
 	return ModeNerd, false
 }
 
-func Detect(w io.Writer, env string) {
-	if m, ok := ParseMode(env); ok {
+// DetectMode sets the process-wide glyph mode: an explicit override wins
+// (pass the value of the app's own env var, e.g. os.Getenv("MYAPP_ICONS")),
+// otherwise dumb or non-TTY output falls back to ASCII and everything else
+// gets nerd glyphs.
+func DetectMode(w io.Writer, override string) {
+	if m, ok := ParseMode(override); ok {
 		SetMode(m)
 		return
 	}
@@ -56,6 +67,8 @@ func isTerminal(w io.Writer) bool {
 	return term.IsTerminal(f.Fd())
 }
 
+// Variants holds one glyph's rendering per mode: nerd-font, unicode, and
+// ASCII. Fields may be left empty; String degrades to a filled one.
 type Variants struct {
 	Nerd  string
 	Uni   string
@@ -86,6 +99,8 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
+// Pad appends a single trailing space to s, or returns "" unchanged so an
+// absent glyph adds no stray gap.
 func Pad(s string) string {
 	if s == "" {
 		return ""
@@ -93,8 +108,13 @@ func Pad(s string) string {
 	return s + " "
 }
 
+// LeadWidth is the display-cell width Lead pads glyphs to, including the gap
+// before the following text.
 const LeadWidth = 3
 
+// Lead pads s with trailing spaces to LeadWidth display cells so leading
+// glyphs of different widths align. Glyphs already LeadWidth or wider get a
+// single trailing space; "" returns "".
 func Lead(s string) string {
 	if s == "" {
 		return ""
@@ -128,41 +148,82 @@ var (
 	clock       = Variants{"", "◰", ">"}
 )
 
-func StatusOK() string    { return statusOK.String() }
-func StatusWarn() string  { return statusWarn.String() }
-func StatusBad() string   { return statusBad.String() }
+// StatusOK returns the healthy status dot for the current mode.
+func StatusOK() string { return statusOK.String() }
+
+// StatusWarn returns the warning status marker for the current mode.
+func StatusWarn() string { return statusWarn.String() }
+
+// StatusBad returns the failing status dot for the current mode.
+func StatusBad() string { return statusBad.String() }
+
+// StatusMuted returns the inactive status dot for the current mode.
 func StatusMuted() string { return statusMuted.String() }
-func Check() string       { return check.String() }
-func Cross() string       { return cross.String() }
-func Warn() string        { return warn.String() }
-func Arrow() string       { return arrow.String() }
-func Bullet() string      { return bullet.String() }
-func GitHub() string      { return github.String() }
-func Slack() string       { return slack.String() }
-func Google() string      { return google.String() }
-func Diamond() string     { return diamond.String() }
-func History() string     { return history.String() }
-func List() string        { return list.String() }
-func Database() string    { return database.String() }
-func Cog() string         { return cog.String() }
-func User() string        { return user.String() }
-func SignOut() string     { return signOut.String() }
-func Clock() string       { return clock.String() }
+
+// Check returns the check-mark glyph for the current mode.
+func Check() string { return check.String() }
+
+// Cross returns the cross/failure glyph for the current mode.
+func Cross() string { return cross.String() }
+
+// Warn returns the warning glyph for the current mode.
+func Warn() string { return warn.String() }
+
+// Arrow returns the right-arrow glyph for the current mode.
+func Arrow() string { return arrow.String() }
+
+// Bullet returns the bullet glyph for the current mode.
+func Bullet() string { return bullet.String() }
+
+// GitHub returns the GitHub logo glyph for the current mode.
+func GitHub() string { return github.String() }
+
+// Slack returns the Slack logo glyph for the current mode.
+func Slack() string { return slack.String() }
+
+// Google returns the Google logo glyph for the current mode.
+func Google() string { return google.String() }
+
+// Diamond returns the diamond glyph for the current mode.
+func Diamond() string { return diamond.String() }
+
+// History returns the history/recent-activity glyph for the current mode.
+func History() string { return history.String() }
+
+// List returns the list glyph for the current mode.
+func List() string { return list.String() }
+
+// Database returns the database glyph for the current mode.
+func Database() string { return database.String() }
+
+// Cog returns the settings-cog glyph for the current mode.
+func Cog() string { return cog.String() }
+
+// User returns the user/account glyph for the current mode.
+func User() string { return user.String() }
+
+// SignOut returns the sign-out glyph for the current mode.
+func SignOut() string { return signOut.String() }
+
+// Clock returns the clock glyph for the current mode.
+func Clock() string { return clock.String() }
 
 // Severity is the shared tone vocabulary for glyphs, notifications, and tray
 // state mapping. Apps supply a single kind→Severity classifier; viewkit never
 // knows domain kind strings.
 type Severity int
 
+// Severity tones. SeverityNeutral is the zero value and the fallback for
+// unknown severities in GlyphFor and StatusFor.
 const (
-	SeverityNeutral Severity = iota
-	SeverityPositive
-	SeverityWarning
-	SeverityNegative
+	SeverityNeutral  Severity = iota // no tone; renders as Bullet/StatusMuted
+	SeverityPositive                 // success; renders as Check/StatusOK
+	SeverityWarning                  // caution; renders as Warn/StatusWarn
+	SeverityNegative                 // failure; renders as Cross/StatusBad
 )
 
-// GlyphFor returns a status glyph for sev.
-func GlyphFor(sev Severity) string {
+// GlyphFor returns an inline mark for sev (Check/Warn/Cross/Bullet).
+func GlyphFor(sev Severity) string { //nolint:revive // name predates the lint rule; renaming would break callers
 	switch sev {
 	case SeverityPositive:
 		return Check()
@@ -172,5 +233,20 @@ func GlyphFor(sev Severity) string {
 		return Cross()
 	default:
 		return Bullet()
+	}
+}
+
+// StatusFor returns the status-strip dot for sev (StatusOK/Warn/Bad/Muted).
+// Use GlyphFor for inline marks; StatusFor for status strips and chips.
+func StatusFor(sev Severity) string {
+	switch sev {
+	case SeverityPositive:
+		return StatusOK()
+	case SeverityNegative:
+		return StatusBad()
+	case SeverityWarning:
+		return StatusWarn()
+	default:
+		return StatusMuted()
 	}
 }

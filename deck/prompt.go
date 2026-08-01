@@ -124,7 +124,7 @@ func (m *promptModel) resync() {
 }
 
 func (m *promptModel) View() string {
-	f := layout.NewFrame(theme.BodyWidth)
+	f := layout.DocumentFrame()
 	hint := theme.Cur().Dim.Render("↑/↓ field · tab accept · ctrl+n/ctrl+p suggestion · esc cancel")
 	return m.form.Render(f, m.spec.Title) + "\n" + hint + "\n"
 }

@@ -5,20 +5,22 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/codyconfer/viewkit/keys"
 )
 
 type decoView struct {
 	title   string
-	hints   [][2]string
-	ctx     [][2]string
+	hints   []keys.Hint
+	ctx     []keys.Hint
 	updated int
 }
 
 func (d *decoView) Title() string        { return d.title }
 func (d *decoView) Init() tea.Cmd        { return nil }
 func (d *decoView) Body(int, int) string { return "inner-body" }
-func (d *decoView) Hints() [][2]string   { return d.hints }
-func (d *decoView) Context() [][2]string { return d.ctx }
+func (d *decoView) Hints() []keys.Hint   { return d.hints }
+func (d *decoView) Context() []keys.Hint { return d.ctx }
 
 func (d *decoView) Update(*Model, tea.Msg) tea.Cmd {
 	d.updated++
@@ -26,9 +28,9 @@ func (d *decoView) Update(*Model, tea.Msg) tea.Cmd {
 }
 
 func TestWithExtraHintsAppendsAfterInnerHints(t *testing.T) {
-	inner := &decoView{hints: [][2]string{{"↑/↓", "move"}}}
-	got := WithExtraHints(inner, [][2]string{{"g", "go"}, {"r", "run"}}).Hints()
-	want := [][2]string{{"↑/↓", "move"}, {"g", "go"}, {"r", "run"}}
+	inner := &decoView{hints: []keys.Hint{{Key: "↑/↓", Label: "move"}}}
+	got := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}, {Key: "r", Label: "run"}}).Hints()
+	want := []keys.Hint{{Key: "↑/↓", Label: "move"}, {Key: "g", Label: "go"}, {Key: "r", Label: "run"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("hints = %v, want %v", got, want)
 	}
@@ -39,33 +41,33 @@ func TestWithExtraHintsEmptyReturnsInnerUnchanged(t *testing.T) {
 	if got := WithExtraHints(inner, nil); got != View(inner) {
 		t.Errorf("nil extras should return the same view, got %#v", got)
 	}
-	if got := WithExtraHints(inner, [][2]string{}); got != View(inner) {
+	if got := WithExtraHints(inner, []keys.Hint{}); got != View(inner) {
 		t.Errorf("empty extras should return the same view, got %#v", got)
 	}
 }
 
 func TestWithExtraHintsLeavesInnerSliceAlone(t *testing.T) {
-	base := make([][2]string, 1, 4)
-	base[0] = [2]string{"↑/↓", "move"}
+	base := make([]keys.Hint, 1, 4)
+	base[0] = keys.Hint{Key: "↑/↓", Label: "move"}
 	inner := &decoView{hints: base}
-	wrapped := WithExtraHints(inner, [][2]string{{"g", "go"}})
+	wrapped := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}})
 
 	first := wrapped.Hints()
 	second := wrapped.Hints()
 	if !reflect.DeepEqual(first, second) {
 		t.Errorf("repeated Hints differ: %v then %v", first, second)
 	}
-	if len(inner.hints) != 1 || inner.hints[0] != [2]string{"↑/↓", "move"} {
+	if len(inner.hints) != 1 || inner.hints[0] != (keys.Hint{Key: "↑/↓", Label: "move"}) {
 		t.Errorf("inner hints mutated: %v", inner.hints)
 	}
-	if cap(base) > 1 && base[:cap(base)][1] != [2]string{} {
+	if cap(base) > 1 && base[:cap(base)][1] != (keys.Hint{}) {
 		t.Errorf("extras were written into the inner backing array: %v", base[:cap(base)])
 	}
 }
 
 func TestWithExtraHintsPassesEverythingElseThrough(t *testing.T) {
-	inner := &decoView{title: "roles", ctx: [][2]string{{"role", "sre"}}}
-	wrapped := WithExtraHints(inner, [][2]string{{"g", "go"}})
+	inner := &decoView{title: "roles", ctx: []keys.Hint{{Key: "role", Label: "sre"}}}
+	wrapped := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}})
 
 	if wrapped.Title() != "roles" {
 		t.Errorf("title = %q, want roles", wrapped.Title())
@@ -84,14 +86,14 @@ func TestWithExtraHintsPassesEverythingElseThrough(t *testing.T) {
 
 func TestWithLiveContextReEvaluatesEveryRead(t *testing.T) {
 	role := "sre"
-	inner := &decoView{ctx: [][2]string{{"role", "stale"}}}
-	wrapped := WithLiveContext(inner, func() [][2]string { return [][2]string{{"role", role}} })
+	inner := &decoView{ctx: []keys.Hint{{Key: "role", Label: "stale"}}}
+	wrapped := WithLiveContext(inner, func() []keys.Hint { return []keys.Hint{{Key: "role", Label: role}} })
 
-	if got := wrapped.Context(); !reflect.DeepEqual(got, [][2]string{{"role", "sre"}}) {
+	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
 		t.Fatalf("context = %v, want role sre", got)
 	}
 	role = "oncall"
-	if got := wrapped.Context(); !reflect.DeepEqual(got, [][2]string{{"role", "oncall"}}) {
+	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "oncall"}}) {
 		t.Fatalf("context = %v, want role oncall after the value changed", got)
 	}
 }
@@ -104,8 +106,8 @@ func TestWithLiveContextNilReturnsInnerUnchanged(t *testing.T) {
 }
 
 func TestWithLiveContextPassesEverythingElseThrough(t *testing.T) {
-	inner := &decoView{title: "home", hints: [][2]string{{"g", "go"}}}
-	wrapped := WithLiveContext(inner, func() [][2]string { return nil })
+	inner := &decoView{title: "home", hints: []keys.Hint{{Key: "g", Label: "go"}}}
+	wrapped := WithLiveContext(inner, func() []keys.Hint { return nil })
 
 	if wrapped.Title() != "home" {
 		t.Errorf("title = %q, want home", wrapped.Title())
@@ -123,15 +125,15 @@ func TestWithLiveContextPassesEverythingElseThrough(t *testing.T) {
 }
 
 func TestDecoratorsStackOnEachOther(t *testing.T) {
-	inner := &decoView{hints: [][2]string{{"↑/↓", "move"}}}
-	wrapped := WithExtraHints(WithLiveContext(inner, func() [][2]string {
-		return [][2]string{{"role", "sre"}}
-	}), [][2]string{{"g", "go"}})
+	inner := &decoView{hints: []keys.Hint{{Key: "↑/↓", Label: "move"}}}
+	wrapped := WithExtraHints(WithLiveContext(inner, func() []keys.Hint {
+		return []keys.Hint{{Key: "role", Label: "sre"}}
+	}), []keys.Hint{{Key: "g", Label: "go"}})
 
-	if got := wrapped.Hints(); !reflect.DeepEqual(got, [][2]string{{"↑/↓", "move"}, {"g", "go"}}) {
+	if got := wrapped.Hints(); !reflect.DeepEqual(got, []keys.Hint{{Key: "↑/↓", Label: "move"}, {Key: "g", Label: "go"}}) {
 		t.Errorf("hints = %v", got)
 	}
-	if got := wrapped.Context(); !reflect.DeepEqual(got, [][2]string{{"role", "sre"}}) {
+	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
 		t.Errorf("context = %v", got)
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/codyconfer/viewkit/forms"
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // Confirm runs a yes/no tea prompt and returns whether the user confirmed.
@@ -65,5 +64,5 @@ func (m *confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *confirmModel) View() string {
-	return m.c.Render(layout.NewFrame(theme.BodyWidth)) + "\n"
+	return m.c.Render(layout.DocumentFrame()) + "\n"
 }

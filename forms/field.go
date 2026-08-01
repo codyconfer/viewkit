@@ -12,34 +12,54 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// FieldKind selects the input widget a Field presents and which of its state
+// fields carry the value.
 type FieldKind int
 
 const (
+	// FieldText is a single-line text input; the value lives in Text.
 	FieldText FieldKind = iota
 
+	// FieldMultiline is a text input that also accepts newlines.
 	FieldMultiline
 
+	// FieldSelect picks one of Options, cycled in place with left/right.
 	FieldSelect
 
+	// FieldMultiselect toggles any subset of Options via Checked.
 	FieldMultiselect
 
+	// FieldRadio picks one of Options, listed vertically with radio marks.
 	FieldRadio
 
+	// FieldToggle is an on/off switch backed by On.
 	FieldToggle
 )
 
+// Field is a single input in a Form. Key, Label, and Kind describe it; the
+// remaining fields hold per-kind state and can be pre-set to seed a value.
 type Field struct {
-	Key   string
+	// Key names the field's entry in Form.Values.
+	Key string
+	// Label is the caption rendered next to (or above) the input.
 	Label string
-	Kind  FieldKind
+	// Kind selects the widget; the zero value is FieldText.
+	Kind FieldKind
 
+	// Options are the choices for select, multiselect, and radio fields.
 	Options []string
 
-	Text     string
-	On       bool
+	// Text is the current content of text and multiline fields.
+	Text string
+	// On is the state of a toggle field.
+	On bool
+	// Selected indexes Options: the value of select and radio fields, and
+	// the highlight cursor of multiselect fields.
 	Selected int
-	Checked  map[int]bool
+	// Checked marks which Options indices a multiselect field has on.
+	Checked map[int]bool
 
+	// Secret masks text as bullets when rendering and disables suggestions.
 	Secret bool
 
 	// Suggest proposes completions for the token being typed. Text and
@@ -67,6 +87,9 @@ func (fd *Field) accept(pick string) {
 	fd.Text = joinTail(head, pick, fd.Delim)
 }
 
+// Value returns the field's current value by kind: bool for toggles, the
+// selected option for select and radio ("" when Selected is out of range),
+// []string of checked options for multiselect, and the raw Text otherwise.
 func (fd *Field) Value() any {
 	switch fd.Kind {
 	case FieldToggle:

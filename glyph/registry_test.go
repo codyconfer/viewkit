@@ -2,9 +2,9 @@ package glyph
 
 import "testing"
 
-func TestRegisterLookup(t *testing.T) {
+func TestRegisterNamed(t *testing.T) {
 	Register("plugin.demo", Variants{Nerd: "N", Uni: "U", ASCII: "A"})
-	v, ok := Lookup("plugin.demo")
+	v, ok := Named("plugin.demo")
 	if !ok || v.Nerd != "N" {
 		t.Fatalf("Lookup = %+v ok=%v", v, ok)
 	}
@@ -38,12 +38,12 @@ func TestNormalizeID(t *testing.T) {
 		t.Fatalf("NormalizeID = %q", got)
 	}
 	Register("MiXeD.ID", Variants{Nerd: "X", Uni: "x", ASCII: "x"})
-	if _, ok := Lookup("mixed.id"); !ok {
+	if _, ok := Named("mixed.id"); !ok {
 		t.Fatal("Register should normalize id")
 	}
 }
 
-func TestBuildStatusStripKeepsTone(t *testing.T) {
+func TestBuildStatusStripKeepsSeverity(t *testing.T) {
 	strip := BuildStatusStrip("##", "work", []string{"k8s/prod"}, []StatusContribution{
 		{Status: func() (string, Severity) { return "●", SeverityPositive }},
 		{Status: func() (string, Severity) { return "⚠", SeverityWarning }},
@@ -55,7 +55,7 @@ func TestBuildStatusStripKeepsTone(t *testing.T) {
 	if len(strip.Right) != 3 {
 		t.Fatalf("right = %v", strip.Right)
 	}
-	if strip.Right[0].Tone != SeverityPositive || strip.Right[1].Tone != SeverityWarning || strip.Right[2].Tone != SeverityNegative {
-		t.Fatalf("tones = %+v", strip.Right)
+	if strip.Right[0].Severity != SeverityPositive || strip.Right[1].Severity != SeverityWarning || strip.Right[2].Severity != SeverityNegative {
+		t.Fatalf("severities = %+v", strip.Right)
 	}
 }

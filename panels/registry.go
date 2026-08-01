@@ -24,8 +24,8 @@ func Register(id string, ctor func() DualHost) {
 	panels[id] = ctor
 }
 
-// Lookup returns a fresh DualHost for id.
-func Lookup(id string) (DualHost, bool) {
+// Named returns a fresh DualHost for id.
+func Named(id string) (DualHost, bool) {
 	regMu.RLock()
 	ctor, ok := panels[id]
 	regMu.RUnlock()
@@ -35,8 +35,8 @@ func Lookup(id string) (DualHost, bool) {
 	return ctor(), true
 }
 
-// IDs returns registered panel ids sorted.
-func IDs() []string {
+// Keys returns registered panel ids sorted.
+func Keys() []string {
 	regMu.RLock()
 	defer regMu.RUnlock()
 	out := make([]string, 0, len(panels))

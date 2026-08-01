@@ -147,6 +147,9 @@ var registry = []registryEntry{
 	{key: "retro-light", name: "Retro Light", palette: retroLightPalette},
 }
 
+// Register adds palette p to the registry under key with the given display
+// name. A later call with the same key replaces the earlier name and palette
+// in place, so apps can override the built-ins. Safe for concurrent use.
 func Register(key, name string, p Palette) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
@@ -160,6 +163,8 @@ func Register(key, name string, p Palette) {
 	registry = append(registry, registryEntry{key: key, name: name, palette: p})
 }
 
+// Keys returns the registered palette keys in registration order, built-ins
+// first.
 func Keys() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -170,6 +175,20 @@ func Keys() []string {
 	return out
 }
 
+// Activate looks up the named theme and makes it active, replacing the
+// Named-then-Use two-step. It reports whether key was registered; the active
+// theme is left unchanged when it was not.
+func Activate(key string) bool {
+	t, ok := Named(key)
+	if !ok {
+		return false
+	}
+	Use(t)
+	return true
+}
+
+// Named builds a Theme from the palette registered under key. When key is not
+// registered it returns Default() and false.
 func Named(key string) (Theme, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -181,6 +200,8 @@ func Named(key string) (Theme, bool) {
 	return Default(), false
 }
 
+// DisplayName returns the human-readable name registered for key, or key
+// itself when it is not registered.
 func DisplayName(key string) string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()

@@ -7,11 +7,16 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// ClockZone is one labeled time zone row for a world clock. A nil Loc falls
+// back to time.Local.
 type ClockZone struct {
 	Label string
 	Loc   *time.Location
 }
 
+// ClockOpts configures Clock. The zero value means 12-hour time with seconds,
+// no date, single zone — note that omitting opts entirely defaults to 24-hour
+// instead.
 type ClockOpts struct {
 	TwentyFour bool
 
@@ -22,6 +27,12 @@ type ClockOpts struct {
 	Zones []ClockZone
 }
 
+// Clock renders t as a clock panel. With no opts it defaults to 24-hour time
+// with seconds (an explicit ClockOpts{} means 12-hour). When opts[0].Zones is
+// non-empty it becomes a world clock with one label/time row per zone,
+// including the zone abbreviation; otherwise a single accent-styled time line.
+// ShowDate appends a dim "Mon Jan 2 2006" line, rendered in the first zone's
+// location for world clocks. Only opts[0] is consulted.
 func Clock(f layout.Frame, title string, t time.Time, opts ...ClockOpts) string {
 	o := ClockOpts{TwentyFour: true}
 	if len(opts) > 0 {

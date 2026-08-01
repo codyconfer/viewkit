@@ -9,12 +9,25 @@ import (
 
 var vBlocks = [8]string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
 
+// SpectrumOpts tunes Spectrum. Peaks holds optional peak-hold marks in the
+// same 0..1 scale as the levels, drawn as a dim ▔ above each bar (extra
+// entries beyond the levels are ignored). BarWide is each bar's width and
+// BarGap the space between bars, both in terminal cells.
 type SpectrumOpts struct {
 	Peaks   []float64
 	BarGap  int
 	BarWide int
 }
 
+// Spectrum renders an audio-analyzer-style panel of vertical bars, one per
+// level, cycling through the theme's series palette. Levels are fractions in
+// 0..1 of the plot height (values outside that range, NaN, and Inf are
+// clamped/zeroed) drawn with eighth-block glyphs for sub-cell resolution.
+// height is the plot height in terminal cells; bands that don't fit the frame
+// body width are dropped from the end. Only opts[0] is consulted; the default
+// is 1-cell bars with a 1-cell gap, and BarWide/BarGap are clamped to at
+// least 1/0. With no levels or height < 1 the panel shows empty in the dim
+// style.
 func Spectrum(f layout.Frame, title string, levels []float64, height int, empty string, opts ...SpectrumOpts) string {
 	o := SpectrumOpts{BarWide: 1, BarGap: 1}
 	if len(opts) > 0 {

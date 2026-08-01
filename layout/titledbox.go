@@ -9,10 +9,16 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// TitledBox renders a rounded box with the title embedded in the top border.
+// The body is f.BodyWidth() wide, so like Box it clamps narrow frames *up* to
+// theme.MinBodyWidth and can overflow a tiling layout's rect — use
+// Frame.CellTitledBox inside grids.
 func (f Frame) TitledBox(title string, lines ...string) string {
 	return f.TitledBoxIcon("", title, lines...)
 }
 
+// TitledBoxIcon is TitledBox with an icon rendered before the title in the
+// top border. It shares TitledBox's clamp-up behavior.
 func (f Frame) TitledBoxIcon(icon, title string, lines ...string) string {
 	return f.titledBoxAt(f.BodyWidth(), icon, title, lines...)
 }
@@ -27,6 +33,8 @@ func (f Frame) CellTitledBox(title string, lines ...string) string {
 	return f.CellTitledBoxIcon("", title, lines...)
 }
 
+// CellTitledBoxIcon is CellTitledBox with an icon before the title, clamped
+// down to f.Width like the rest of the Cell* family.
 func (f Frame) CellTitledBoxIcon(icon, title string, lines ...string) string {
 	return f.fitCell(f.titledBoxAt(f.cellBody(), icon, title, lines...))
 }

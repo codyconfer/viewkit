@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -17,8 +18,8 @@ func (s stubView) Title() string                  { return s.title }
 func (s stubView) Init() tea.Cmd                  { return nil }
 func (s stubView) Update(*Model, tea.Msg) tea.Cmd { return nil }
 func (s stubView) Body(int, int) string           { return "body" }
-func (s stubView) Hints() [][2]string             { return nil }
-func (s stubView) Context() [][2]string           { return nil }
+func (s stubView) Hints() []keys.Hint             { return nil }
+func (s stubView) Context() []keys.Hint           { return nil }
 
 type stubComp struct{}
 
@@ -27,24 +28,24 @@ func (stubComp) Render(int, int) string { return "c" }
 func TestRegisterView(t *testing.T) {
 	registryScope(t)
 	RegisterView("test.stub", func() View { return stubView{title: "Stub"} })
-	v, ok := LookupView("test.stub")
+	v, ok := NamedView("test.stub")
 	if !ok || v.Title() != "Stub" {
 		t.Fatalf("lookup = %v ok=%v", v, ok)
 	}
-	if got := ViewIDs(); len(got) != 1 || got[0] != "test.stub" {
-		t.Fatalf("ViewIDs = %v, want [test.stub]", got)
+	if got := ViewKeys(); len(got) != 1 || got[0] != "test.stub" {
+		t.Fatalf("ViewKeys = %v, want [test.stub]", got)
 	}
 }
 
 func TestRegisterComponent(t *testing.T) {
 	registryScope(t)
 	RegisterComponent("test.comp", func() Component { return stubComp{} })
-	c, ok := LookupComponent("test.comp")
+	c, ok := NamedComponent("test.comp")
 	if !ok || c.Render(1, 1) != "c" {
 		t.Fatal("component lookup")
 	}
-	if got := ComponentIDs(); len(got) != 1 || got[0] != "test.comp" {
-		t.Fatalf("ComponentIDs = %v, want [test.comp]", got)
+	if got := ComponentKeys(); len(got) != 1 || got[0] != "test.comp" {
+		t.Fatalf("ComponentKeys = %v, want [test.comp]", got)
 	}
 }
 
@@ -79,16 +80,16 @@ func TestRegisterIgnoresEmptyIDsAndNilConstructors(t *testing.T) {
 	RegisterComponent("", func() Component { return stubComp{} })
 	RegisterComponent("test.nil", nil)
 
-	if got := ViewIDs(); len(got) != 0 {
-		t.Fatalf("ViewIDs = %v, want none", got)
+	if got := ViewKeys(); len(got) != 0 {
+		t.Fatalf("ViewKeys = %v, want none", got)
 	}
-	if got := ComponentIDs(); len(got) != 0 {
-		t.Fatalf("ComponentIDs = %v, want none", got)
+	if got := ComponentKeys(); len(got) != 0 {
+		t.Fatalf("ComponentKeys = %v, want none", got)
 	}
-	if _, ok := LookupView("test.nil"); ok {
+	if _, ok := NamedView("test.nil"); ok {
 		t.Fatal("a nil view constructor was stored")
 	}
-	if _, ok := LookupComponent("test.nil"); ok {
+	if _, ok := NamedComponent("test.nil"); ok {
 		t.Fatal("a nil component constructor was stored")
 	}
 }
@@ -190,16 +191,16 @@ func TestHostInitCmdSurvivesPush(t *testing.T) {
 
 type ctxView struct {
 	stubView
-	ctx [][2]string
+	ctx []keys.Hint
 }
 
-func (c ctxView) Context() [][2]string { return c.ctx }
+func (c ctxView) Context() []keys.Hint { return c.ctx }
 
 func TestHostHeaderStripRowsAlign(t *testing.T) {
 	const width = 100
 	h := New(ctxView{
 		stubView: stubView{title: "main"},
-		ctx:      [][2]string{{"role", "triage"}},
+		ctx:      []keys.Hint{{Key: "role", Label: "triage"}},
 	}, WithChrome(Chrome{Brand: "MUNIN", BrandGlyph: "▚▚", Subtitle: "deck"}))
 	m, _ := h.Update(tea.WindowSizeMsg{Width: width, Height: 40})
 	h = m.(*Model)

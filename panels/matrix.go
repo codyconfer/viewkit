@@ -27,6 +27,9 @@ type column struct {
 	tick   int
 }
 
+// Rain is the mutable state of a Matrix-style digital rain animation: falling
+// glyph columns over a width×rows cell grid, driven by its own seeded RNG so
+// runs are reproducible. Advance it with Beat and draw it with Matrix.
 type Rain struct {
 	width  int
 	rows   int
@@ -36,12 +39,17 @@ type Rain struct {
 	beats  int
 }
 
+// NewRain creates a Rain of width columns by rows cells (each clamped to at
+// least 1) seeded with a deterministic RNG. Roughly half the columns start
+// with an active trail at a random height; the rest are idle.
 func NewRain(width, rows int, seed int64) *Rain {
 	r := &Rain{rng: rand.New(rand.NewSource(seed))}
 	r.reset(width, rows)
 	return r
 }
 
+// Resize re-seeds the grid at the new dimensions (in cells), discarding all
+// current trail state. It is a no-op when the size is unchanged.
 func (r *Rain) Resize(width, rows int) {
 	if width == r.width && rows == r.rows {
 		return
@@ -78,6 +86,10 @@ func (r *Rain) reset(width, rows int) {
 	}
 }
 
+// Beat advances the animation one tick: idle columns may spawn a new trail
+// (5% chance each), active columns move their head down at their per-column
+// speed (one cell every 1–3 beats) and retire once fully off-screen, and a
+// handful of random cells (width/6) mutate their glyph for shimmer.
 func (r *Rain) Beat() {
 	r.beats++
 	for x := range r.cols {
@@ -124,6 +136,10 @@ func (r *Rain) randLength() int {
 	return minTrail + r.rng.Intn(hi-minTrail+1)
 }
 
+// Matrix renders r's current frame as a panel: trail heads in the accent
+// style, the third of the trail behind them in the positive style, the rest
+// dim. Columns beyond the frame body width are clipped; Matrix does not
+// advance the animation — call Beat between renders.
 func Matrix(f layout.Frame, title string, r *Rain) string {
 	lines := r.renderBody(f.BodyWidth())
 	for i, line := range lines {

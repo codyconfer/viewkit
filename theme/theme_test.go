@@ -21,7 +21,7 @@ func TestNamedReturnsRegisteredTheme(t *testing.T) {
 }
 
 func TestUseUpdatesCur(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	defer Use(orig)
 
 	th, _ := Named("solarized-dark")
@@ -37,40 +37,6 @@ func TestUseUpdatesCur(t *testing.T) {
 
 // The exported style vars are a write-once snapshot of the default theme: that
 // is what makes them safe to read from a render goroutine while Use runs.
-const exportedVarsContract = "the package-level *Sty vars are a one-time snapshot taken at init and are " +
-	"deliberately NOT refreshed by Use. Use is safe to call while other goroutines render, which is why " +
-	"the active theme lives behind an atomic.Pointer; re-adding syncExported to Use would write these " +
-	"plain package vars with no synchronisation at all while renderers read them. If this test fails " +
-	"because Use started syncing again, the fix is to stop syncing, not to update the expectation."
-
-func TestExportedVarsSnapshotDefaultTheme(t *testing.T) {
-	t.Log(exportedVarsContract)
-	orig := *Cur()
-	defer Use(orig)
-
-	th, ok := Named("solarized-dark")
-	if !ok {
-		t.Fatal("solarized-dark is not registered; this test needs a theme that differs from the default")
-	}
-	if th.Accent.GetForeground() == defaultPalette.Accent {
-		t.Fatal("solarized-dark's accent equals the default's, so switching to it proves nothing")
-	}
-	Use(th)
-
-	if got := AccentSty.GetForeground(); got != defaultPalette.Accent {
-		t.Fatalf("AccentSty = %v, want the default-theme snapshot %v: %s",
-			got, defaultPalette.Accent, exportedVarsContract)
-	}
-	if got := DimSty.GetForeground(); got != defaultPalette.Muted {
-		t.Fatalf("DimSty = %v, want the default-theme snapshot %v: %s",
-			got, defaultPalette.Muted, exportedVarsContract)
-	}
-	if got := Cur().Accent.GetForeground(); got != th.Accent.GetForeground() {
-		t.Fatalf("Cur().Accent = %v after Use, want %v; the active theme must still follow Use even though "+
-			"the exported snapshot does not", got, th.Accent.GetForeground())
-	}
-}
-
 func TestKeysDefaultFirst(t *testing.T) {
 	keys := Keys()
 	if len(keys) == 0 || keys[0] != "default" {

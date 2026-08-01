@@ -77,11 +77,15 @@ func TestWithQuitHintRendersCustomMatcher(t *testing.T) {
 
 func TestHomeShellFocusFollowsScheme(t *testing.T) {
 	useScheme(t, keys.Binding{Keys: []string{"ctrl+n"}, Action: keys.FocusNext, Glyph: "ctrl+n"})
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "side panel")
-	shell.SideFetch = func() any { return "x" }
-	shell.SideBind = func(int, any) []list.Item {
-		return []list.Item{{Block: "row-one", Selectable: true}}
-	}
+	shell := NewHomeShell(HomeShellSpec{
+		Title:     "home",
+		Items:     []MenuItem{{Label: "Go"}},
+		SideLabel: "side panel",
+		SideFetch: func() any { return "x" },
+		SideBind: func(int, any) []list.Item {
+			return []list.Item{{Block: "row-one", Selectable: true}}
+		},
+	})
 	h := New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 
@@ -96,7 +100,7 @@ func TestHomeShellFocusFollowsScheme(t *testing.T) {
 
 	glyphs := make([]string, 0, len(shell.Hints()))
 	for _, hint := range shell.Hints() {
-		glyphs = append(glyphs, hint[0])
+		glyphs = append(glyphs, hint.Key)
 	}
 	if !slices.Contains(glyphs, "ctrl+n") {
 		t.Fatalf("hints %v do not advertise the rebound focus key", glyphs)
@@ -109,7 +113,7 @@ func TestScrollPagesViaScheme(t *testing.T) {
 	for i := range lines {
 		lines[i] = fmt.Sprintf("line-%03d", i)
 	}
-	sc := NewScroll("log", nil, nil, func() string { return strings.Join(lines, "\n") })
+	sc := NewScroll(ScrollSpec{Title: "log", Load: func() string { return strings.Join(lines, "\n") }})
 	h := New(sc)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if cmd := sc.Init(); cmd != nil {

@@ -8,11 +8,11 @@
 | API | Role |
 |---|---|
 | `View` | Navigable screen: `Title/Init/Update/Body/Hints/Context` |
-| `Model` (`Host` alias) | Stateful tea root: stack nav + chrome (brand/subtitle injected; no app literals) |
-| `RegisterView` / `LookupView` | View registry (plugin views) |
-| `RegisterComponent` / `LookupComponent` | Fragment registry |
+| `Model` | Stateful tea root: stack nav + chrome (brand/subtitle injected; no app literals) |
+| `RegisterView` / `NamedView` | View registry (plugin views) |
+| `RegisterComponent` / `NamedComponent` | Fragment registry |
 | `Content` / `Text` | Domain-agnostic job body (apps adapt before crossing) |
-| `Job` + `Work.Execute` / `Work.Run` | A set of concurrent jobs: errgroup headless + tea progressive UI |
+| `Job` + `Work.Collect` / `Work.RunInteractive` | A set of concurrent jobs: errgroup headless + tea progressive UI |
 | `Confirm` | Yes/no tea prompt |
 | `Menu` / `Message` / `Scroll` | Generic views (optional; apps may roll their own) |
 | `ItemList` | Lazy Fetch+Bind selectable list (domain → `list.Item` in Bind) |
@@ -20,7 +20,7 @@
 
 ## Model + singleton contract
 
-**Stateful session model:** `deck.Model` (compatibility alias `deck.Host`) is the
+**Stateful session model:** `deck.Model` is the
 only tea.Model for a deck session. Views implement `Update(m *Model, msg)` and
 navigate with `m.Push` / `m.Pop`. Domain/plugin state stays in the View (or an
 app kit), never inside Model fields beyond chrome/stack/size/status.
@@ -31,7 +31,7 @@ app kit), never inside Model fields beyond chrome/stack/size/status.
 |---|---|---|
 | Theme | `theme.Use` / `theme.Cur` | Active palette; `theme.Register` for named palettes |
 | Keys | `keys.Use` / `keys.Cur` | Active scheme; `keys.Register` for named schemes |
-| Views | `deck.RegisterView` / `LookupView` | Plugin/app screen constructors |
+| Views | `deck.RegisterView` / `NamedView` | Plugin/app screen constructors |
 | Glyphs | `glyph.Register` | Nerd/Uni/ASCII variants (core) |
 
 Overlays and plugins must not invent a second tea root — register Views/themes
@@ -48,13 +48,13 @@ Deck never hard-codes product names.
 
 Panels that work in both inline shells and deck live in `viewkit/panels` as
 `DualHost` (`RenderInline` / `RenderDeck`) — no tea. Deck bodies call
-`panels.Render(..., panels.Deck, ...)`. See `panels/host.go`.
+`panels.Render(..., panels.TargetDeck, ...)`. See `panels/host.go`.
 
 ## Content boundary
 
 Deck must not import app domain types (e.g. an app's `signals.Section`). Jobs
 return `Content`; apps render domain → string/`Content` before
-`Work.Run` / `Work.Execute`.
+`Work.RunInteractive` / `Work.Collect`.
 
 ## Key bindings
 
@@ -67,7 +67,7 @@ Paging is `keys.PageUp`/`PageDown`; pane switching is `keys.FocusNext`/`FocusPre
 `Scroll` drives the viewport from the scheme rather than the bubbles keymap for
 the same reason.
 
-Host quit matching defaults to the scheme's `keys.Quit` binding, so behaviour and
+Model quit matching defaults to the scheme's `keys.Quit` binding, so behaviour and
 the `quit` legend share one source. `WithQuitCheck` takes an opaque matcher that
 cannot be rendered — pair it with `WithQuitHint` or the legend will disagree with
 the matcher. Global app hotkeys use `WithKeyHook` (runs after the quit check,
@@ -78,7 +78,7 @@ A view's `IsAction` hook *replaces* the scheme map rather than extending it: map
 
 ## Consumer checklist
 
-- [ ] View / Host surface stable enough for a second consumer
+- [ ] View / Model surface stable enough for a second consumer
 - [ ] Chrome injection covers branding without forks
 - [ ] Content boundary keeps domain types out of deck
 - [ ] DualHost panels usable from inline shells

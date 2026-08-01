@@ -15,24 +15,25 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
-// Job is one unit of work. Do must be safe for concurrent execution; return
+// Job is one unit of work. Run must be safe for concurrent execution; return
 // Content (never domain types).
 type Job struct {
 	Label string
-	Do    func(ctx context.Context) (Content, error)
+	Run   func(ctx context.Context) (Content, error)
 }
 
-// Work is a set of jobs run together: Execute is the headless driver, Run the
-// tea progressive UI driver.
+// Work is a set of jobs run together: Collect is the headless driver,
+// RunInteractive the tea progressive UI driver.
 type Work []Job
 
-// Execute runs the jobs concurrently via errgroup and returns bodies in order.
-func (w Work) Execute(ctx context.Context) ([]Content, error) {
+// Collect runs the jobs concurrently via errgroup and returns bodies in order,
+// with no UI — the headless driver.
+func (w Work) Collect(ctx context.Context) ([]Content, error) {
 	out := make([]Content, len(w))
 	g, ctx := errgroup.WithContext(ctx)
 	for i, j := range w {
 		g.Go(func() error {
-			c, err := j.Do(ctx)
+			c, err := j.Run(ctx)
 			if err != nil {
 				return err
 			}
@@ -46,9 +47,9 @@ func (w Work) Execute(ctx context.Context) ([]Content, error) {
 	return out, nil
 }
 
-// Run shows a progressive tea UI while the jobs run under errgroup. Finished
-// results print to scrollback in job order. Quit keys follow keys.Cur().
-func (w Work) Run(ctx context.Context) error {
+// RunInteractive shows a progressive tea UI while the jobs run under errgroup.
+// Finished results print to scrollback in job order. Quit keys follow keys.Cur().
+func (w Work) RunInteractive(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -112,7 +113,7 @@ func (m *workModel) runWorkers() {
 	g, ctx := errgroup.WithContext(m.ctx)
 	for i, j := range m.jobs {
 		g.Go(func() error {
-			c, err := j.Do(ctx)
+			c, err := j.Run(ctx)
 			body := ""
 			if c != nil {
 				body = c.Render(theme.BodyWidth)
@@ -182,7 +183,7 @@ func (m *workModel) drain() (string, bool) {
 
 func (m *workModel) View() string {
 	parts := make([]string, 0, len(m.panels))
-	f := layout.NewFrame(theme.BodyWidth)
+	f := layout.DocumentFrame()
 	for _, p := range m.panels {
 		if p.printed {
 			continue

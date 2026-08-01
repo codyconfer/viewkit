@@ -31,16 +31,6 @@ func TestPushForZeroDurationDropped(t *testing.T) {
 	}
 }
 
-func TestBeatIgnoresWallClockEntries(t *testing.T) {
-	q := NewQueue(0)
-	q.PushUntil(n("wall"), time.Now().Add(time.Hour))
-	q.Beat()
-	q.Beat()
-	if !q.Active() {
-		t.Fatal("Beat must not expire wall-clock entries")
-	}
-}
-
 func TestSnapshotOrderOldestFirst(t *testing.T) {
 	q := NewQueue(0)
 	now := time.Now()

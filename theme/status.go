@@ -34,44 +34,41 @@ func SeverityColor(s glyph.Severity) lipgloss.TerminalColor {
 	return SeverityStyle(s).GetForeground()
 }
 
-// SeverityGlyph returns the status-strip glyph for s (StatusOK/Warn/Bad/Muted).
-func SeverityGlyph(s glyph.Severity) string {
-	switch s {
-	case glyph.SeverityPositive:
-		return glyph.StatusOK()
-	case glyph.SeverityNegative:
-		return glyph.StatusBad()
-	case glyph.SeverityWarning:
-		return glyph.StatusWarn()
-	default:
-		return glyph.StatusMuted()
-	}
-}
-
 func stripBgOf(t Theme) lipgloss.TerminalColor {
 	return t.Panel.GetBorderTopForeground()
 }
 
+// StripBg returns the background color for status strips: the active theme's
+// panel border color, cached when the theme is installed.
 func StripBg() lipgloss.TerminalColor {
 	return Cur().stripBg
 }
 
+// StripText renders s in foreground fg on the strip background.
 func StripText(fg lipgloss.TerminalColor, s string) string {
 	return Cur().stripText.Foreground(fg).Render(s)
 }
 
+// StripBold renders s bold in foreground fg on the strip background.
 func StripBold(fg lipgloss.TerminalColor, s string) string {
 	return Cur().stripBold.Foreground(fg).Render(s)
 }
 
+// StripBlock wraps lines in one strip-background filler line above and below,
+// each width columns wide.
 func StripBlock(width int, lines ...string) string {
 	return PadBlock(StripBg(), width, 1, lines...)
 }
 
+// IconBlank returns glyph.LeadWidth spaces, aligning rows that have no icon
+// with rows rendered by Icon.
 func IconBlank() string {
 	return strings.Repeat(" ", glyph.LeadWidth)
 }
 
+// Icon renders icon as a fixed-width lead colored by the theme's Series style
+// at index hue, falling back to Accent when hue is out of range. An empty
+// icon yields an empty string.
 func Icon(icon string, hue int) string {
 	if icon == "" {
 		return ""
@@ -84,11 +81,15 @@ func Icon(icon string, hue int) string {
 	return sty.Render(glyph.Lead(icon))
 }
 
+// Success renders a success-colored check mark followed by msg in the body
+// text style.
 func Success(msg string) string {
 	th := Cur()
 	return th.Can.Render(glyph.Check()) + " " + th.Val.Render(msg)
 }
 
+// Bullet renders an accent-colored bullet followed by msg in the body text
+// style.
 func Bullet(msg string) string {
 	th := Cur()
 	return th.Accent.Render(glyph.Bullet()) + " " + th.Val.Render(msg)

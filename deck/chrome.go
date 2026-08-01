@@ -4,18 +4,20 @@ import (
 	"context"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/codyconfer/viewkit/glyph"
 )
 
-// StatusLevel aliases theme severity for status chips.
-type StatusLevel int
-
-// ServiceStatus is one right-strip status chip.
+// ServiceStatus is one right-strip status chip. Severity drives the default
+// glyph and color; Glyph and Color, when set, override that resolution. ID is
+// an optional stable identifier apps can use to filter or configure chips.
 type ServiceStatus struct {
-	Name   string
-	Detail string
-	Level  StatusLevel
-	Glyph  string
-	Color  lipgloss.TerminalColor
+	ID       string
+	Name     string
+	Detail   string
+	Severity glyph.Severity
+	Glyph    string
+	Color    lipgloss.TerminalColor
 }
 
 // StatusInfo is optional chrome identity + service chips.

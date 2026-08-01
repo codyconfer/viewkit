@@ -19,9 +19,10 @@ func driveHost(h *Model, msg tea.Msg) *Model {
 }
 
 func TestItemListLoadsAndShows(t *testing.T) {
-	il := NewItemList("results", nil,
-		func() any { return "payload" },
-		func(width int, fetched any) []list.Item {
+	il := NewItemList(ItemListSpec{
+		Title: "results",
+		Fetch: func() any { return "payload" },
+		Bind: func(width int, fetched any) []list.Item {
 			if fetched != "payload" {
 				t.Fatalf("fetched = %v", fetched)
 			}
@@ -30,7 +31,7 @@ func TestItemListLoadsAndShows(t *testing.T) {
 				{Block: "beta", Selectable: true},
 			}
 		},
-	)
+	})
 	h := New(il)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if cmd := il.Init(); cmd != nil {
@@ -77,7 +78,7 @@ func moveTo(t *testing.T, h *Model, il *ItemList, key string) *Model {
 }
 
 func TestItemListKeepsCursorAcrossDetailRoundTrip(t *testing.T) {
-	il := NewItemList("results", nil, func() any { return cursorRows() }, nil)
+	il := NewItemList(ItemListSpec{Title: "results", Fetch: func() any { return cursorRows() }})
 	h := loadedItemList(t, il)
 	h = moveTo(t, h, il, "u3")
 
@@ -97,8 +98,11 @@ func TestItemListKeepsCursorAcrossDetailRoundTrip(t *testing.T) {
 
 func TestItemListSameSizeResizeKeepsCursor(t *testing.T) {
 	binds := 0
-	il := NewItemList("results", nil, func() any { return "payload" },
-		func(int, any) []list.Item { binds++; return cursorRows() })
+	il := NewItemList(ItemListSpec{
+		Title: "results",
+		Fetch: func() any { return "payload" },
+		Bind:  func(int, any) []list.Item { binds++; return cursorRows() },
+	})
 	h := loadedItemList(t, il)
 	h = moveTo(t, h, il, "u2")
 	before := binds
@@ -122,13 +126,13 @@ func TestItemListSameSizeResizeKeepsCursor(t *testing.T) {
 }
 
 func TestItemListHeightShrinkKeepsSelectionVisible(t *testing.T) {
-	il := NewItemList("results", nil, nil, func(int, any) []list.Item {
+	il := NewItemList(ItemListSpec{Title: "results", Bind: func(int, any) []list.Item {
 		rows := make([]list.Item, 12)
 		for i := range rows {
 			rows[i] = list.Item{Block: fmt.Sprintf("row-%03d", i), Key: fmt.Sprintf("u%d", i), Selectable: true}
 		}
 		return rows
-	})
+	}})
 	h := loadedItemList(t, il)
 	h.View()
 	for range 11 {
@@ -150,7 +154,7 @@ func TestItemListHeightShrinkKeepsSelectionVisible(t *testing.T) {
 
 func TestItemListKeepsCursorWhenLiveRowsArrive(t *testing.T) {
 	rows := cursorRows()
-	il := NewItemList("results", nil, nil, func(int, any) []list.Item { return rows })
+	il := NewItemList(ItemListSpec{Title: "results", Bind: func(int, any) []list.Item { return rows }})
 	h := loadedItemList(t, il)
 	h = moveTo(t, h, il, "u2")
 
@@ -169,7 +173,7 @@ func TestItemListKeepsCursorWhenLiveRowsArrive(t *testing.T) {
 }
 
 func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
-	menuOnly := NewHomeShell("home", nil, []MenuItem{{Label: "Quit"}}, "")
+	menuOnly := NewHomeShell(HomeShellSpec{Title: "home", Items: []MenuItem{{Label: "Quit"}}})
 	h := New(menuOnly)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if strings.Contains(h.View(), "◈") {
@@ -177,16 +181,20 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	}
 	focusGlyph := keys.Cur().Binding(keys.FocusNext).DisplayGlyph()
 	for _, hint := range menuOnly.Hints() {
-		if hint[0] == focusGlyph {
+		if hint.Key == focusGlyph {
 			t.Fatalf("menu-only should not offer pane switching (%q)", focusGlyph)
 		}
 	}
 
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "side panel")
-	shell.SideFetch = func() any { return "x" }
-	shell.SideBind = func(width int, fetched any) []list.Item {
-		return []list.Item{{Block: "row-one", Selectable: true}}
-	}
+	shell := NewHomeShell(HomeShellSpec{
+		Title:     "home",
+		Items:     []MenuItem{{Label: "Go"}},
+		SideLabel: "side panel",
+		SideFetch: func() any { return "x" },
+		SideBind: func(width int, fetched any) []list.Item {
+			return []list.Item{{Block: "row-one", Selectable: true}}
+		},
+	})
 	h = New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if cmd := shell.Init(); cmd != nil {
@@ -221,14 +229,16 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 }
 
 func TestHomeShellBoxTitle(t *testing.T) {
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Quit"}}, "")
+	shell := NewHomeShell(HomeShellSpec{Title: "home", Items: []MenuItem{{Label: "Quit"}}})
 	h := New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if strings.Contains(h.View(), "MAIN MENU") {
 		t.Fatalf("default BoxTitle should omit titled-box title\n%s", h.View())
 	}
 
-	shell.BoxTitle = "MAIN MENU"
+	titled := NewHomeShell(HomeShellSpec{Title: "home", Items: []MenuItem{{Label: "Quit"}}, BoxTitle: "MAIN MENU"})
+	h = New(titled)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	view := h.View()
 	if !strings.Contains(view, "MAIN MENU") {
 		t.Fatalf("BoxTitle should appear in titled box\n%s", view)
@@ -238,12 +248,14 @@ func TestHomeShellBoxTitle(t *testing.T) {
 func TestItemListReloadRefetches(t *testing.T) {
 	payload := "first"
 	fetches := 0
-	il := NewItemList("results", nil,
-		func() any { fetches++; return payload },
-		func(_ int, fetched any) []list.Item {
+	il := NewItemList(ItemListSpec{
+		Title: "results",
+		Fetch: func() any { fetches++; return payload },
+		Bind: func(_ int, fetched any) []list.Item {
 			return []list.Item{{Block: "body " + fmt.Sprint(fetched)}}
-		})
-	il.ReloadHint = "rerun"
+		},
+		ReloadHint: "rerun",
+	})
 
 	h := New(il)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -288,13 +300,13 @@ func firstRowLine(t *testing.T, view string) string {
 }
 
 func TestItemListOversizedContentStaysInTheHostFrame(t *testing.T) {
-	il := NewItemList("results", nil, nil, func(int, any) []list.Item {
+	il := NewItemList(ItemListSpec{Title: "results", Bind: func(int, any) []list.Item {
 		rows := make([]list.Item, 100)
 		for i := range rows {
 			rows[i] = list.Item{Block: fmt.Sprintf("row-%03d", i), Key: fmt.Sprintf("u%d", i), Selectable: true}
 		}
 		return rows
-	})
+	}})
 	h := loadedItemList(t, il)
 
 	view := ansi.Strip(h.View())
@@ -318,7 +330,7 @@ func TestScrollOversizedContentStaysInTheHostFrame(t *testing.T) {
 	for i := range lines {
 		lines[i] = fmt.Sprintf("line-%03d", i)
 	}
-	sc := NewScroll("log", nil, nil, func() string { return strings.Join(lines, "\n") })
+	sc := NewScroll(ScrollSpec{Title: "log", Load: func() string { return strings.Join(lines, "\n") }})
 	h := New(sc)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if cmd := sc.Init(); cmd != nil {
@@ -343,8 +355,7 @@ func TestScrollOversizedContentStaysInTheHostFrame(t *testing.T) {
 func TestScrollReloadReRendersBody(t *testing.T) {
 	body := "first"
 	loads := 0
-	sc := NewScroll("report", nil, nil, func() string { loads++; return body })
-	sc.ReloadHint = "rerun report"
+	sc := NewScroll(ScrollSpec{Title: "report", Load: func() string { loads++; return body }, ReloadHint: "rerun report"})
 
 	h := New(sc)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})

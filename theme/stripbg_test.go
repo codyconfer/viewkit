@@ -14,7 +14,7 @@ const stripBgContract = "the strip background is the panel border colour and not
 
 func TestStripBgIsThePanelBorderColour(t *testing.T) {
 	t.Log(stripBgContract)
-	orig := *Cur()
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	for _, key := range Keys() {

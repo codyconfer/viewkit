@@ -2,6 +2,8 @@ package layout
 
 import "github.com/codyconfer/viewkit/theme"
 
+// Defaults for FlexColumns/FlexRows/FlexSections when MinWidth or MaxCols is
+// unset (< 1): tracks at least 40 cells wide, at most 4 of them.
 const (
 	DefaultFlexMinWidth = 40
 	DefaultFlexMaxCols  = 4
@@ -39,10 +41,16 @@ type FlexColumns struct {
 	MaxCols  int
 }
 
+// Columns reports how many column tracks the layout would use at the given
+// width.
 func (g FlexColumns) Columns(width int) int {
 	return FlexColCount(width, g.MinWidth, g.MaxCols)
 }
 
+// Arrange implements Arranger: tier-visible panes are dealt round-robin into
+// the column stacks, each column is stacked tightly, and all columns are
+// composited side by side padded to the tallest column's height. It ignores
+// Frame.Height and grows to content height.
 func (g FlexColumns) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
 	width := f.Width
 	if width < 1 {
@@ -111,10 +119,15 @@ type FlexRows struct {
 	MaxCols  int
 }
 
+// Columns reports how many tracks per row the layout would use at the given
+// width.
 func (g FlexRows) Columns(width int) int {
 	return FlexColCount(width, g.MinWidth, g.MaxCols)
 }
 
+// Arrange implements Arranger: tier-visible panes fill rows left to right,
+// each row's width is split evenly among the panes actually in that row, and
+// rows are stacked with blank lines between them. It ignores Frame.Height.
 func (g FlexRows) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
 	width := f.Width
 	if width < 1 {

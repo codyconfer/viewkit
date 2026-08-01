@@ -16,6 +16,10 @@ const (
 
 const binBytes = 4
 
+// BinaryClock renders t's Unix timestamp as a 32-bit binary panel: four rows
+// of eight ●/○ dots (most significant byte on top, a gap between nibbles) with
+// the decimal timestamp underneath. Times before the Unix epoch are clamped
+// to 0.
 func BinaryClock(f layout.Frame, title string, t time.Time) string {
 	ts := t.Unix()
 	if ts < 0 {

@@ -9,6 +9,9 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
+// GridPos pins a pane to grid coordinates. Col/Row are zero-based; spans below
+// 1 count as 1, and out-of-range values are clamped into the grid. Panes
+// without a Pos cascade into the next free block instead.
 type GridPos struct {
 	Col     int
 	Row     int
@@ -16,11 +19,18 @@ type GridPos struct {
 	RowSpan int
 }
 
+// Grid is a tiling Arranger: the frame is divided into Cols equal-width column
+// tracks and panes are placed by GridPos (or auto-flowed), then composited to
+// fill the frame exactly. Rows is a minimum row count; the grid grows past it
+// as panes need. Panes tiled into grid tracks should render with the CellBox /
+// CellTitledBox family, which stay inside their rect — see MinTrackWidth.
 type Grid struct {
 	Cols int
 	Rows int
 }
 
+// SlimMinWidth is the narrowest a Slim pane will be squeezed to (in cells)
+// before it stops shrinking.
 const SlimMinWidth = 20
 
 // MinTrackWidth is the narrowest column a tiling layout will create. It is the
@@ -39,6 +49,11 @@ type rect struct {
 	x, y, w, h int
 }
 
+// Arrange implements Arranger. Column count is reduced with FitCols so no
+// track drops below MinTrackWidth (pinned panes then reflow via auto-flow);
+// Slim panes give up width to their row-mates; and the result is composited to
+// exactly f.Width x f.Height, truncating pane output that overruns its rect.
+// A frame without a height (f.Height < 1) falls back to SingleColumn.
 func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
 	height := f.Height
 	if height < 1 {
@@ -359,6 +374,8 @@ func composite(width, height int, rects []rect, blocks []string) string {
 	return strings.Join(out, "\n")
 }
 
+// FitBlock forces block to exactly w x h cells: each line is ANSI-aware
+// truncated or space-padded to w, and rows are dropped or blank-padded to h.
 func FitBlock(block string, w, h int) string {
 	return strings.Join(fitLines(block, w, h), "\n")
 }

@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/codyconfer/viewkit/glyph"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/notify"
 )
 
 func TestNotificationToast(t *testing.T) {
 	out := stripANSI(NotificationToast(layout.DefaultFrame(), notify.Positive("Saved", "all good")))
-	for _, want := range []string{"✓", "Saved", "all good"} {
+	for _, want := range []string{glyph.GlyphFor(glyph.SeverityPositive), "Saved", "all good"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("toast missing %q:\n%s", want, out)
 		}

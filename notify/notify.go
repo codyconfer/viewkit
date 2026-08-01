@@ -1,28 +1,36 @@
 package notify
 
-type Tone int
+import "github.com/codyconfer/viewkit/glyph"
 
-const (
-	TonePositive Tone = iota
-	ToneNeutral
-	ToneWarning
-	ToneNegative
-)
-
+// Notification is a transient user-facing message. Severity uses the shared
+// glyph.Severity vocabulary; theme supplies the colors when rendered.
 type Notification struct {
-	Title   string
-	Message string
-	Tone    Tone
+	Title    string
+	Message  string
+	Severity glyph.Severity
 }
 
-func Note(tone Tone, title, message string) Notification {
-	return Notification{Title: title, Message: message, Tone: tone}
+// Note builds a Notification with an explicit severity.
+func Note(sev glyph.Severity, title, message string) Notification {
+	return Notification{Title: title, Message: message, Severity: sev}
 }
 
-func Positive(title, message string) Notification { return Note(TonePositive, title, message) }
+// Positive builds a positive-severity notification.
+func Positive(title, message string) Notification {
+	return Note(glyph.SeverityPositive, title, message)
+}
 
-func Neutral(title, message string) Notification { return Note(ToneNeutral, title, message) }
+// Neutral builds a neutral-severity notification.
+func Neutral(title, message string) Notification {
+	return Note(glyph.SeverityNeutral, title, message)
+}
 
-func Warning(title, message string) Notification { return Note(ToneWarning, title, message) }
+// Warning builds a warning-severity notification.
+func Warning(title, message string) Notification {
+	return Note(glyph.SeverityWarning, title, message)
+}
 
-func Negative(title, message string) Notification { return Note(ToneNegative, title, message) }
+// Negative builds a negative-severity notification.
+func Negative(title, message string) Notification {
+	return Note(glyph.SeverityNegative, title, message)
+}

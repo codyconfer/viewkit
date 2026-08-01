@@ -19,7 +19,7 @@ func uncachedStripBold(t Theme, fg lipgloss.TerminalColor, s string) string {
 }
 
 func TestStripHelpersMatchUncachedRendering(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	samples := []string{"", " ", "munin · audit", "12:34:56 ", "◈ deck"}
@@ -30,7 +30,7 @@ func TestStripHelpersMatchUncachedRendering(t *testing.T) {
 			t.Fatalf("Named(%q) not found", key)
 		}
 		Use(th)
-		cur := *Cur()
+		cur := Cur()
 
 		for _, fg := range []lipgloss.TerminalColor{
 			cur.Val.GetForeground(),
@@ -77,7 +77,7 @@ func TestCachedStripStylesFollowColorProfile(t *testing.T) {
 
 // Use must refresh the cache, not leave a stale strip background behind.
 func TestUseRefreshesStripCache(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	dark, _ := Named("solarized-dark")
@@ -99,7 +99,7 @@ func TestUseRefreshesStripCache(t *testing.T) {
 // A Theme built as a literal (not via New) still has to get its cache filled by
 // Use, or StripText would render with a zero background.
 func TestUseCachesForLiteralTheme(t *testing.T) {
-	orig := *Cur()
+	orig := Cur()
 	t.Cleanup(func() { Use(orig) })
 
 	lit := Theme{

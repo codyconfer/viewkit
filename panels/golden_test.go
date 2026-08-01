@@ -92,7 +92,7 @@ func TestPanelRenderingIsByteStable(t *testing.T) {
 	)
 
 	prevProfile := lipgloss.ColorProfile()
-	prevTheme := *theme.Cur()
+	prevTheme := theme.Cur()
 	t.Cleanup(func() {
 		theme.Use(prevTheme)
 		lipgloss.SetColorProfile(prevProfile)

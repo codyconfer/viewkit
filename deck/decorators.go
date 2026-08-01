@@ -1,28 +1,30 @@
 package deck
 
+import "github.com/codyconfer/viewkit/keys"
+
 type hintView struct {
 	View
-	extra [][2]string
+	extra []keys.Hint
 }
 
 // WithExtraHints wraps inner so the footer legend carries extra after the
 // view's own hints. Every other method passes through untouched. inner is
 // returned unchanged when extra is empty, so the wrapper never costs a level
 // of indirection it does not earn.
-func WithExtraHints(inner View, extra [][2]string) View {
+func WithExtraHints(inner View, extra []keys.Hint) View {
 	if len(extra) == 0 {
 		return inner
 	}
 	return &hintView{View: inner, extra: extra}
 }
 
-func (h *hintView) Hints() [][2]string {
-	return append(append([][2]string{}, h.View.Hints()...), h.extra...)
+func (h *hintView) Hints() []keys.Hint {
+	return append(append([]keys.Hint{}, h.View.Hints()...), h.extra...)
 }
 
 type liveContextView struct {
 	View
-	ctx func() [][2]string
+	ctx func() []keys.Hint
 }
 
 // WithLiveContext wraps inner so its chrome context cues are recomputed on
@@ -30,11 +32,11 @@ type liveContextView struct {
 // long-lived view needs when the cue (active role, selection, count) can
 // change beneath it. Every other method passes through untouched. inner is
 // returned unchanged when fn is nil.
-func WithLiveContext(inner View, fn func() [][2]string) View {
+func WithLiveContext(inner View, fn func() []keys.Hint) View {
 	if fn == nil {
 		return inner
 	}
 	return &liveContextView{View: inner, ctx: fn}
 }
 
-func (v *liveContextView) Context() [][2]string { return v.ctx() }
+func (v *liveContextView) Context() []keys.Hint { return v.ctx() }

@@ -9,30 +9,57 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
-// ItemList is a lazy-loaded selectable list View.
-// Fetch runs once on Init; Bind maps fetched data → rows using the current width
-// so callers can width-wrap without importing domain types into deck.
-type ItemList struct {
-	title string
-	ctx   [][2]string
+// ItemListSpec configures an ItemList, following the FormSpec pattern: every
+// field beyond Title is optional, and a struct keeps the call sites readable
+// while letting the type grow a knob without breaking anyone.
+type ItemListSpec struct {
+	// Title heads the breadcrumb trail.
+	Title string
+	// Ctx supplies chrome context cues.
+	Ctx []keys.Hint
 
-	// Fetch loads opaque content once (optional if Bind alone is enough).
+	// Fetch loads opaque content once on Init (optional if Bind alone is enough).
 	Fetch func() any
 	// Bind turns fetched data into list rows. Called on each refresh after load.
 	Bind func(width int, fetched any) []list.Item
 
 	// IsCancel reports whether a key string should pop the view.
 	IsCancel func(string) bool
-	// IsAction maps a key string to a keys.Action, fully replacing the active
-	// scheme map (keys.Cur); map PageUp/PageDown too to keep paging.
+	// IsAction maps a key string to a keys.Action. It is consulted first; keys
+	// it does not claim fall back to the active scheme map (keys.Cur), so
+	// paging and navigation keep working without re-mapping them.
 	IsAction func(string) (keys.Action, bool)
 	// OnOpen overrides browser.Open when an item Key is opened.
-	OnOpen   func(url string) error
-	OnSelect func(h *Model, key string) tea.Cmd
-	// LoadingText shown before load completes.
+	OnOpen func(url string) error
+	// OnSelect handles Confirm on the highlighted row. The full item is passed
+	// so its Payload (and Key) are available without a side table.
+	OnSelect func(h *Model, it list.Item) tea.Cmd
+	// LoadingText shown before load completes (default "░▒▓ loading…").
 	LoadingText string
 	// ReloadHint is the footer label for the reload key (default "reload").
 	ReloadHint string
+}
+
+// ItemList is a lazy-loaded selectable list View.
+// Fetch runs once on Init; Bind maps fetched data → rows using the current width
+// so callers can width-wrap without importing domain types into deck.
+type ItemList struct {
+	title string
+	ctx   []keys.Hint
+
+	// Fetch loads opaque content once. Exported so hosts can wrap or replace
+	// the loader after construction (e.g. tests counting fetches).
+	Fetch func() any
+	// OnOpen overrides browser.Open when an item Key is opened.
+	OnOpen func(url string) error
+	// OnSelect handles Confirm on the highlighted row.
+	OnSelect func(h *Model, it list.Item) tea.Cmd
+
+	bind        func(width int, fetched any) []list.Item
+	isCancel    func(string) bool
+	isAction    func(string) (keys.Action, bool)
+	loadingText string
+	reloadHint  string
 
 	lst     list.Model
 	width   int
@@ -41,18 +68,27 @@ type ItemList struct {
 	loaded  bool
 	fetched any
 
-	boundTheme *theme.Theme
+	boundGen uint64
+	bound    bool
 }
 
-// NewItemList builds an ItemList with Fetch+Bind.
-func NewItemList(title string, ctx [][2]string, fetch func() any, bind func(width int, fetched any) []list.Item) *ItemList {
+// NewItemList builds an ItemList from spec.
+func NewItemList(spec ItemListSpec) *ItemList {
 	r := &ItemList{
-		title:       title,
-		ctx:         ctx,
-		Fetch:       fetch,
-		Bind:        bind,
-		LoadingText: "░▒▓ loading…",
+		title:       spec.Title,
+		ctx:         spec.Ctx,
+		Fetch:       spec.Fetch,
+		OnOpen:      spec.OnOpen,
+		OnSelect:    spec.OnSelect,
+		bind:        spec.Bind,
+		isCancel:    spec.IsCancel,
+		isAction:    spec.IsAction,
+		loadingText: spec.LoadingText,
+		reloadHint:  spec.ReloadHint,
 		lst:         list.New(),
+	}
+	if r.loadingText == "" {
+		r.loadingText = "░▒▓ loading…"
 	}
 	r.lst.SetFocused(true)
 	return r
@@ -65,16 +101,21 @@ type itemListLoadedMsg struct {
 
 func (m itemListLoadedMsg) recipient() View { return m.own }
 
-func (r *ItemList) Title() string        { return r.title }
-func (r *ItemList) Context() [][2]string { return r.ctx }
+// Title implements View.
+func (r *ItemList) Title() string { return r.title }
+
+// Context implements View.
+func (r *ItemList) Context() []keys.Hint { return r.ctx }
 
 // Selected returns the highlighted row, if any. Hosts that decorate an
 // ItemList with their own row commands need it to know what the command
 // applies to.
 func (r *ItemList) Selected() (list.Item, bool) { return r.lst.Selected() }
-func (r *ItemList) Hints() [][2]string {
+
+// Hints implements View; the legend adapts to OnSelect and Fetch being set.
+func (r *ItemList) Hints() []keys.Hint {
 	km := navMap()
-	hints := [][2]string{km.HintLabeled(keys.Up, "move")}
+	hints := []keys.Hint{km.HintLabeled(keys.Up, "move")}
 	if r.OnSelect != nil {
 		hints = append(hints,
 			km.HintLabeled(keys.Confirm, "details"),
@@ -84,18 +125,20 @@ func (r *ItemList) Hints() [][2]string {
 	}
 	hints = append(hints, km.HintLabeled(keys.PageUp, "page"))
 	if r.Fetch != nil {
-		hints = append(hints, km.HintLabeled(keys.Reload, r.reloadHint()))
+		hints = append(hints, km.HintLabeled(keys.Reload, r.reloadLabel()))
 	}
 	return hints
 }
 
-func (r *ItemList) reloadHint() string {
-	if r.ReloadHint != "" {
-		return r.ReloadHint
+func (r *ItemList) reloadLabel() string {
+	if r.reloadHint != "" {
+		return r.reloadHint
 	}
 	return "reload"
 }
 
+// Init implements View, kicking off Fetch — or reporting an immediate empty
+// load when there is nothing to fetch.
 func (r *ItemList) Init() tea.Cmd {
 	if r.Fetch == nil {
 		return func() tea.Msg { return itemListLoadedMsg{own: r} }
@@ -103,8 +146,8 @@ func (r *ItemList) Init() tea.Cmd {
 	return r.fetchCmd()
 }
 
-// Reload drops fetched content and re-runs Fetch, showing LoadingText until the
-// new data lands. No-op when there is nothing to fetch.
+// Reload drops fetched content and re-runs Fetch, showing the loading text
+// until the new data lands. No-op when there is nothing to fetch.
 func (r *ItemList) Reload() tea.Cmd {
 	if r.Fetch == nil {
 		return nil
@@ -119,10 +162,12 @@ func (r *ItemList) fetchCmd() tea.Cmd {
 	return func() tea.Msg { return itemListLoadedMsg{own: r, data: fetch()} }
 }
 
+// Update implements View, handling resize, load completion, ReloadMsg and
+// navigation keys.
 func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
-		if r.ready && m.Width == r.width && r.boundTheme == theme.Cur() {
+		if r.ready && m.Width == r.width && r.bound && r.boundGen == theme.Generation() {
 			return nil
 		}
 		r.width, r.ready = m.Width, true
@@ -171,18 +216,20 @@ func (r *ItemList) confirmSelected(h *Model) tea.Cmd {
 		return r.openSelected()
 	}
 	it, ok := r.lst.Selected()
-	if !ok || it.Key == "" {
+	if !ok || (it.Key == "" && it.Payload == nil) {
 		return nil
 	}
-	return r.OnSelect(h, it.Key)
+	return r.OnSelect(h, it)
 }
 
 func (r *ItemList) action(key string) (keys.Action, bool) {
-	if r.IsCancel != nil && r.IsCancel(key) {
+	if r.isCancel != nil && r.isCancel(key) {
 		return keys.Cancel, true
 	}
-	if r.IsAction != nil {
-		return r.IsAction(key)
+	if r.isAction != nil {
+		if act, ok := r.isAction(key); ok {
+			return act, true
+		}
 	}
 	return navMap().Action(key)
 }
@@ -207,9 +254,9 @@ func (r *ItemList) refresh() {
 	if !r.ready || !r.loaded {
 		return
 	}
-	r.boundTheme = theme.Cur()
-	if r.Bind != nil {
-		r.lst.SetItemsKeepingCursor(r.Bind(r.width, r.fetched))
+	r.boundGen, r.bound = theme.Generation(), true
+	if r.bind != nil {
+		r.lst.SetItemsKeepingCursor(r.bind(r.width, r.fetched))
 		return
 	}
 	if items, ok := r.fetched.([]list.Item); ok {
@@ -217,9 +264,10 @@ func (r *ItemList) refresh() {
 	}
 }
 
+// Body implements View, rendering the loading text until Fetch lands.
 func (r *ItemList) Body(width, height int) string {
 	if !r.loaded {
-		txt := r.LoadingText
+		txt := r.loadingText
 		if txt == "" {
 			txt = "░▒▓ loading…"
 		}

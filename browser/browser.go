@@ -1,3 +1,4 @@
+// Package browser opens URLs in the user's default web browser.
 package browser
 
 import (
@@ -9,6 +10,7 @@ var run = func(name string, args ...string) error {
 	return exec.Command(name, args...).Start()
 }
 
+// Open launches the platform's URL opener for url and reports failure to start it.
 func Open(url string) error {
 	switch runtime.GOOS {
 	case "darwin":

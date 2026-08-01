@@ -3,46 +3,42 @@ package panels
 import (
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/codyconfer/viewkit/glyph"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/notify"
 	"github.com/codyconfer/viewkit/theme"
 )
 
-func toneStyle(tone notify.Tone) lipgloss.Style {
+func severityStyle(sev glyph.Severity) lipgloss.Style {
 	t := theme.Cur()
-	switch tone {
-	case notify.TonePositive:
+	switch sev {
+	case glyph.SeverityPositive:
 		return t.NotifPositive
-	case notify.ToneWarning:
+	case glyph.SeverityWarning:
 		return t.NotifWarning
-	case notify.ToneNegative:
+	case glyph.SeverityNegative:
 		return t.NotifNegative
 	default:
 		return t.NotifNeutral
 	}
 }
 
-func toneGlyph(tone notify.Tone) string {
-	switch tone {
-	case notify.TonePositive:
-		return "✓"
-	case notify.ToneWarning:
-		return "!"
-	case notify.ToneNegative:
-		return "✕"
-	default:
-		return "•"
-	}
-}
-
+// NotificationToast renders n as a single severity-styled line — its severity
+// glyph, title, and " — message" when the message is non-empty — truncated to
+// the frame body width.
 func NotificationToast(f layout.Frame, n notify.Notification) string {
-	line := toneGlyph(n.Tone) + " " + n.Title
+	line := glyph.GlyphFor(n.Severity) + " " + n.Title
 	if n.Message != "" {
 		line += " — " + n.Message
 	}
-	return toneStyle(n.Tone).Render(f.Fit(line))
+	return severityStyle(n.Severity).Render(f.Fit(line))
 }
 
+// NotificationPanel renders a panel listing ns, one severity-glyph-plus-title
+// line per notification and an indented dim message line beneath it when the
+// message is non-empty. Only the glyph takes the severity color, using the
+// severity style's foreground. With no notifications the panel shows a dim
+// "no notifications".
 func NotificationPanel(f layout.Frame, title string, ns []notify.Notification) string {
 	if len(ns) == 0 {
 		return f.Panel(title, theme.Cur().Dim.Render("no notifications"))
@@ -50,9 +46,9 @@ func NotificationPanel(f layout.Frame, title string, ns []notify.Notification) s
 	t := theme.Cur()
 	lines := make([]string, 0, len(ns))
 	for _, n := range ns {
-		sty := toneStyle(n.Tone)
+		sty := severityStyle(n.Severity)
 		head := sty.GetForeground()
-		marker := lipgloss.NewStyle().Foreground(head).Render(toneGlyph(n.Tone) + " ")
+		marker := lipgloss.NewStyle().Foreground(head).Render(glyph.GlyphFor(n.Severity) + " ")
 		lines = append(lines, f.Fit(marker+t.NotifTitle.Render(n.Title)))
 		if n.Message != "" {
 			lines = append(lines, f.Fit(t.Dim.Render("  "+n.Message)))
@@ -61,6 +57,9 @@ func NotificationPanel(f layout.Frame, title string, ns []notify.Notification) s
 	return f.Panel(title, lines...)
 }
 
+// NotificationOverlay composites a NotificationCard for n on top of the
+// already-rendered background bg at pos (layout.Overlay's default position
+// when omitted).
 func NotificationOverlay(bg string, f layout.Frame, n notify.Notification, pos ...layout.OverlayPos) string {
 	return layout.Overlay(bg, NotificationCard(f, n), pos...)
 }

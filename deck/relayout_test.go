@@ -205,17 +205,21 @@ func TestHomeShellKeepsSideCursorAcrossDetailRoundTrip(t *testing.T) {
 
 func TestHomeShellSameWidthRelayoutDoesNotRebindSide(t *testing.T) {
 	binds := 0
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "home flight")
-	shell.SideFetch = func() any { return "payload" }
-	shell.SideBind = func(int, any) []list.Item {
-		binds++
-		return []list.Item{
-			{Block: "Open PRs  (3)"},
-			{Block: "alpha", Key: "u1", Selectable: true},
-			{Block: "beta", Key: "u2", Selectable: true},
-			{Block: "gamma", Key: "u3", Selectable: true},
-		}
-	}
+	shell := NewHomeShell(HomeShellSpec{
+		Title:     "home",
+		Items:     []MenuItem{{Label: "Go"}},
+		SideLabel: "home flight",
+		SideFetch: func() any { return "payload" },
+		SideBind: func(int, any) []list.Item {
+			binds++
+			return []list.Item{
+				{Block: "Open PRs  (3)"},
+				{Block: "alpha", Key: "u1", Selectable: true},
+				{Block: "beta", Key: "u2", Selectable: true},
+				{Block: "gamma", Key: "u3", Selectable: true},
+			}
+		},
+	})
 	h := focusedHomeHost(t, shell)
 	h = driveHost(h, tea.KeyMsg{Type: tea.KeyDown})
 	if got := homeSideKey(t, shell); got != "u2" {
@@ -267,8 +271,11 @@ func TestItemListRebindsWhenTheThemeChanges(t *testing.T) {
 	useTheme(t, "default")
 	stale := themeSGR(t)
 
-	il := NewItemList("results", nil, func() any { return "payload" },
-		func(int, any) []list.Item { return themedRows() })
+	il := NewItemList(ItemListSpec{
+		Title: "results",
+		Fetch: func() any { return "payload" },
+		Bind:  func(int, any) []list.Item { return themedRows() },
+	})
 	h := loadedItemList(t, il)
 	if !strings.Contains(h.View(), stale) {
 		t.Fatalf("precondition: rows do not carry the theme SGR %q", stale)
@@ -298,9 +305,13 @@ func TestHomeShellRebindsWhenTheThemeChanges(t *testing.T) {
 	useTheme(t, "default")
 	stale := themeSGR(t)
 
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "home flight")
-	shell.SideFetch = func() any { return "payload" }
-	shell.SideBind = func(int, any) []list.Item { return themedRows() }
+	shell := NewHomeShell(HomeShellSpec{
+		Title:     "home",
+		Items:     []MenuItem{{Label: "Go"}},
+		SideLabel: "home flight",
+		SideFetch: func() any { return "payload" },
+		SideBind:  func(int, any) []list.Item { return themedRows() },
+	})
 	h := focusedHomeHost(t, shell)
 	if !strings.Contains(h.View(), stale) {
 		t.Fatalf("precondition: side rows do not carry the theme SGR %q", stale)
@@ -327,13 +338,16 @@ func TestHomeShellRebindsWhenTheThemeChanges(t *testing.T) {
 
 func TestHomeShellRelayoutBindsASidePaneRevealedByItsLiveLabel(t *testing.T) {
 	subject := ""
-	shell := NewHomeShell("home", nil, []MenuItem{{Label: "Go"}}, "")
-	shell.SideLabelFn = func() string { return subject }
-	shell.SideFetch = func() any { return "payload" }
-	shell.SideBind = func(int, any) []list.Item {
-		return []list.Item{{Block: "row-one", Selectable: true}}
-	}
-	shell.SideLoading = "side-loading-marker"
+	shell := NewHomeShell(HomeShellSpec{
+		Title:       "home",
+		Items:       []MenuItem{{Label: "Go"}},
+		SideLabelFn: func() string { return subject },
+		SideFetch:   func() any { return "payload" },
+		SideBind: func(int, any) []list.Item {
+			return []list.Item{{Block: "row-one", Selectable: true}}
+		},
+		SideLoading: "side-loading-marker",
+	})
 
 	h := New(shell)
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
