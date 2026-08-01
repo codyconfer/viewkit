@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 
+	"github.com/codyconfer/viewkit/glyph"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -77,50 +78,31 @@ func TestMenuStylesOnlyTheCursorRow(t *testing.T) {
 	}
 }
 
-func TestMenuGivesOnlyTheCursorRowBreathingRoom(t *testing.T) {
+func TestMenuRowsStayTightWhereverTheCursorSits(t *testing.T) {
 	menuInEveryProfile(t, func(t *testing.T) {
 		m := NewMenu("queries", nil,
 			MenuItem{Label: "first"},
 			MenuItem{Label: "second"},
 			MenuItem{Label: "third"},
 		)
-		lines := strings.Split(m.Body(60, 30), "\n")
+		for cursor := range m.items {
+			m.cursor = cursor
+			lines := strings.Split(m.Body(60, 30), "\n")
 
-		firstAt := rowIndex(lines, "first")
-		secondAt := rowIndex(lines, "second")
-		thirdAt := rowIndex(lines, "third")
-		if firstAt < 0 || secondAt < 0 || thirdAt < 0 {
-			t.Fatalf("items missing:\n%s", strings.Join(lines, "\n"))
-		}
-		if gap := secondAt - firstAt; gap != 2 {
-			t.Errorf("cursor row should have a blank line after it, gap = %d:\n%s", gap, strings.Join(lines, "\n"))
-		}
-		if gap := thirdAt - secondAt; gap != 1 {
-			t.Errorf("rows away from the cursor should stay tight, gap = %d:\n%s", gap, strings.Join(lines, "\n"))
-		}
-	})
-}
-
-func TestMenuBreathingRoomFollowsTheCursor(t *testing.T) {
-	menuInEveryProfile(t, func(t *testing.T) {
-		m := NewMenu("queries", nil,
-			MenuItem{Label: "first"},
-			MenuItem{Label: "second"},
-			MenuItem{Label: "third"},
-		)
-		m.cursor = 1
-		lines := strings.Split(m.Body(60, 30), "\n")
-
-		firstAt := rowIndex(lines, "first")
-		secondAt := rowIndex(lines, "second")
-		thirdAt := rowIndex(lines, "third")
-		if secondAt-firstAt != 2 || thirdAt-secondAt != 2 {
-			t.Errorf("a middle cursor should be blank-separated on both sides:\n%s", strings.Join(lines, "\n"))
+			firstAt := rowIndex(lines, "first")
+			secondAt := rowIndex(lines, "second")
+			thirdAt := rowIndex(lines, "third")
+			if firstAt < 0 || secondAt < 0 || thirdAt < 0 {
+				t.Fatalf("items missing:\n%s", strings.Join(lines, "\n"))
+			}
+			if secondAt-firstAt != 1 || thirdAt-secondAt != 1 {
+				t.Errorf("cursor %d shifted the rows:\n%s", cursor, strings.Join(lines, "\n"))
+			}
 		}
 	})
 }
 
-func TestMenuDropsSpacingRatherThanOverflow(t *testing.T) {
+func TestMenuHeightDoesNotChangeRowSpacing(t *testing.T) {
 	menuInEveryProfile(t, func(t *testing.T) {
 		items := make([]MenuItem, 12)
 		for i := range items {
@@ -130,17 +112,62 @@ func TestMenuDropsSpacingRatherThanOverflow(t *testing.T) {
 
 		tight := m.Body(60, len(items)+menuBoxChrome)
 		if got := strings.Count(tight, "\n") + 1; got != len(items)+menuBoxChrome {
-			t.Errorf("exact-fit menu rendered %d lines, want %d:\n%s", got, len(items)+menuBoxChrome, tight)
+			t.Errorf("menu rendered %d lines, want %d:\n%s", got, len(items)+menuBoxChrome, tight)
 		}
-		firstAt := rowIndex(strings.Split(tight, "\n"), " a ")
-		secondAt := rowIndex(strings.Split(tight, "\n"), " b ")
-		if firstAt < 0 || secondAt-firstAt != 1 {
-			t.Errorf("exact-fit menu should drop the breathing room:\n%s", tight)
+		if roomy := m.Body(60, 40); roomy != tight {
+			t.Errorf("a tall terminal changed the menu body:\n%s", roomy)
 		}
+	})
+}
 
-		roomy := m.Body(60, 40)
-		if strings.Count(roomy, "\n") <= strings.Count(tight, "\n") {
-			t.Error("a tall terminal should get the cursor breathing room")
+func labelColumn(t *testing.T, lines []string, label string) int {
+	t.Helper()
+	i := rowIndex(lines, label)
+	if i < 0 {
+		t.Fatalf("row %q missing:\n%s", label, strings.Join(lines, "\n"))
+	}
+	plain := ansi.Strip(lines[i])
+	return lipgloss.Width(plain[:strings.Index(plain, label)])
+}
+
+func TestMenuAlignsLabelsWhenOnlySomeItemsHaveIcons(t *testing.T) {
+	prev := glyph.CurrentMode()
+	t.Cleanup(func() { glyph.SetMode(prev) })
+
+	for _, mode := range []glyph.Mode{glyph.ModeNerd, glyph.ModeUnicode, glyph.ModeNone} {
+		glyph.SetMode(mode)
+		menuInEveryProfile(t, func(t *testing.T) {
+			m := NewMenu("queries", nil,
+				MenuItem{Label: "withicon", Icon: glyph.Bullet()},
+				MenuItem{Label: "noicon"},
+				MenuItem{Label: "widericon", Icon: "gh"},
+			)
+			lines := strings.Split(m.Body(60, 30), "\n")
+			with := labelColumn(t, lines, "withicon")
+			without := labelColumn(t, lines, "noicon")
+			wider := labelColumn(t, lines, "widericon")
+			if with != without || with != wider {
+				t.Errorf("mode %v: labels start at columns %d/%d/%d, want all equal:\n%s",
+					mode, with, without, wider, strings.Join(lines, "\n"))
+			}
+		})
+	}
+}
+
+func TestMenuWithoutAnyIconsKeepsLabelsFlush(t *testing.T) {
+	prev := glyph.CurrentMode()
+	t.Cleanup(func() { glyph.SetMode(prev) })
+	glyph.SetMode(glyph.ModeNone)
+
+	menuInEveryProfile(t, func(t *testing.T) {
+		bare := NewMenu("queries", nil, MenuItem{Label: "alpha"}, MenuItem{Label: "beta"})
+		iconed := NewMenu("queries", nil, MenuItem{Label: "alpha", Icon: glyph.Bullet()}, MenuItem{Label: "beta"})
+
+		bareAt := labelColumn(t, strings.Split(bare.Body(60, 30), "\n"), "alpha")
+		iconedAt := labelColumn(t, strings.Split(iconed.Body(60, 30), "\n"), "alpha")
+		if bareAt+glyph.LeadWidth != iconedAt {
+			t.Errorf("icon-free labels at column %d and iconed at %d, want a %d-column difference",
+				bareAt, iconedAt, glyph.LeadWidth)
 		}
 	})
 }

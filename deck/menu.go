@@ -76,6 +76,13 @@ const menuBoxChrome = 2
 func (m *Menu) Body(width, height int) string {
 	th := theme.Cur()
 	f := layout.ScreenFrame(width)
+	anyIcon := false
+	for _, it := range m.items {
+		if it.Icon != "" {
+			anyIcon = true
+			break
+		}
+	}
 	rows := make([]string, 0, len(m.items))
 	for i, it := range m.items {
 		cursor := "  "
@@ -85,8 +92,11 @@ func (m *Menu) Body(width, height int) string {
 			label = th.Key.Render(it.Label)
 		}
 		row := cursor
-		if it.Icon != "" {
+		switch {
+		case it.Icon != "":
 			row += theme.Icon(it.Icon, it.Hue)
+		case anyIcon:
+			row += theme.IconBlank()
 		}
 		row += label
 		if it.Desc != "" {
@@ -94,7 +104,6 @@ func (m *Menu) Body(width, height int) string {
 		}
 		rows = append(rows, row)
 	}
-	rows = layout.CursorRows(rows, m.cursor, height-menuBoxChrome)
 	return f.TitledBox(strings.ToUpper(m.title), rows...)
 }
 

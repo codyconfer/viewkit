@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/term"
 )
 
@@ -92,12 +93,14 @@ func Pad(s string) string {
 	return s + " "
 }
 
+const LeadWidth = 3
+
 func Lead(s string) string {
 	if s == "" {
 		return ""
 	}
-	if CurrentMode() == ModeNerd {
-		return s + "  "
+	if gap := LeadWidth - lipgloss.Width(s); gap > 0 {
+		return s + strings.Repeat(" ", gap)
 	}
 	return s + " "
 }
@@ -107,7 +110,7 @@ var (
 	statusWarn  = Variants{"", "▲", "!"}
 	statusBad   = Variants{"", "●", "x"}
 	statusMuted = Variants{"", "○", "-"}
-	check       = Variants{"", "✓", "ok"}
+	check       = Variants{"", "✓", "+"}
 	cross       = Variants{"", "✗", "x"}
 	warn        = Variants{"", "⚠", "!"}
 	arrow       = Variants{"", "→", "->"}

@@ -317,6 +317,13 @@ func (h *HomeShell) refresh() {
 
 func (h *HomeShell) menuRows(f layout.Frame) []string {
 	th := theme.Cur()
+	anyIcon := false
+	for _, it := range h.items {
+		if it.Icon != "" {
+			anyIcon = true
+			break
+		}
+	}
 	rows := make([]string, len(h.items))
 	for i, it := range h.items {
 		cursor := "  "
@@ -329,8 +336,11 @@ func (h *HomeShell) menuRows(f layout.Frame) []string {
 			cursor = th.Dim.Render("▸ ")
 		}
 		row := cursor
-		if it.Icon != "" {
+		switch {
+		case it.Icon != "":
 			row += theme.Icon(it.Icon, it.Hue)
+		case anyIcon:
+			row += theme.IconBlank()
 		}
 		row += label
 		if it.Desc != "" {

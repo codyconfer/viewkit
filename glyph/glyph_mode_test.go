@@ -3,6 +3,8 @@ package glyph
 import (
 	"sync"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestSetModeIsRaceFreeWhileResolving(t *testing.T) {
@@ -114,6 +116,45 @@ func TestFullVariantsUnaffectedByFallback(t *testing.T) {
 		SetMode(m)
 		if got := v.String(); got != want {
 			t.Errorf("mode %v: String() = %q, want %q", m, got, want)
+		}
+	}
+}
+
+func TestLeadAlignsGlyphsOfDifferingWidths(t *testing.T) {
+	prev := CurrentMode()
+	t.Cleanup(func() { SetMode(prev) })
+
+	for _, m := range []Mode{ModeNerd, ModeUnicode, ModeNone} {
+		SetMode(m)
+		wide := Variants{Nerd: "N", Uni: "U", ASCII: "gh"}
+		for _, g := range []string{Check(), Cross(), Warn(), Bullet(), wide.String()} {
+			if got := lipgloss.Width(Lead(g)); got != LeadWidth {
+				t.Errorf("mode %v: Lead(%q) is %d columns, want %d", m, g, got, LeadWidth)
+			}
+		}
+	}
+}
+
+func TestLeadKeepsEmptyEmpty(t *testing.T) {
+	prev := CurrentMode()
+	t.Cleanup(func() { SetMode(prev) })
+
+	for _, m := range []Mode{ModeNerd, ModeUnicode, ModeNone} {
+		SetMode(m)
+		if got := Lead(""); got != "" {
+			t.Errorf("mode %v: Lead(\"\") = %q, want empty", m, got)
+		}
+	}
+}
+
+func TestCheckAndCrossAreTheSameWidth(t *testing.T) {
+	prev := CurrentMode()
+	t.Cleanup(func() { SetMode(prev) })
+
+	for _, m := range []Mode{ModeNerd, ModeUnicode, ModeNone} {
+		SetMode(m)
+		if a, b := lipgloss.Width(Check()), lipgloss.Width(Cross()); a != b {
+			t.Errorf("mode %v: Check() is %d columns and Cross() is %d; a toggled row would shift", m, a, b)
 		}
 	}
 }

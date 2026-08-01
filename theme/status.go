@@ -1,6 +1,8 @@
 package theme
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/codyconfer/viewkit/glyph"
@@ -64,6 +66,10 @@ func StripBold(fg lipgloss.TerminalColor, s string) string {
 
 func StripBlock(width int, lines ...string) string {
 	return PadBlock(StripBg(), width, 1, lines...)
+}
+
+func IconBlank() string {
+	return strings.Repeat(" ", glyph.LeadWidth)
 }
 
 func Icon(icon string, hue int) string {
