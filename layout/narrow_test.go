@@ -71,6 +71,7 @@ func assertBoxedGridIntact(t *testing.T, label, out string, width, wantBoxes int
 }
 
 func TestGridNarrowColumnsKeepBordersIntact(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name      string
 		cols      int
@@ -106,6 +107,7 @@ func TestGridNarrowColumnsKeepBordersIntact(t *testing.T) {
 }
 
 func TestFitColsDropsColumnsBelowMinTrack(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ cols, width, want int }{
 		{4, 81, 4}, {4, 79, 3}, {4, 40, 2}, {4, 20, 1}, {4, 19, 1},
 		{2, 40, 2}, {2, 39, 1}, {8, 81, 4}, {1, 1, 1}, {0, 81, 1}, {-3, 81, 1},
@@ -119,6 +121,7 @@ func TestFitColsDropsColumnsBelowMinTrack(t *testing.T) {
 }
 
 func TestGridNeverBuildsColumnNarrowerThanMinTrack(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{28, 40, 55, 60, 81, 83, 111, 200} {
 		for _, cols := range []int{1, 2, 3, 4, 6, 8} {
 			names := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
@@ -141,6 +144,7 @@ func TestGridNeverBuildsColumnNarrowerThanMinTrack(t *testing.T) {
 }
 
 func TestFlexRowsNarrowTracksKeepBordersIntact(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{cellBoxPane("a"), cellBoxPane("b"), cellBoxPane("c"), cellBoxPane("d")}
 	for _, width := range []int{28, 40, 60, 81, 120} {
 		out := FlexRows{FlexBounds: FlexBounds{MinWidth: 20, MaxCols: 4}}.Arrange(Frame{Width: width}, TierTall, panes, "")
@@ -162,6 +166,7 @@ func TestFlexRowsNarrowTracksKeepBordersIntact(t *testing.T) {
 }
 
 func TestFlexColumnsNarrowTracksKeepBordersIntact(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{cellBoxPane("a"), cellBoxPane("b"), cellBoxPane("c"), cellBoxPane("d")}
 	for _, width := range []int{28, 40, 60, 81, 120} {
 		out := FlexColumns{FlexBounds: FlexBounds{MinWidth: 20, MaxCols: 4}}.Arrange(Frame{Width: width}, TierTall, panes, "")
@@ -178,6 +183,7 @@ func TestFlexColumnsNarrowTracksKeepBordersIntact(t *testing.T) {
 }
 
 func TestCellBoxNeverExceedsFrameWidth(t *testing.T) {
+	t.Parallel()
 	for width := 1; width <= 40; width++ {
 		box := Frame{Width: width}.CellBox("title", "body")
 		for _, r := range strings.Split(box, "\n") {
@@ -189,6 +195,7 @@ func TestCellBoxNeverExceedsFrameWidth(t *testing.T) {
 }
 
 func TestCellPanelNeverExceedsFrameWidth(t *testing.T) {
+	t.Parallel()
 	lines := []string{"one", "two", "three", "four", "five", "six"}
 	for width := 1; width <= 40; width++ {
 		for _, height := range []int{0, 1, 6} {
@@ -204,6 +211,7 @@ func TestCellPanelNeverExceedsFrameWidth(t *testing.T) {
 }
 
 func TestDegenerateFramesStillClamp(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{cellBoxPane("a"), cellBoxPane("b")}
 	checks := []struct {
 		name string
@@ -240,7 +248,9 @@ func TestDegenerateFramesStillClamp(t *testing.T) {
 // TestSpreadFamilyIsWidthExact covers both spreaders: they right-align the same
 // way, so they owe their callers the same width guarantee.
 func TestSpreadFamilyIsWidthExact(t *testing.T) {
-	bg := theme.Cur().Dim.GetForeground()
+	t.Parallel()
+	th := theme.Default()
+	bg := th.Dim.GetForeground()
 	long := "identity.that.is.long@example.com   12:34:56"
 	cases := []struct {
 		name        string
@@ -264,7 +274,7 @@ func TestSpreadFamilyIsWidthExact(t *testing.T) {
 	for _, c := range cases {
 		for name, got := range map[string]string{
 			"Spread":   Spread(c.left, c.right, c.width),
-			"SpreadBG": SpreadBG(bg, c.left, c.right, c.width),
+			"SpreadBG": SpreadBGIn(th, bg, c.left, c.right, c.width),
 		} {
 			if w := ansi.StringWidth(got); w != c.width {
 				t.Errorf("%s(%s) width = %d, want %d: %q", name, c.name, w, c.width, stripANSI(got))
@@ -277,14 +287,16 @@ func TestSpreadFamilyIsWidthExact(t *testing.T) {
 }
 
 func TestSpreadFamilyWidthSweep(t *testing.T) {
-	bg := theme.Cur().Dim.GetForeground()
+	t.Parallel()
+	th := theme.Default()
+	bg := th.Dim.GetForeground()
 	parts := []string{"", "a", "abc", "日本語", "日", "a日b", "abc def", strings.Repeat("x", 12), "…"}
 	for _, left := range parts {
 		for _, right := range parts {
 			for width := 1; width <= 14; width++ {
 				for name, got := range map[string]string{
 					"Spread":   Spread(left, right, width),
-					"SpreadBG": SpreadBG(bg, left, right, width),
+					"SpreadBG": SpreadBGIn(th, bg, left, right, width),
 				} {
 					if w := ansi.StringWidth(got); w != width {
 						t.Fatalf("%s(%q, %q, %d) width = %d, want %d: %q",
@@ -301,6 +313,7 @@ func TestSpreadFamilyWidthSweep(t *testing.T) {
 // TitledBox needs, so tracks in [20,27] used to lose a right border. The
 // clamp-down variant must fit any track.
 func TestCellTitledBoxNeverExceedsFrameWidth(t *testing.T) {
+	t.Parallel()
 	for width := 1; width <= 40; width++ {
 		for _, box := range []string{
 			Frame{Width: width}.CellTitledBox("title", "body"),
@@ -317,6 +330,7 @@ func TestCellTitledBoxNeverExceedsFrameWidth(t *testing.T) {
 }
 
 func TestIndentLinesClampsNegative(t *testing.T) {
+	t.Parallel()
 	for _, n := range []int{-5, -1, 0} {
 		if got := IndentLines("x\ny", n); got != "x\ny" {
 			t.Errorf("IndentLines(n=%d) = %q, want unchanged", n, got)

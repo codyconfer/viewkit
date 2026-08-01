@@ -19,12 +19,12 @@ func Line(f layout.Frame, title string, series []float64, width, height int, fmt
 	if max := f.BodyWidth() - 7; max > 0 && width > max {
 		width = max
 	}
-	lines := linePlot(series, width, height, fmtVal)
+	lines := linePlot(f.Theme(), series, width, height, fmtVal)
 	lines = append(lines, footer...)
 	return f.Panel(title, lines...)
 }
 
-func linePlot(series []float64, width, height int, fmtVal func(float64) string) []string {
+func linePlot(th theme.Theme, series []float64, width, height int, fmtVal func(float64) string) []string {
 	if len(series) == 0 || width < 1 || height < 1 {
 		return nil
 	}
@@ -49,8 +49,8 @@ func linePlot(series []float64, width, height int, fmtVal func(float64) string) 
 
 	out := make([]string, 0, height+1)
 	for i, row := range grid {
-		out = append(out, chartGutter(chartLabel(i, height-1, lo, hi, fmtVal))+theme.Cur().Can.Render(string(row)))
+		out = append(out, chartGutter(th, chartLabel(i, height-1, lo, hi, fmtVal))+th.Can.Render(string(row)))
 	}
-	out = append(out, chartBaseline(width))
+	out = append(out, chartBaseline(th, width))
 	return out
 }

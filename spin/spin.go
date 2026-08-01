@@ -44,6 +44,7 @@ type Spinner struct {
 	doneGlyph string
 	frames    []string
 	every     time.Duration
+	th        theme.Theme
 	stopCh    chan struct{}
 	doneCh    chan struct{}
 	mu        sync.Mutex
@@ -70,6 +71,9 @@ type Options struct {
 	Interval time.Duration
 	// Frames is the animation cycle. Defaults to DefaultFrames.
 	Frames []string
+	// Theme styles the spinner. Nil snapshots the process default theme at
+	// Start.
+	Theme *theme.Theme
 	// Force animates even when Writer is not a terminal. Without it a
 	// non-terminal Writer makes the Spinner a silent no-op.
 	Force bool
@@ -103,6 +107,10 @@ func Start(opts Options) *Spinner {
 	if every <= 0 {
 		every = DefaultInterval
 	}
+	th := theme.Default()
+	if opts.Theme != nil {
+		th = *opts.Theme
+	}
 
 	s := &Spinner{
 		w:         w,
@@ -112,6 +120,7 @@ func Start(opts Options) *Spinner {
 		doneGlyph: doneGlyph,
 		frames:    frames,
 		every:     every,
+		th:        th,
 		stopCh:    make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}
@@ -155,9 +164,8 @@ func (s *Spinner) finish(settle bool) {
 		_, _ = fmt.Fprint(s.w, "\r\033[K")
 		return
 	}
-	th := theme.Cur()
 	_, _ = fmt.Fprintf(s.w, "\r\033[K%s%s %s\n",
-		s.renderPrefix(), th.Can.Render(s.doneGlyph), th.Dim.Render(s.doneMsg))
+		s.renderPrefix(), s.th.Can.Render(s.doneGlyph), s.th.Dim.Render(s.doneMsg))
 }
 
 func isTerminal(w io.Writer) bool {
@@ -190,9 +198,8 @@ func (s *Spinner) paint(i int) {
 	if s.stopped || len(s.frames) == 0 {
 		return
 	}
-	th := theme.Cur()
-	frame := th.Accent.Render(s.frames[i%len(s.frames)])
-	msg := th.Dim.Render(s.msg)
+	frame := s.th.Accent.Render(s.frames[i%len(s.frames)])
+	msg := s.th.Dim.Render(s.msg)
 	_, _ = fmt.Fprintf(s.w, "\r%s%s %s", s.renderPrefix(), frame, msg)
 }
 
@@ -200,5 +207,5 @@ func (s *Spinner) renderPrefix() string {
 	if s.prefix == "" {
 		return ""
 	}
-	return theme.Cur().Dim.Render(s.prefix) + " "
+	return s.th.Dim.Render(s.prefix) + " "
 }

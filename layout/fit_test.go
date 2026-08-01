@@ -8,6 +8,7 @@ import (
 )
 
 func TestStackFitTallShowsEverything(t *testing.T) {
+	t.Parallel()
 	secs := []Section{
 		{Content: "alpha"},
 		{Content: "bravo", MinTier: TierMedium},
@@ -21,6 +22,7 @@ func TestStackFitTallShowsEverything(t *testing.T) {
 }
 
 func TestStackFitMediumDropsTallOnly(t *testing.T) {
+	t.Parallel()
 	secs := []Section{
 		{Content: "alpha"},
 		{Content: "bravo", MinTier: TierMedium},
@@ -36,6 +38,7 @@ func TestStackFitMediumDropsTallOnly(t *testing.T) {
 }
 
 func TestStackFitShortKeepsOnlyEssentials(t *testing.T) {
+	t.Parallel()
 	secs := []Section{
 		{Content: "alpha"},
 		{Content: "bravo", MinTier: TierMedium},
@@ -51,6 +54,7 @@ func TestStackFitShortKeepsOnlyEssentials(t *testing.T) {
 }
 
 func TestStackFitSkipsEmptySections(t *testing.T) {
+	t.Parallel()
 	got := StackFit(TierTall,
 		Section{Content: "alpha"},
 		Section{Content: "", MinTier: TierMedium},
@@ -63,6 +67,7 @@ func TestStackFitSkipsEmptySections(t *testing.T) {
 }
 
 func TestTierForHeightBoundaries(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		height int
@@ -83,6 +88,7 @@ func TestTierForHeightBoundaries(t *testing.T) {
 }
 
 func TestTierRowsAt(t *testing.T) {
+	t.Parallel()
 	r := TierRows{Short: 3, Medium: 8, Tall: 12}
 	if got := r.At(TierShort); got != 3 {
 		t.Errorf("At(TierShort) = %d, want 3", got)

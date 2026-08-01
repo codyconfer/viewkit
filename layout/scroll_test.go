@@ -6,6 +6,7 @@ import (
 )
 
 func TestScrollStateClamp(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name        string
 		start       int
@@ -30,6 +31,7 @@ func TestScrollStateClamp(t *testing.T) {
 }
 
 func TestScrollStateScrollStopsAtEnds(t *testing.T) {
+	t.Parallel()
 	s := ScrollState{}
 
 	s.Scroll(-8, 20, 8)
@@ -46,6 +48,7 @@ func TestScrollStateScrollStopsAtEnds(t *testing.T) {
 }
 
 func TestScrollStateRevealKeepsSelectionVisible(t *testing.T) {
+	t.Parallel()
 	s := ScrollState{}
 	s.Reveal(9, 20, 8)
 	if s.Offset != 2 {
@@ -59,6 +62,7 @@ func TestScrollStateRevealKeepsSelectionVisible(t *testing.T) {
 }
 
 func TestScrollWindowNoFooterWhenFits(t *testing.T) {
+	t.Parallel()
 	lines := []string{"a", "b", "c"}
 	win, footer, ok := scrollWindow(lines, 8, 0)
 	if ok || footer != "" {
@@ -70,6 +74,7 @@ func TestScrollWindowNoFooterWhenFits(t *testing.T) {
 }
 
 func TestScrollWindowClampsAndReportsPosition(t *testing.T) {
+	t.Parallel()
 	lines := make([]string, 42)
 	for i := range lines {
 		lines[i] = string(rune('a' + i%26))
@@ -88,6 +93,7 @@ func TestScrollWindowClampsAndReportsPosition(t *testing.T) {
 }
 
 func TestScrollPanelIncludesFooterLine(t *testing.T) {
+	t.Parallel()
 	lines := make([]string, 20)
 	for i := range lines {
 		lines[i] = "row"
@@ -99,6 +105,7 @@ func TestScrollPanelIncludesFooterLine(t *testing.T) {
 }
 
 func TestViewportFitsRequestedRows(t *testing.T) {
+	t.Parallel()
 	body := strings.Join([]string{
 		"one",
 		"two",
@@ -107,7 +114,7 @@ func TestViewportFitsRequestedRows(t *testing.T) {
 		"five",
 	}, "\n")
 
-	out := Viewport(body, 4, 1)
+	out := DefaultFrame().Viewport(body, 4, 1)
 	lines := strings.Split(out, "\n")
 	if len(lines) != 4 {
 		t.Fatalf("viewport lines=%d, want 4", len(lines))

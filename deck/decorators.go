@@ -1,6 +1,9 @@
 package deck
 
-import "github.com/codyconfer/viewkit/keys"
+import (
+	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/ui"
+)
 
 type hintView struct {
 	View
@@ -18,8 +21,8 @@ func WithExtraHints(inner View, extra []keys.Hint) View {
 	return &hintView{View: inner, extra: extra}
 }
 
-func (h *hintView) Hints() []keys.Hint {
-	return append(append([]keys.Hint{}, h.View.Hints()...), h.extra...)
+func (h *hintView) Hints(scope *ui.Scope) []keys.Hint {
+	return append(append([]keys.Hint{}, h.View.Hints(scope)...), h.extra...)
 }
 
 type liveContextView struct {
@@ -39,4 +42,4 @@ func WithLiveContext(inner View, fn func() []keys.Hint) View {
 	return &liveContextView{View: inner, ctx: fn}
 }
 
-func (v *liveContextView) Context() []keys.Hint { return v.ctx() }
+func (v *liveContextView) Context(scope *ui.Scope) []keys.Hint { return v.ctx() }

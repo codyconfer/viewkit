@@ -15,6 +15,7 @@ const (
 )
 
 func TestGhostOfCaseFoldingChangesByteLength(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		pick, tail string
@@ -39,6 +40,7 @@ func TestGhostOfCaseFoldingChangesByteLength(t *testing.T) {
 }
 
 func TestRenderFoldingKeystrokeDoesNotPanic(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "k", Suggest: Static("kx")})
 	fm.Insert(kelvinSign)
 	if got := fm.Values()["k"]; got != kelvinSign {
@@ -54,6 +56,7 @@ func TestRenderFoldingKeystrokeDoesNotPanic(t *testing.T) {
 }
 
 func TestRenderFoldingKeystrokeAcrossDelimiter(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "k", Delim: ",", Suggest: Static("kelvin")})
 	fm.Insert("a," + kelvinSign)
 	out := stripANSI(fm.Render(layout.DefaultFrame(), "form"))

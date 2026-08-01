@@ -6,6 +6,7 @@ import (
 )
 
 func TestLines(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		in   string
@@ -33,6 +34,7 @@ func TestLines(t *testing.T) {
 }
 
 func TestLinesNeverReturnsEmptySlice(t *testing.T) {
+	t.Parallel()
 	for _, in := range []string{"", "\n", "\n\n\n"} {
 		if got := Lines(in); len(got) != 1 || got[0] != "" {
 			t.Errorf("Lines(%q) = %q, want one empty element", in, got)
@@ -41,6 +43,7 @@ func TestLinesNeverReturnsEmptySlice(t *testing.T) {
 }
 
 func TestFirstLine(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		in   string
@@ -66,6 +69,7 @@ func TestFirstLine(t *testing.T) {
 }
 
 func TestDialogWidthInsetsUntilItHitsTheCap(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		screen int
@@ -88,6 +92,7 @@ func TestDialogWidthInsetsUntilItHitsTheCap(t *testing.T) {
 }
 
 func TestDialogWidthNeverGoesBelowOne(t *testing.T) {
+	t.Parallel()
 	for _, screen := range []int{9, 8, 5, 1, 0, -1, -100} {
 		if got := DialogWidth(screen); got < 1 {
 			t.Errorf("DialogWidth(%d) = %d, want >= 1", screen, got)
@@ -102,6 +107,7 @@ func TestDialogWidthNeverGoesBelowOne(t *testing.T) {
 }
 
 func TestDialogWidthIsMonotonic(t *testing.T) {
+	t.Parallel()
 	prev := DialogWidth(0)
 	for screen := 1; screen <= 200; screen++ {
 		got := DialogWidth(screen)
@@ -116,6 +122,7 @@ func TestDialogWidthIsMonotonic(t *testing.T) {
 }
 
 func TestDialogMaxWidthValue(t *testing.T) {
+	t.Parallel()
 	if DialogMaxWidth != 56 {
 		t.Errorf("DialogMaxWidth = %d, want 56", DialogMaxWidth)
 	}

@@ -8,6 +8,7 @@ import (
 )
 
 func TestLedgerEmpty(t *testing.T) {
+	t.Parallel()
 	out := Ledger(layout.DefaultFrame(), "Ledger", nil, "🪙", fnum, 8, 0, "nothing yet")
 	if !strings.Contains(out, "nothing yet") {
 		t.Fatalf("empty ledger missing placeholder:\n%s", out)
@@ -15,6 +16,7 @@ func TestLedgerEmpty(t *testing.T) {
 }
 
 func TestLedgerDeltaSigns(t *testing.T) {
+	t.Parallel()
 	rows := []LedgerRow{
 		{Label: "bought eggs", Delta: 5},
 		{Label: "sold eggs", Delta: -3},
@@ -29,6 +31,7 @@ func TestLedgerDeltaSigns(t *testing.T) {
 }
 
 func TestLedgerScrollFooter(t *testing.T) {
+	t.Parallel()
 	rows := make([]LedgerRow, 20)
 	for i := range rows {
 		rows[i] = LedgerRow{Label: "row", Delta: 1}

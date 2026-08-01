@@ -13,6 +13,7 @@ import (
 var clockT = time.Date(2026, time.July, 4, 13, 5, 9, 0, time.UTC)
 
 func TestClockDefault24h(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(Clock(layout.DefaultFrame(), "CLOCK", clockT))
 	if !strings.Contains(out, "13:05:09") {
 		t.Fatalf("want 24h HH:MM:SS, got:\n%s", out)
@@ -23,6 +24,7 @@ func TestClockDefault24h(t *testing.T) {
 }
 
 func TestClock12hWithDate(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(Clock(layout.DefaultFrame(), "CLOCK", clockT, ClockOpts{ShowDate: true}))
 	for _, want := range []string{"1:05:09 PM", "Jul 4 2026"} {
 		if !strings.Contains(out, want) {
@@ -32,6 +34,7 @@ func TestClock12hWithDate(t *testing.T) {
 }
 
 func TestClockHideSeconds(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(Clock(layout.DefaultFrame(), "CLOCK", clockT, ClockOpts{TwentyFour: true, HideSeconds: true}))
 	if !strings.Contains(out, "13:05") || strings.Contains(out, "13:05:09") {
 		t.Fatalf("want HH:MM only, got:\n%s", out)
@@ -39,6 +42,7 @@ func TestClockHideSeconds(t *testing.T) {
 }
 
 func TestClockWorldZones(t *testing.T) {
+	t.Parallel()
 	west := time.FixedZone("PST", -8*3600)
 	out := stripANSI(Clock(layout.DefaultFrame(), "CLOCK", clockT, ClockOpts{
 		TwentyFour: true,
@@ -55,6 +59,7 @@ func TestClockWorldZones(t *testing.T) {
 }
 
 func TestBinaryClockLitBits(t *testing.T) {
+	t.Parallel()
 
 	out := stripANSI(BinaryClock(layout.DefaultFrame(), "BINARY", clockT))
 	if !strings.Contains(out, binOn) || !strings.Contains(out, binOff) {
@@ -67,6 +72,7 @@ func TestBinaryClockLitBits(t *testing.T) {
 }
 
 func TestBinaryClockBitCountMatchesPopcount(t *testing.T) {
+	t.Parallel()
 
 	out := stripANSI(BinaryClock(layout.DefaultFrame(), "B", clockT))
 	lit := strings.Count(out, binOn)

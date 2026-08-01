@@ -8,6 +8,7 @@ import (
 )
 
 func TestDualHostInlineAndDeck(t *testing.T) {
+	t.Parallel()
 	p := StaticPanel{Title: "STATUS", Lines: []string{"ok", "ready"}}
 	inline := Render(p, TargetInline, layout.NewFrame(40), 0, 0)
 	if !strings.Contains(inline, "STATUS") || !strings.Contains(inline, "ok") {

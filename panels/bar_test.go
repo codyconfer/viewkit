@@ -18,6 +18,7 @@ func barRowCells(out, label string) (int, bool) {
 }
 
 func TestBarNonFiniteValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}, {"neginf", math.Inf(-1)}, {"ok", 5}}
 	out := Bar(layout.DefaultFrame(), "Flow", data, 20, fnum, "")
 	if len(out) > 1<<16 {
@@ -42,6 +43,7 @@ func TestBarNonFiniteValues(t *testing.T) {
 }
 
 func TestBarAllNonFiniteValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"a", math.NaN()}, {"b", math.Inf(1)}}
 	out := Bar(layout.DefaultFrame(), "Flow", data, 20, fnum, "")
 	if len(out) > 1<<16 {
@@ -53,6 +55,7 @@ func TestBarAllNonFiniteValues(t *testing.T) {
 }
 
 func TestBarScrollNonFiniteValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"posinf", math.Inf(1)}, {"ok", 5}}
 	out := BarScroll(layout.DefaultFrame(), "Flow", data, 20, fnum, "", 2, 0)
 	if len(out) > 1<<16 {
@@ -64,6 +67,7 @@ func TestBarScrollNonFiniteValues(t *testing.T) {
 }
 
 func TestBarEmpty(t *testing.T) {
+	t.Parallel()
 	out := Bar(layout.DefaultFrame(), "Flow", nil, 20, fnum, "no data")
 	if !strings.Contains(out, "no data") {
 		t.Fatalf("empty bar missing placeholder:\n%s", out)
@@ -71,6 +75,7 @@ func TestBarEmpty(t *testing.T) {
 }
 
 func TestBarShowsLabelsAndValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"laying", 10}, {"selling", 4}, {"deficit", -2}}
 	out := Bar(layout.DefaultFrame(), "Flow", data, 20, fnum, "")
 	for _, want := range []string{"laying", "selling", "deficit", "10", "4", "-2", "█"} {
@@ -81,6 +86,7 @@ func TestBarShowsLabelsAndValues(t *testing.T) {
 }
 
 func TestBarScalesToLargestMagnitude(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"big", 100}, {"small", 10}}
 	lines := strings.Split(stripANSI(Bar(layout.DefaultFrame(), "F", data, 20, fnum, "")), "\n")
 	var big, small int

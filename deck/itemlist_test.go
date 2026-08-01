@@ -11,6 +11,7 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 func driveHost(h *Model, msg tea.Msg) *Model {
@@ -179,8 +180,8 @@ func TestHomeShellMenuOnlyAndSideFocus(t *testing.T) {
 	if strings.Contains(h.View(), "◈") {
 		t.Fatal("menu-only should not show side label")
 	}
-	focusGlyph := keys.Cur().Binding(keys.FocusNext).DisplayGlyph()
-	for _, hint := range menuOnly.Hints() {
+	focusGlyph := keys.Default().Binding(keys.FocusNext).DisplayGlyph()
+	for _, hint := range menuOnly.Hints(ui.Default()) {
 		if hint.Key == focusGlyph {
 			t.Fatalf("menu-only should not offer pane switching (%q)", focusGlyph)
 		}

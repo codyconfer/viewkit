@@ -6,8 +6,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/codyconfer/viewkit/glyph"
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // Frame is the rendering context handed to every layout helper: the width and
@@ -19,6 +21,70 @@ type Frame struct {
 	Width   int
 	Height  int
 	Focused bool
+	// UI is the rendering scope (theme, keys, glyphs). Nil falls back to the
+	// built-in defaults; derive new frames with WithWidth/Screen/WithUI so the
+	// scope is never dropped.
+	UI *ui.Scope
+}
+
+// WithUI returns a copy of the frame carrying scope.
+func (f Frame) WithUI(scope *ui.Scope) Frame {
+	f.UI = scope
+	return f
+}
+
+// WithWidth returns a copy at the given body width (NewFrame clamping rules),
+// preserving the scope.
+func (f Frame) WithWidth(width int) Frame {
+	n := NewFrame(width)
+	n.UI = f.UI
+	n.Focused = f.Focused
+	return n
+}
+
+// Screen returns a copy sized as a body frame for a full terminal of the
+// frame's width (ScreenFrame rules), preserving the scope.
+func (f Frame) Screen() Frame {
+	n := ScreenFrame(f.Width)
+	n.UI = f.UI
+	return n
+}
+
+// StrictScope is a test hook — when true, Frame accessors panic on nil UI so
+// fallback leaks surface.
+var StrictScope bool
+
+func strictScopeCheck() {
+	if StrictScope {
+		panic("layout: unscoped Frame read (UI is nil) with StrictScope on")
+	}
+}
+
+// Theme returns the scoped theme, or the built-in default when unscoped.
+func (f Frame) Theme() theme.Theme {
+	if f.UI != nil {
+		return f.UI.Theme
+	}
+	strictScopeCheck()
+	return theme.Default()
+}
+
+// Glyphs returns the scoped glyph set, or the default-mode set when unscoped.
+func (f Frame) Glyphs() glyph.Set {
+	if f.UI != nil {
+		return f.UI.Glyphs
+	}
+	strictScopeCheck()
+	return glyph.DefaultSet()
+}
+
+// Scheme returns the scoped key scheme, or the built-in default when unscoped.
+func (f Frame) Scheme() keys.Scheme {
+	if f.UI != nil {
+		return f.UI.Keys
+	}
+	strictScopeCheck()
+	return keys.Default()
 }
 
 // NewFrame returns a Frame for the given body width. Non-positive widths fall
@@ -94,14 +160,14 @@ func (f Frame) Spread(left, right string) string {
 	return Spread(left, right, f.BodyWidth())
 }
 
-// SpreadBG is Spread with the gap painted in the given background color, for
+// SpreadBGIn is Spread with the gap painted in the given background color, for
 // lines that sit on a filled strip (status bars, headers). The truncation
-// ellipsis is styled to match the strip.
-func SpreadBG(bg lipgloss.TerminalColor, left, right string, width int) string {
+// ellipsis is styled to match the strip, dimmed with th.
+func SpreadBGIn(th theme.Theme, bg lipgloss.TerminalColor, left, right string, width int) string {
 	if width <= 0 {
 		width = theme.BodyWidth
 	}
-	ell := lipgloss.NewStyle().Background(bg).Foreground(theme.Cur().Dim.GetForeground()).Render("…")
+	ell := lipgloss.NewStyle().Background(bg).Foreground(th.Dim.GetForeground()).Render("…")
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
 	if lw+rw+1 > width {
 		switch {
@@ -161,7 +227,7 @@ func (f Frame) Fit(s string) string {
 // Rule renders a dim horizontal rule spanning the body width plus the 4
 // columns of box border/padding, so it lines up with Box and Panel edges.
 func (f Frame) Rule() string {
-	return theme.Cur().Dim.Render(strings.Repeat("─", f.BodyWidth()+4))
+	return f.Theme().Dim.Render(strings.Repeat("─", f.BodyWidth()+4))
 }
 
 // Header renders a title line followed by a Rule. Detail parts are appended
@@ -169,12 +235,12 @@ func (f Frame) Rule() string {
 // truncated with an ellipsis at the rule's width.
 func (f Frame) Header(title string, detail ...string) string {
 	var head strings.Builder
-	head.WriteString(theme.Cur().Title.Render(title))
+	head.WriteString(f.Theme().Title.Render(title))
 	for _, part := range detail {
 		if strings.TrimSpace(part) == "" {
 			continue
 		}
-		head.WriteString(theme.Cur().Dim.Render("   ·   " + part))
+		head.WriteString(f.Theme().Dim.Render("   ·   " + part))
 	}
 	return ansi.Truncate(head.String(), f.BodyWidth()+4, "…") + "\n" + f.Rule()
 }
@@ -213,9 +279,9 @@ func (f Frame) Box(lines ...string) string {
 }
 
 func (f Frame) boxAt(inner int, lines ...string) string {
-	sty := theme.Cur().Panel
+	sty := f.Theme().Panel
 	if f.Focused {
-		sty = theme.Cur().PanelFocus
+		sty = f.Theme().PanelFocus
 	}
 	return sty.Width(inner + 2).Render(strings.Join(lines, "\n"))
 }
@@ -228,14 +294,14 @@ func (f Frame) Panel(title string, lines ...string) string {
 }
 
 func (f Frame) panelAt(inner int, title string, lines ...string) string {
-	head := theme.Cur().PanelTitle.Render(ansi.Truncate(title, inner, "…"))
+	head := f.Theme().PanelTitle.Render(ansi.Truncate(title, inner, "…"))
 	return f.boxAt(inner, append([]string{head}, lines...)...)
 }
 
 // Row renders a dim label on the left and value on the right, spread across
 // the body width.
 func (f Frame) Row(label, value string) string {
-	return f.Spread(theme.Cur().Dim.Render(label), value)
+	return f.Spread(f.Theme().Dim.Render(label), value)
 }
 
 // HintLine renders key hints as "key label" pairs separated by dim dots,
@@ -244,9 +310,9 @@ func (f Frame) Row(label, value string) string {
 func (f Frame) HintLine(pairs ...keys.Hint) string {
 	parts := make([]string, len(pairs))
 	for i, p := range pairs {
-		parts[i] = theme.Cur().Key.Render(p.Key) + theme.Cur().Dim.Render(" "+p.Label)
+		parts[i] = f.Theme().Key.Render(p.Key) + f.Theme().Dim.Render(" "+p.Label)
 	}
-	sep := theme.Cur().Dim.Render("   ·   ")
+	sep := f.Theme().Dim.Render("   ·   ")
 	var lines []string
 	var line string
 	for _, part := range parts {
@@ -270,9 +336,9 @@ func (f Frame) HintLine(pairs ...keys.Hint) string {
 
 // Cursor returns the two-cell selection marker: "▸ " when selected, otherwise
 // two spaces so unselected rows keep the same indent.
-func Cursor(selected bool) string {
+func (f Frame) Cursor(selected bool) string {
 	if selected {
-		return theme.Cur().Title.Render("▸ ")
+		return f.Theme().Title.Render("▸ ")
 	}
 	return "  "
 }
@@ -280,9 +346,9 @@ func Cursor(selected bool) string {
 // Selectable renders a list row: Cursor marker plus the label, accent-styled
 // when selected and truncated to leave room for the marker.
 func (f Frame) Selectable(label string, selected bool) string {
-	sty := theme.Cur().Val
+	sty := f.Theme().Val
 	if selected {
-		sty = theme.Cur().Accent
+		sty = f.Theme().Accent
 	}
-	return Cursor(selected) + sty.Render(ansi.Truncate(label, f.BodyWidth()-2, "…"))
+	return f.Cursor(selected) + sty.Render(ansi.Truncate(label, f.BodyWidth()-2, "…"))
 }

@@ -16,6 +16,7 @@ var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
 func TestHeaderRendersTitleDetailAndRule(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(DefaultFrame().Header("DASHBOARD", "live status"))
 	if !strings.Contains(out, "DASHBOARD") || !strings.Contains(out, "live status") {
 		t.Fatalf("header missing title or detail:\n%s", out)
@@ -26,6 +27,7 @@ func TestHeaderRendersTitleDetailAndRule(t *testing.T) {
 }
 
 func TestStackSkipsEmptySections(t *testing.T) {
+	t.Parallel()
 	got := Stack("one", "", "two")
 	if got != "one\n\ntwo" {
 		t.Fatalf("Stack = %q, want standard two-section join", got)
@@ -33,6 +35,7 @@ func TestStackSkipsEmptySections(t *testing.T) {
 }
 
 func TestFrameSpreadFitsWidth(t *testing.T) {
+	t.Parallel()
 	f := NewFrame(24)
 	out := f.Spread("a very long label that should not spill", "right")
 	if got := ansi.StringWidth(out); got > f.Width {
@@ -49,6 +52,7 @@ func TestFrameSpreadFitsWidth(t *testing.T) {
 }
 
 func TestFrameHintLineWrapsToWidth(t *testing.T) {
+	t.Parallel()
 	out := NewFrame(24).HintLine(
 		keys.Hint{Key: "enter", Label: "choose"},
 		keys.Hint{Key: "pgup/pgdn", Label: "history"},
@@ -65,6 +69,7 @@ func TestFrameHintLineWrapsToWidth(t *testing.T) {
 }
 
 func TestFrameSelectableTruncatesLabel(t *testing.T) {
+	t.Parallel()
 	out := NewFrame(24).Selectable("a very long selectable label that should fit", true)
 	if got := ansi.StringWidth(out); got > 24 {
 		t.Fatalf("selectable width=%d, want <= 24: %q", got, stripANSI(out))
@@ -72,6 +77,7 @@ func TestFrameSelectableTruncatesLabel(t *testing.T) {
 }
 
 func TestScreenFrameUsesMinimumSupportedWidth(t *testing.T) {
+	t.Parallel()
 	f := ScreenFrame(theme.MinScreenWidth)
 	if f.Width != theme.MinScreenBodyWidth {
 		t.Fatalf("screen frame width=%d, want %d", f.Width, theme.MinScreenBodyWidth)
@@ -82,8 +88,9 @@ func TestScreenFrameUsesMinimumSupportedWidth(t *testing.T) {
 }
 
 func TestTooNarrowFitsCurrentScreenWidth(t *testing.T) {
+	t.Parallel()
 	width := theme.MinScreenWidth - 1
-	out := TooNarrow(width)
+	out := TooNarrowIn(theme.Default(), width)
 	if !strings.Contains(stripANSI(out), "80") || !strings.Contains(stripANSI(out), "79") {
 		t.Fatalf("too-narrow message missing expected dimensions: %q", stripANSI(out))
 	}

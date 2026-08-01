@@ -12,6 +12,7 @@ import (
 
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // goldenPalette pins every colour the digest below depends on, so the golden is
@@ -33,8 +34,8 @@ var goldenPalette = theme.Palette{
 }
 
 // goldenPanelCases is a deterministic matrix of finite-input renders across the
-// numeric panels the NaN/Inf hardening touched.
-func goldenPanelCases() []struct{ name, out string } {
+// numeric panels the NaN/Inf hardening touched, rendered through scope.
+func goldenPanelCases(scope *ui.Scope) []struct{ name, out string } {
 	datasets := map[string][]Datum{
 		"empty":    {},
 		"single":   {{"only", 1}},
@@ -62,7 +63,7 @@ func goldenPanelCases() []struct{ name, out string } {
 		cases = append(cases, struct{ name, out string }{name, out})
 	}
 	for _, width := range []int{24, 40, 81} {
-		f := layout.NewFrame(width)
+		f := layout.NewFrame(width).WithUI(scope)
 		for _, dk := range dataOrder {
 			data := datasets[dk]
 			for _, bw := range []int{1, 5, 20} {
@@ -92,15 +93,12 @@ func TestPanelRenderingIsByteStable(t *testing.T) {
 	)
 
 	prevProfile := lipgloss.ColorProfile()
-	prevTheme := theme.Cur()
-	t.Cleanup(func() {
-		theme.Use(prevTheme)
-		lipgloss.SetColorProfile(prevProfile)
-	})
+	t.Cleanup(func() { lipgloss.SetColorProfile(prevProfile) })
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	theme.Use(theme.New(goldenPalette))
 
-	cases := goldenPanelCases()
+	scope := ui.Default()
+	scope.Theme = theme.New(goldenPalette)
+	cases := goldenPanelCases(scope)
 	if len(cases) != goldenPanelCount {
 		t.Fatalf("case matrix has %d cases, want %d — update goldenPanelCount and the digest together",
 			len(cases), goldenPanelCount)

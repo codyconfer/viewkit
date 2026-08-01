@@ -5,7 +5,7 @@ description: >-
   input loop. Use when wiring layout.Registry, layout.ScreenSpec, BuildScreen,
   Screen.Render, the focus ring (Ring.At/Step), a keys.Map action-switch in
   handleKey, or assembling a view() with layout.Stack + Frame helpers +
-  theme.Screen. Covers the register→spec→build data-driven screen pattern and the
+  Theme.Screen. Covers the register→spec→build data-driven screen pattern and the
   build-with-default-fallback resilience trick.
 ---
 
@@ -54,7 +54,8 @@ same in any Bubble Tea app: `Update` routes keys, `View` returns a string.
 
 ## Input: keymap + action-switch
 
-Get a `*keys.Map` from a per-screen constructor (layered on `keys.Cur()` — see
+Get a `*keys.Map` from a per-screen constructor (layered on the scope's scheme,
+`m.UI().Keys` / `keys.Default()` — see
 **viewkit-keys**), resolve the input, then switch on the semantic action:
 
 ```go
@@ -109,11 +110,12 @@ At the very top level (the model's `View()`), guard width and paint the backgrou
 
 ```go
 func (m Model) View() string {
+    th := m.ui.Theme                    // m.ui *ui.Scope, set at construction
     if !layout.FitsScreenWidth(m.width) {
-        return theme.Screen(theme.AppFrame.Render(layout.TooNarrow(m.width)), m.width, m.height)
+        return th.Screen(th.AppFrame.Render(layout.TooNarrowIn(th, m.width)), m.width, m.height)
     }
-    body := theme.AppFrame.Render(layout.ViewportLayout(m.screen.view(&m), layout.ContentRows(m.height), m.pageScroll))
-    return theme.Screen(body, m.width, m.height)
+    body := th.AppFrame.Render(layout.ViewportLayout(m.screen.view(&m), layout.ContentRows(m.height), m.pageScroll))
+    return th.Screen(body, m.width, m.height)
 }
 ```
 
@@ -130,6 +132,6 @@ func (m Model) View() string {
 `go build ./...`; run the app or a render test (**viewkit-test**) and confirm: the
 screen composes, tab cycles focus across interactive panes, a bad saved spec falls
 back to default rather than blanking, and short/narrow terminals degrade (tiers /
-`TooNarrow`). `go test ./...` from the repo root.
+`TooNarrowIn`). `go test ./...` from the repo root.
 
 Full API: see the `viewkit` skill's [references/api.md](../viewkit/references/api.md).

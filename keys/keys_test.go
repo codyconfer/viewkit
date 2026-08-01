@@ -3,6 +3,7 @@ package keys
 import "testing"
 
 func TestMapResolvesAliases(t *testing.T) {
+	t.Parallel()
 	m := NewMap(
 		Binding{Keys: []string{"up", "k"}, Action: Up, Glyph: "↑/↓/j/k"},
 		Binding{Keys: []string{"down", "j"}, Action: Down},
@@ -21,6 +22,7 @@ func TestMapResolvesAliases(t *testing.T) {
 }
 
 func TestMatcherOnlyBindingEmitsNoHint(t *testing.T) {
+	t.Parallel()
 	m := NewMap(
 		Binding{Keys: []string{"up", "k"}, Action: Up, Glyph: "↑/↓/j/k", Label: "select"},
 		Binding{Keys: []string{"down", "j"}, Action: Down},
@@ -38,6 +40,7 @@ func TestMatcherOnlyBindingEmitsNoHint(t *testing.T) {
 }
 
 func TestDisplayGlyphFallsBackToKeys(t *testing.T) {
+	t.Parallel()
 	b := Binding{Keys: []string{"y", "z"}, Action: Confirm}
 	if got := b.DisplayGlyph(); got != "y/z" {
 		t.Fatalf("DisplayGlyph = %q; want y/z", got)
@@ -45,6 +48,7 @@ func TestDisplayGlyphFallsBackToKeys(t *testing.T) {
 }
 
 func TestHintLabeledOverridesLabel(t *testing.T) {
+	t.Parallel()
 	m := NewMap(Binding{Keys: []string{"up"}, Action: Up, Glyph: "↑/↓/j/k", Label: "select"})
 	if got := m.HintLabeled(Up, "scroll feed"); got != (Hint{Key: "↑/↓/j/k", Label: "scroll feed"}) {
 		t.Fatalf("HintLabeled = %v; want [↑/↓/j/k scroll feed]", got)
@@ -52,6 +56,7 @@ func TestHintLabeledOverridesLabel(t *testing.T) {
 }
 
 func TestSchemeWithOverridesAreConfigurable(t *testing.T) {
+	t.Parallel()
 	sc := Default().With(Binding{Keys: []string{"w"}, Action: Up, Glyph: "w"})
 	m := NewMap(sc.Binding(Up))
 	if a, ok := m.Action("w"); !ok || a != Up {
@@ -64,6 +69,7 @@ func TestSchemeWithOverridesAreConfigurable(t *testing.T) {
 }
 
 func TestNamedReturnsRegisteredScheme(t *testing.T) {
+	t.Parallel()
 	if _, ok := Named("default"); !ok {
 		t.Fatal("Named(default) not found")
 	}
@@ -73,6 +79,7 @@ func TestNamedReturnsRegisteredScheme(t *testing.T) {
 }
 
 func TestKeysDefaultFirst(t *testing.T) {
+	t.Parallel()
 	keys := Keys()
 	if len(keys) == 0 || keys[0] != "default" {
 		t.Fatalf("Keys() = %v, want default first", keys)

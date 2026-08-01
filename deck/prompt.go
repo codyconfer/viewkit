@@ -9,7 +9,7 @@ import (
 	"github.com/codyconfer/viewkit/forms"
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // PromptSpec configures a one-shot form prompt. It is the Editor's shape
@@ -30,9 +30,11 @@ type PromptSpec struct {
 	// Save is the action that submits. It defaults to keys.Confirm when left
 	// empty; hosts with a save binding of their own pass it here.
 	Save keys.Action
-	// Keys resolves keys. A nil Map falls back to the active scheme's editor
+	// Keys resolves keys. A nil Map falls back to the scope's editor
 	// bindings, like FormView.
 	Keys *keys.Map
+	// UI is the rendering scope; nil snapshots the process defaults.
+	UI *ui.Scope
 }
 
 // ErrCancelled reports that the user dismissed a prompt without submitting.
@@ -48,7 +50,11 @@ func Prompt(spec PromptSpec) (map[string]any, error) {
 	if seed == nil {
 		seed = map[string]any{}
 	}
-	m := &promptModel{spec: spec, sticky: seed}
+	scope := spec.UI
+	if scope == nil {
+		scope = ui.Default()
+	}
+	m := &promptModel{spec: spec, sticky: seed, scope: scope}
 	m.form = forms.NewForm(spec.Fields(seed)...)
 
 	out, runErr := tea.NewProgram(m).Run()
@@ -66,6 +72,7 @@ type promptModel struct {
 	spec      PromptSpec
 	form      *forms.Form
 	sticky    map[string]any
+	scope     *ui.Scope
 	submitted bool
 }
 
@@ -75,7 +82,7 @@ func (m *promptModel) keyMap() *keys.Map {
 	if m.spec.Keys != nil {
 		return m.spec.Keys
 	}
-	return formMap()
+	return formMapFor(m.scope.Keys)
 }
 
 func (m *promptModel) save() keys.Action {
@@ -128,7 +135,7 @@ func (m *promptModel) resync() {
 }
 
 func (m *promptModel) View() string {
-	f := layout.DocumentFrame()
-	hint := theme.Cur().Dim.Render("↑/↓ field · tab accept · ctrl+n/ctrl+p suggestion · esc cancel")
+	f := layout.DocumentFrame().WithUI(m.scope)
+	hint := m.scope.Theme.Dim.Render("↑/↓ field · tab accept · ctrl+n/ctrl+p suggestion · esc cancel")
 	return m.form.Render(f, m.spec.Title) + "\n" + hint + "\n"
 }

@@ -6,6 +6,7 @@ import (
 )
 
 func TestOverlayCenters(t *testing.T) {
+	t.Parallel()
 	bg := strings.Repeat(".....\n", 5)
 	bg = strings.TrimRight(bg, "\n")
 	fg := "#\n#\n#"
@@ -28,6 +29,7 @@ func TestOverlayCenters(t *testing.T) {
 }
 
 func TestOverlayTopLeft(t *testing.T) {
+	t.Parallel()
 	bg := "....\n....\n...."
 	fg := "AB\nCD"
 	out := Overlay(bg, fg, OverlayPos{XFrac: 0, YFrac: 0})
@@ -38,6 +40,7 @@ func TestOverlayTopLeft(t *testing.T) {
 }
 
 func TestOverlayBottomRight(t *testing.T) {
+	t.Parallel()
 	bg := "....\n....\n...."
 	fg := "XY"
 	out := Overlay(bg, fg, OverlayPos{XFrac: 1, YFrac: 1})
@@ -48,6 +51,7 @@ func TestOverlayBottomRight(t *testing.T) {
 }
 
 func TestOverlayRaggedForegroundPadsToBox(t *testing.T) {
+	t.Parallel()
 	bg := "........\n........\n........"
 	fg := "long\nx"
 	out := Overlay(bg, fg, OverlayPos{XFrac: 0, YFrac: 0})
@@ -59,6 +63,7 @@ func TestOverlayRaggedForegroundPadsToBox(t *testing.T) {
 }
 
 func TestOverlayLargerThanBackgroundGrows(t *testing.T) {
+	t.Parallel()
 	bg := "."
 	fg := "AA\nBB\nCC"
 	out := Overlay(bg, fg)

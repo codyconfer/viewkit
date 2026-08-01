@@ -13,6 +13,7 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 const statusRefreshInterval = 60 * time.Second
@@ -51,14 +52,24 @@ func WithoutClock() Option {
 	return func(h *Model) { h.noClock = true }
 }
 
-// WithKeyMapQuit installs a quit matcher from keys.Cur() Quit binding.
-// This is also the default; the option remains for explicit call sites.
-func WithKeyMapQuit() Option {
-	return func(h *Model) { h.quitCheck = schemeQuit }
+// WithScope installs the rendering scope (theme, keys, glyphs). Defaults to
+// ui.Default(); swap at runtime with SetScope.
+func WithScope(scope *ui.Scope) Option {
+	return func(h *Model) {
+		if scope != nil {
+			h.ui = scope
+		}
+	}
 }
 
-func schemeQuit(k string) bool {
-	return slices.Contains(keys.Cur().Binding(keys.Quit).Keys, k)
+// WithKeyMapQuit installs a quit matcher from the scope's Quit binding.
+// This is also the default; the option remains for explicit call sites.
+func WithKeyMapQuit() Option {
+	return func(h *Model) { h.quitCheck = h.schemeQuit }
+}
+
+func (h *Model) schemeQuit(k string) bool {
+	return slices.Contains(h.ui.Keys.Binding(keys.Quit).Keys, k)
 }
 
 // KeyHook handles a key before the top view. Return handled=true to skip
@@ -120,6 +131,23 @@ type Model struct {
 	msgHook   MsgHook
 	initCmds  []tea.Cmd
 	noClock   bool
+	ui        *ui.Scope
+}
+
+// UI returns the model's rendering scope; nil on a nil Model.
+func (h *Model) UI() *ui.Scope {
+	if h == nil {
+		return nil
+	}
+	return h.ui
+}
+
+// SetScope swaps the rendering scope and returns the resize command that
+// makes every view rebind; run it, or the top view keeps its old styles.
+// Scopes are immutable — always swap, never mutate.
+func (h *Model) SetScope(scope *ui.Scope) tea.Cmd {
+	h.ui = scope
+	return h.resizeCmd()
 }
 
 // New builds a Model with root view.
@@ -131,8 +159,9 @@ func New(root View, opts ...Option) *Model {
 			Brand:    "APP",
 			Subtitle: "deck",
 		},
-		quitCheck: schemeQuit,
+		ui: ui.Default(),
 	}
+	h.quitCheck = h.schemeQuit
 	for _, o := range opts {
 		o(h)
 	}
@@ -269,28 +298,29 @@ func (h *Model) View() string {
 		return "initializing deck…"
 	}
 	if !layout.FitsScreenWidth(h.width) {
-		return theme.AppMargin(layout.TooNarrow(h.width))
+		return theme.AppMargin(layout.TooNarrowIn(h.ui.Theme, h.width))
 	}
 	v := h.top()
 	header := h.header(v)
 	footer := h.footer(v)
 	bodyHeight := max(h.height-layout.CountLines(header)-layout.CountLines(footer)-2, 1)
-	body := layout.FillHeight(v.Body(h.width, bodyHeight), bodyHeight)
+	f := layout.Frame{Width: h.width, Height: bodyHeight, UI: h.ui}
+	body := layout.FillHeight(v.Body(f), bodyHeight)
 	return theme.AppMargin(layout.Stack(header, body, footer))
 }
 
 func (h *Model) header(v View) string {
-	f := layout.ScreenFrame(h.width)
+	f := layout.ScreenFrame(h.width).WithUI(h.ui)
 	full := f.BodyWidth() + 4
-	th := theme.Cur()
+	th := h.ui.Theme
 	muted := th.Dim.GetForeground()
 	label := h.chrome.Brand
 	if h.chrome.BrandGlyph != "" {
 		label = h.chrome.BrandGlyph + " " + h.chrome.Brand
 	}
-	brand := st(muted, " ") + sb(th.Accent.GetForeground(), label)
+	brand := st(th, muted, " ") + sb(th, th.Accent.GetForeground(), label)
 	if h.chrome.Subtitle != "" {
-		brand += st(muted, " · "+h.chrome.Subtitle)
+		brand += st(th, muted, " · "+h.chrome.Subtitle)
 	}
 	right := ""
 	if !h.noClock {
@@ -298,62 +328,63 @@ func (h *Model) header(v View) string {
 		if clockGlyph != "" {
 			clockGlyph += " "
 		}
-		right = sb(th.Accent.GetForeground(), clockGlyph+h.clock)
+		right = sb(th, th.Accent.GetForeground(), clockGlyph+h.clock)
 	}
 	if h.hasStatus && h.status.Identity != "" {
 		if right == "" {
 			right = h.status.Identity
 		} else {
-			right = h.status.Identity + st(muted, "   ") + right
+			right = h.status.Identity + st(th, muted, "   ") + right
 		}
 	}
-	return theme.StripBlock(full,
-		layout.SpreadBG(theme.StripBg(), brand, right+st(muted, " "), full),
-		layout.SpreadBG(theme.StripBg(), h.breadcrumbs(), h.contextCues(v), full),
+	return th.StripBlock(full,
+		layout.SpreadBGIn(th, th.StripBg(), brand, right+st(th, muted, " "), full),
+		layout.SpreadBGIn(th, th.StripBg(), h.breadcrumbs(), h.contextCues(v), full),
 	)
 }
 
 func (h *Model) breadcrumbs() string {
-	th := theme.Cur()
+	th := h.ui.Theme
 	muted := th.Dim.GetForeground()
-	sep := st(muted, " ⟩ ")
+	sep := st(th, muted, " ⟩ ")
 	parts := make([]string, len(h.stack))
 	for i, v := range h.stack {
 		if i == len(h.stack)-1 {
-			parts[i] = sb(th.Accent.GetForeground(), v.Title())
+			parts[i] = sb(th, th.Accent.GetForeground(), v.Title())
 		} else {
-			parts[i] = st(muted, v.Title())
+			parts[i] = st(th, muted, v.Title())
 		}
 	}
-	return st(muted, " ") + strings.Join(parts, sep)
+	return st(th, muted, " ") + strings.Join(parts, sep)
 }
 
 func (h *Model) contextCues(v View) string {
-	th := theme.Cur()
+	th := h.ui.Theme
 	muted := th.Dim.GetForeground()
 	var parts []string
-	for _, c := range v.Context() {
+	for _, c := range v.Context(h.ui) {
 		if c.Label == "" {
 			continue
 		}
-		parts = append(parts, st(muted, c.Key+": ")+st(th.Val.GetForeground(), c.Label))
+		parts = append(parts, st(th, muted, c.Key+": ")+st(th, th.Val.GetForeground(), c.Label))
 	}
 	if len(parts) == 0 {
 		return ""
 	}
-	return strings.Join(parts, st(muted, " · ")) + st(muted, " ")
+	return strings.Join(parts, st(th, muted, " · ")) + st(th, muted, " ")
 }
 
 func (h *Model) footer(v View) string {
-	f := layout.ScreenFrame(h.width)
+	f := layout.ScreenFrame(h.width).WithUI(h.ui)
 	full := f.BodyWidth() + 4
-	hints := append([]keys.Hint{}, v.Hints()...)
+	th := h.ui.Theme
+	hints := append([]keys.Hint{}, v.Hints(h.ui)...)
 	hints = append(hints,
-		navMap().HintLabeled(keys.Cancel, "back"),
+		navMapFor(h.ui.Keys).HintLabeled(keys.Cancel, "back"),
 		keys.Hint{Key: h.quitGlyph(), Label: "quit"},
 	)
 	legend := layout.IndentLines(f.HintLine(hints...), 1)
-	bar := theme.StripBlock(full, layout.SpreadBG(theme.StripBg(), h.statusSegments(), "", full))
+	bar := th.StripBlock(full, layout.SpreadBGIn(th, th.StripBg(), h.statusSegments(), "", full))
 	return layout.Stack(bar, legend)
 }
 
@@ -361,15 +392,15 @@ func (h *Model) quitGlyph() string {
 	if h.quitHint != "" {
 		return h.quitHint
 	}
-	return keys.Cur().Binding(keys.Quit).DisplayGlyph()
+	return h.ui.Keys.Binding(keys.Quit).DisplayGlyph()
 }
 
 func (h *Model) statusSegments() string {
 	if !h.hasStatus || len(h.status.Services) == 0 {
 		return ""
 	}
-	th := theme.Cur()
-	sep := st(th.Dim.GetForeground(), " · ")
+	th := h.ui.Theme
+	sep := st(th, th.Dim.GetForeground(), " · ")
 	parts := make([]string, 0, len(h.status.Services))
 	for _, s := range h.status.Services {
 		label := s.Name
@@ -378,17 +409,17 @@ func (h *Model) statusSegments() string {
 		}
 		g := s.Glyph
 		if g == "" {
-			g = glyph.Lead(glyph.StatusFor(s.Severity))
+			g = glyph.Lead(h.ui.Glyphs.StatusFor(s.Severity))
 		}
 		g += " "
 		color := s.Color
 		if color == nil {
-			color = theme.SeverityColor(s.Severity)
+			color = th.SeverityColor(s.Severity)
 		}
-		parts = append(parts, st(color, g)+st(th.Val.GetForeground(), label))
+		parts = append(parts, st(th, color, g)+st(th, th.Val.GetForeground(), label))
 	}
-	return st(th.Dim.GetForeground(), " ") + strings.Join(parts, sep)
+	return st(th, th.Dim.GetForeground(), " ") + strings.Join(parts, sep)
 }
 
-func st(fg lipgloss.TerminalColor, s string) string { return theme.StripText(fg, s) }
-func sb(fg lipgloss.TerminalColor, s string) string { return theme.StripBold(fg, s) }
+func st(th theme.Theme, fg lipgloss.TerminalColor, s string) string { return th.StripText(fg, s) }
+func sb(th theme.Theme, fg lipgloss.TerminalColor, s string) string { return th.StripBold(fg, s) }

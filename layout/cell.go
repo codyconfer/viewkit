@@ -1,7 +1,5 @@
 package layout
 
-import "github.com/codyconfer/viewkit/theme"
-
 // CellBox renders a bordered box that fills exactly f.Width columns: the
 // border and padding cost 4 columns, so the body is f.Width-4. Unlike
 // NewFrame, a cell narrower than theme.MinBodyWidth+4 clamps the body *down*
@@ -19,7 +17,7 @@ func (f Frame) CellPanel(title string, lines []string, offset int) string {
 	}
 	body := lines
 	if window, footer, ok := scrollWindow(lines, rows, offset); ok {
-		body = append(append(make([]string, 0, len(window)+1), window...), theme.Cur().Dim.Render(footer))
+		body = append(append(make([]string, 0, len(window)+1), window...), f.Theme().Dim.Render(footer))
 	}
 	return f.fitCell(f.panelAt(f.cellBody(), title, body...))
 }

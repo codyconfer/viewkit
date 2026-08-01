@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+
+	"github.com/codyconfer/viewkit/layout"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 func newTestWork(labels ...string) *workModel {
@@ -16,6 +19,7 @@ func newTestWork(labels ...string) *workModel {
 		panels: make([]jobPanel, len(labels)),
 		spin:   spinner.New(),
 		left:   len(labels),
+		ui:     ui.Default(),
 	}
 	for i, l := range labels {
 		m.panels[i].label = l
@@ -134,7 +138,7 @@ func TestCollectErrgroupOrder(t *testing.T) {
 	if n.Load() != 2 {
 		t.Fatalf("ran %d jobs", n.Load())
 	}
-	if out[0].Render(0) != "A" || out[1].Render(0) != "B" {
+	if out[0].Render(layout.Frame{}) != "A" || out[1].Render(layout.Frame{}) != "B" {
 		t.Fatalf("order wrong: %#v %#v", out[0], out[1])
 	}
 }

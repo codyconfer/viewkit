@@ -1,12 +1,17 @@
 package layout
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/codyconfer/viewkit/theme"
+)
 
 // ViewportLayout scrolls body inside rows of height while keeping a sticky
-// footer pinned to the bottom. The footer is whatever follows the last blank
-// line (see SplitStickyFooter); only the content above it scrolls with offset.
-// If the footer alone fills the budget the content is dropped entirely, and
-// rows <= 0 returns the body unscrolled.
+// footer pinned to the bottom, hint lines styled with the built-in default
+// theme. The footer is whatever follows the last blank line (see
+// SplitStickyFooter); only the content above it scrolls with offset. If the
+// footer alone fills the budget the content is dropped entirely, and rows <= 0
+// returns the body unscrolled.
 func ViewportLayout(body string, rows, offset int) string {
 	if rows <= 0 {
 		return body
@@ -14,12 +19,12 @@ func ViewportLayout(body string, rows, offset int) string {
 
 	content, footer := SplitStickyFooter(body)
 	if footer == "" {
-		return Viewport(body, rows, offset)
+		return viewportIn(theme.Default(), body, rows, offset)
 	}
 
 	footerRows := CountLines(footer)
 	if footerRows >= rows {
-		return Viewport(footer, rows, 0)
+		return viewportIn(theme.Default(), footer, rows, 0)
 	}
 
 	contentRows := rows - footerRows
@@ -31,7 +36,7 @@ func ViewportLayout(body string, rows, offset int) string {
 
 	contentView := ""
 	if contentRows > 0 && content != "" {
-		contentView = Viewport(content, contentRows, offset)
+		contentView = viewportIn(theme.Default(), content, contentRows, offset)
 		contentView = PadLines(contentView, contentRows)
 	}
 

@@ -6,6 +6,7 @@ import (
 )
 
 func TestFlexColumnsBreakpoints(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		width int
 		want  int
@@ -22,6 +23,7 @@ func TestFlexColumnsBreakpoints(t *testing.T) {
 }
 
 func TestFlexColumnsDefaults(t *testing.T) {
+	t.Parallel()
 	if got := FlexColCount(120, 0, 0); got != 3 {
 		t.Fatalf("FlexColumns with zero opts = %d, want 3 (defaults 40/4, width still fits 3)", got)
 	}
@@ -45,6 +47,7 @@ func topBorderCount(out string) int {
 }
 
 func TestFlexGridReactiveColumnCount(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -75,6 +78,7 @@ func TestFlexGridReactiveColumnCount(t *testing.T) {
 }
 
 func TestFlexGridReflowDemo(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -89,6 +93,7 @@ func TestFlexGridReflowDemo(t *testing.T) {
 }
 
 func TestFlexGridNeverExceedsPaneCount(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes:  []Pane{flexBoxPane("solo")},
@@ -105,6 +110,7 @@ func TestFlexGridNeverExceedsPaneCount(t *testing.T) {
 }
 
 func TestFlexGridStacksAllPanesWhenSingleColumn(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -122,6 +128,7 @@ func TestFlexGridStacksAllPanesWhenSingleColumn(t *testing.T) {
 }
 
 func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexRows{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 2}},
 		Panes:  []Pane{flexBoxPane("a"), flexBoxPane("b"), flexBoxPane("c")},
@@ -158,6 +165,7 @@ func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
 }
 
 func TestFlexRowsReflowDemo(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexRows{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -173,6 +181,7 @@ func TestFlexRowsReflowDemo(t *testing.T) {
 }
 
 func TestFlexDefaultAllowsFourColumns(t *testing.T) {
+	t.Parallel()
 	if got := FlexColCount(160, 0, 0); got != 4 {
 		t.Fatalf("FlexColCount(160,0,0) = %d, want 4 with default max 4", got)
 	}

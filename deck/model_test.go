@@ -9,7 +9,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 type stubView struct{ title string }
@@ -17,13 +19,13 @@ type stubView struct{ title string }
 func (s stubView) Title() string                  { return s.title }
 func (s stubView) Init() tea.Cmd                  { return nil }
 func (s stubView) Update(*Model, tea.Msg) tea.Cmd { return nil }
-func (s stubView) Body(int, int) string           { return "body" }
-func (s stubView) Hints() []keys.Hint             { return nil }
-func (s stubView) Context() []keys.Hint           { return nil }
+func (s stubView) Body(layout.Frame) string       { return "body" }
+func (s stubView) Hints(*ui.Scope) []keys.Hint    { return nil }
+func (s stubView) Context(*ui.Scope) []keys.Hint  { return nil }
 
 type stubComp struct{}
 
-func (stubComp) Render(int, int) string { return "c" }
+func (stubComp) Render(layout.Frame) string { return "c" }
 
 func TestRegisterView(t *testing.T) {
 	registryScope(t)
@@ -41,7 +43,7 @@ func TestRegisterComponent(t *testing.T) {
 	registryScope(t)
 	RegisterComponent("test.comp", func() Component { return stubComp{} })
 	c, ok := NamedComponent("test.comp")
-	if !ok || c.Render(1, 1) != "c" {
+	if !ok || c.Render(layout.Frame{Width: 1, Height: 1}) != "c" {
 		t.Fatal("component lookup")
 	}
 	if got := ComponentKeys(); len(got) != 1 || got[0] != "test.comp" {
@@ -191,7 +193,7 @@ type ctxView struct {
 	ctx []keys.Hint
 }
 
-func (c ctxView) Context() []keys.Hint { return c.ctx }
+func (c ctxView) Context(*ui.Scope) []keys.Hint { return c.ctx }
 
 func TestHostHeaderStripRowsAlign(t *testing.T) {
 	const width = 100

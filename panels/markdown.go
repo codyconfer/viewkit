@@ -30,7 +30,7 @@ var (
 // through as plain text.
 func Markdown(f layout.Frame, src string) string {
 	width := f.BodyWidth()
-	t := theme.Cur()
+	t := f.Theme()
 
 	var out []string
 	inCode := false
@@ -59,17 +59,17 @@ func Markdown(f layout.Frame, src string) string {
 		case strings.HasPrefix(trimmed, "# "):
 			out = append(out, t.Title.Bold(true).Render(ansi.Truncate(strings.TrimPrefix(trimmed, "# "), width, "…")))
 		case strings.HasPrefix(trimmed, "> "):
-			body := mdInline(strings.TrimPrefix(trimmed, "> "))
+			body := mdInline(t, strings.TrimPrefix(trimmed, "> "))
 			out = append(out, wrapInline(t.Dim.Render("┃ "), body, width)...)
 		case strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* "):
-			body := mdInline(trimmed[2:])
+			body := mdInline(t, trimmed[2:])
 			out = append(out, wrapInline(t.Accent.Render("• "), body, width)...)
 		case mdOrdered.MatchString(trimmed):
 			mset := mdOrdered.FindStringSubmatch(trimmed)
-			body := mdInline(mset[2])
+			body := mdInline(t, mset[2])
 			out = append(out, wrapInline(t.Accent.Render(mset[1]+". "), body, width)...)
 		default:
-			out = append(out, wrapInline("", mdInline(trimmed), width)...)
+			out = append(out, wrapInline("", mdInline(t, trimmed), width)...)
 		}
 	}
 	return strings.Join(out, "\n")
@@ -147,11 +147,10 @@ func reLiterals(re *regexp.Regexp) []rune {
 	return out
 }
 
-func mdInline(s string) string {
+func mdInline(t theme.Theme, s string) string {
 	if !strings.ContainsAny(s, mdMarkers) {
 		return s
 	}
-	t := theme.Cur()
 	for _, p := range mdInlinePasses {
 		s = mdReplace(s, p.re, t, p.render)
 	}

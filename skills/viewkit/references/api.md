@@ -7,16 +7,25 @@ the source; the `_test.go` files in each package are the best runnable examples.
 
 ### Frame (the render context)
 ```go
-type Frame struct { Width, Height int; Focused bool }
+type Frame struct { Width, Height int; Focused bool; UI *ui.Scope }
 
 func NewFrame(width int) Frame        // clamps to [theme.MinBodyWidth, …]
 func DefaultFrame() Frame             // NewFrame(theme.BodyWidth)
+func (f Frame) WithUI(scope *ui.Scope) Frame  // carry the rendering scope
+func (f Frame) WithWidth(width int) Frame     // keeps the scope
+func (f Frame) Screen() Frame
 func (f Frame) Focus() Frame          // returns copy with Focused=true
 func (f Frame) WithHeight(h int) Frame
 func (f Frame) BodyWidth() int
+
+// Scope accessors — built-in defaults when UI is nil:
+func (f Frame) Theme() theme.Theme
+func (f Frame) Scheme() keys.Scheme
+func (f Frame) Glyphs() glyph.Set
+var StrictScope bool                  // test hook: nil-UI reads panic when true
 ```
 
-### Structural helpers (free fn = default width; method = frame width)
+### Structural helpers
 ```go
 func (f Frame) Header(title string, detail ...string) string  // title + rule
 func (f Frame) Rule() string
@@ -26,13 +35,14 @@ func (f Frame) Row(label, value string) string                // dim label ⟷ v
 func (f Frame) Spread(left, right string) string              // left …… right
 func (f Frame) Fit(s string) string                           // truncate to width
 func (f Frame) Selectable(label string, selected bool) string // "▸ " cursor + label
-func (f Frame) HintLine(pairs ...[2]string) string            // wrapping key legend
+func (f Frame) HintLine(pairs ...keys.Hint) string            // wrapping key legend
+func (f Frame) Cursor(selected bool) string
 func (f Frame) CellBox(title string, lines ...string) string
 func (f Frame) CellPanel(title string, lines []string, offset int) string
 
 func Stack(sections ...string) string       // join non-empty with "\n\n"
 func StackTight(sections ...string) string  // join non-empty with "\n"
-func Cursor(selected bool) string
+func SpreadBGIn(th theme.Theme, bg lipgloss.TerminalColor, left, right string, width int) string
 ```
 
 ### Tiers (responsive height)
@@ -119,8 +129,9 @@ func (s *ScrollState) Reveal(index, total, rows int)
 func ScrollPanel(title string, lines []string, rows, offset int) string
 func (f Frame) ScrollPanel(title string, lines []string, rows, offset int) string
 func (f Frame) ScrollPanelWithPrefix(title string, prefix, lines []string, rows, offset int) string
-func Viewport(body string, rows, offset int) string
-func ViewportLayout(body string, rows, offset int) string
+func (f Frame) Viewport(body string, rows, offset int) string // hint styled with f.Theme()
+func ViewportContentRows(rows int) int
+func ViewportLayout(body string, rows, offset int) string     // hints use the built-in default theme
 func ScrollableBody(body string, rows int) string
 func SplitStickyFooter(body string) (content, footer string)
 func PadLines(body string, rows int) string
@@ -128,7 +139,8 @@ func CountLines(s string) int
 
 func FitsScreenWidth(screenWidth int) bool
 func ScreenFrame(screenWidth int) Frame
-func TooNarrow(screenWidth int) string
+func FrameFor(w io.Writer) Frame
+func TooNarrowIn(t theme.Theme, screenWidth int) string
 
 type OverlayPos struct { XFrac, YFrac float64 }
 var Center OverlayPos
@@ -179,9 +191,20 @@ func NotificationCard(f layout.Frame, n notify.Notification) string
 func NotificationOverlay(bg string, f layout.Frame, n notify.Notification, pos ...layout.OverlayPos) string
 ```
 
+## ui — `github.com/codyconfer/viewkit/ui`
+```go
+// Scope is one program's rendering context — immutable after construction;
+// swap the pointer to change appearance. No process state to install.
+type Scope struct { Theme theme.Theme; Keys keys.Scheme; Glyphs glyph.Set }
+func Default() *Scope   // built-in default theme, scheme, and glyph set
+
+func (s *Scope) Success(msg string) string  // success-colored check + msg
+func (s *Scope) Bullet(msg string) string   // accent-colored bullet + msg
+```
+
 ## theme — `github.com/codyconfer/viewkit/theme`
 ```go
-type Palette struct { Accent, Border, Muted, Text, Selected, Success, Warning, Failure, Info, Series2, Bg lipgloss.Color }
+type Palette struct { Accent, Border, Muted, Text, Selected, Success, Warning, Failure, Info, Series2, Series3, Bg lipgloss.Color }
 type Theme struct { Title, Accent, Dim, Val, Key, Can, Cant lipgloss.Style
                     Panel, PanelFocus, PanelTitle, Card, AppFrame lipgloss.Style
                     NotifPositive, NotifNeutral, NotifWarning, NotifNegative, NotifIdle, NotifTitle lipgloss.Style
@@ -189,19 +212,26 @@ type Theme struct { Title, Accent, Dim, Val, Key, Can, Cant lipgloss.Style
                     TooNarrowTitle, TooNarrowNeed, TooNarrowBody string }
 
 func New(p Palette) Theme
-func Default() Theme          // "Default"
-func Cur() *Theme
-func Use(t Theme)             // installs + syncs exported style vars
-
-// exported style vars synced by Use():
-// TitleSty, AccentSty, DimSty, ValSty, KeySty, CanSty, CantSty, AppFrame,
-// PanelSty, PanelFocusSty, PanelTitleSty, CardSty, Notif*Sty, Series
+func Default() Theme          // memoized built-in default
 
 func Keys() []string                       // named-palette keys
 func Named(key string) (Theme, bool)       // false ⇒ returns Default()
 func DisplayName(key string) string
-func Register(key, name string, p Palette) // add/replace a named palette
-func Screen(body string, width, height int) string  // paints background
+func Register(key, name string, p Palette) // add/replace a named palette; concurrency-safe
+
+func (t Theme) Screen(body string, width, height int) string  // paints background
+func (t Theme) SeverityStyle(s glyph.Severity) lipgloss.Style
+func (t Theme) SeverityColor(s glyph.Severity) lipgloss.TerminalColor
+func (t Theme) StripBg() lipgloss.TerminalColor
+func (t Theme) StripText(fg lipgloss.TerminalColor, s string) string
+func (t Theme) StripBold(fg lipgloss.TerminalColor, s string) string
+func (t Theme) StripBlock(width int, lines ...string) string
+func (t Theme) Icon(icon string, hue int) string
+func IconBlank() string
+
+func AppMargin(body string) string
+func FillLine(c lipgloss.TerminalColor, width int) string
+func PadBlock(c lipgloss.TerminalColor, width, rows int, lines ...string) string
 
 // layout-contract constants (NOT part of Theme):
 // BodyWidth=81, MinBodyWidth=24, MinScreenWidth=80, MinBodyHeight=35,
@@ -220,24 +250,26 @@ func (b Binding) WithGlyph(g string) Binding
 func (b Binding) WithLabel(l string) Binding
 
 type Scheme
-func Default() Scheme
-func Cur() Scheme                 // value, not pointer
-func Use(s Scheme)
+func Default() Scheme             // memoized built-in default
 func (s Scheme) Binding(a Action) Binding
 func (s Scheme) With(overrides ...Binding) Scheme
+func (s Scheme) WithDefaults(defaults ...Binding) Scheme
+func (s Scheme) MapFor(actions ...Action) *Map
 
-func Register(key, name string, s Scheme)  // add/replace a named scheme
+func Register(key, name string, s Scheme)  // add/replace a named scheme; concurrency-safe
 func Keys() []string                       // named-scheme keys
 func Named(key string) (Scheme, bool)      // false ⇒ returns Default()
 func DisplayName(key string) string
+
+type Hint struct { Key, Label string }     // one footer-legend entry
 
 type Map
 func NewMap(bindings ...Binding) *Map
 func (m *Map) Action(input string) (Action, bool)
 func (m *Map) Has(a Action) bool
-func (m *Map) Hint(a Action) [2]string
-func (m *Map) HintLabeled(a Action, label string) [2]string
-func (m *Map) Hints(actions ...Action) [][2]string  // only bindings with a Glyph
+func (m *Map) Hint(a Action) Hint
+func (m *Map) HintLabeled(a Action, label string) Hint
+func (m *Map) Hints(actions ...Action) []Hint  // only bindings with a Glyph
 ```
 
 ## forms — `github.com/codyconfer/viewkit/forms`

@@ -6,6 +6,7 @@ import (
 )
 
 func TestNormalizeFoldsCaseAndTrims(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in   string
 		want string
@@ -29,6 +30,7 @@ func TestNormalizeFoldsCaseAndTrims(t *testing.T) {
 }
 
 func TestResolveExactAndFuzzyHits(t *testing.T) {
+	t.Parallel()
 	binds := map[string]string{
 		"ctrl+s":  "save",
 		" F5 ":    "  reload  ",
@@ -61,6 +63,7 @@ func TestResolveExactAndFuzzyHits(t *testing.T) {
 }
 
 func TestResolveTrimsTargetAndRejectsBlankTargets(t *testing.T) {
+	t.Parallel()
 	binds := map[string]string{
 		"a":       "  run  ",
 		"b":       "",
@@ -91,6 +94,7 @@ func TestResolveTrimsTargetAndRejectsBlankTargets(t *testing.T) {
 }
 
 func TestResolveEmptyTable(t *testing.T) {
+	t.Parallel()
 	for _, binds := range []map[string]string{nil, {}} {
 		if target, ok := Resolve(binds, "ctrl+s"); ok || target != "" {
 			t.Errorf("Resolve(%#v, ctrl+s) = (%q, %v), want (\"\", false)", binds, target, ok)
@@ -99,6 +103,7 @@ func TestResolveEmptyTable(t *testing.T) {
 }
 
 func TestResolveDoesNotMutateTable(t *testing.T) {
+	t.Parallel()
 	binds := map[string]string{" F5 ": "  reload  "}
 	if _, ok := Resolve(binds, "f5"); !ok {
 		t.Fatal("Resolve(f5) missed")
@@ -112,6 +117,7 @@ func TestResolveDoesNotMutateTable(t *testing.T) {
 }
 
 func TestControlKeysDropsSingleRunes(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		in   []string
@@ -136,12 +142,14 @@ func TestControlKeysDropsSingleRunes(t *testing.T) {
 }
 
 func TestControlKeysCountsRunesNotBytes(t *testing.T) {
+	t.Parallel()
 	if got := controlKeys([]string{"é"}); len(got) != 0 {
 		t.Errorf("controlKeys([é]) = %q, want empty (é is one rune, two bytes)", got)
 	}
 }
 
 func TestControlKeysEmptyInputReturnsNonNilSlice(t *testing.T) {
+	t.Parallel()
 	for _, in := range [][]string{nil, {}} {
 		got := controlKeys(in)
 		if got == nil {
@@ -154,6 +162,7 @@ func TestControlKeysEmptyInputReturnsNonNilSlice(t *testing.T) {
 }
 
 func TestControlKeysDoesNotMutateInput(t *testing.T) {
+	t.Parallel()
 	in := []string{"tab", "q", "esc"}
 	before := slices.Clone(in)
 	controlKeys(in)
@@ -163,6 +172,7 @@ func TestControlKeysDoesNotMutateInput(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsKeepsOnlyControlKeys(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	got := s.EditorBindings(Confirm, FocusNext, Cancel)
 
@@ -188,6 +198,7 @@ func TestSchemeEditorBindingsKeepsOnlyControlKeys(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsOmitsSingleCharOnlyActions(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	if got := s.EditorBindings(Inc, Dec); len(got) != 0 {
 		t.Fatalf("EditorBindings(Inc, Dec) = %+v, want none (every key is a single character)", got)
@@ -211,6 +222,7 @@ func TestSchemeEditorBindingsOmitsSingleCharOnlyActions(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsFollowsArgumentOrder(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	got := s.EditorBindings(Cancel, FocusNext, Quit)
 	want := []Action{Cancel, FocusNext, Quit}
@@ -228,6 +240,7 @@ func TestSchemeEditorBindingsFollowsArgumentOrder(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsNoArgsAndUnknownAction(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	if got := s.EditorBindings(); got == nil || len(got) != 0 {
 		t.Errorf("EditorBindings() = %#v, want empty non-nil slice", got)
@@ -238,6 +251,7 @@ func TestSchemeEditorBindingsNoArgsAndUnknownAction(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsKeepsGlyphAndLabel(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	got := s.EditorBindings(FocusNext)
 	if len(got) != 1 {
@@ -252,6 +266,7 @@ func TestSchemeEditorBindingsKeepsGlyphAndLabel(t *testing.T) {
 }
 
 func TestSchemeEditorBindingsDoesNotMutateScheme(t *testing.T) {
+	t.Parallel()
 	s := Default()
 	before := slices.Clone(s.Binding(Confirm).Keys)
 

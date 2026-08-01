@@ -141,15 +141,14 @@ func (r *Rain) randLength() int {
 // dim. Columns beyond the frame body width are clipped; Matrix does not
 // advance the animation — call Beat between renders.
 func Matrix(f layout.Frame, title string, r *Rain) string {
-	lines := r.renderBody(f.BodyWidth())
+	lines := r.renderBody(f.Theme(), f.BodyWidth())
 	for i, line := range lines {
 		lines[i] = f.Fit(line)
 	}
 	return f.Panel(title, lines...)
 }
 
-func (r *Rain) renderBody(bw int) []string {
-	th := theme.Cur()
+func (r *Rain) renderBody(th theme.Theme, bw int) []string {
 	n := min(r.width, bw)
 	if n < 1 {
 		n = 1

@@ -9,7 +9,8 @@ import (
 )
 
 func TestSeverityColorMapsByNamedConstant(t *testing.T) {
-	th := Cur()
+	t.Parallel()
+	th := Default()
 	cases := []struct {
 		sev  glyph.Severity
 		want any
@@ -20,11 +21,11 @@ func TestSeverityColorMapsByNamedConstant(t *testing.T) {
 		{glyph.SeverityNeutral, th.Dim.GetForeground(), "neutral→Dim"},
 	}
 	for _, tc := range cases {
-		if got := SeverityColor(tc.sev); got != tc.want {
+		if got := th.SeverityColor(tc.sev); got != tc.want {
 			t.Errorf("%s: SeverityColor(%v) = %v, want %v", tc.name, tc.sev, got, tc.want)
 		}
 	}
-	warn := SeverityColor(glyph.SeverityWarning)
+	warn := th.SeverityColor(glyph.SeverityWarning)
 	if len(th.Series) > 2 {
 		if warn != th.Series[2].GetForeground() {
 			t.Errorf("warning→Series[2]: got %v, want %v", warn, th.Series[2].GetForeground())
@@ -35,7 +36,8 @@ func TestSeverityColorMapsByNamedConstant(t *testing.T) {
 }
 
 func TestSeverityStyleIsDistinctPerSeverity(t *testing.T) {
-	th := Cur()
+	t.Parallel()
+	th := Default()
 	cases := []struct {
 		name string
 		sev  glyph.Severity
@@ -49,7 +51,7 @@ func TestSeverityStyleIsDistinctPerSeverity(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := SeverityStyle(c.sev).GetForeground(); got != c.want {
+			if got := th.SeverityStyle(c.sev).GetForeground(); got != c.want {
 				t.Errorf("SeverityStyle(%v) foreground = %v, want %v", c.sev, got, c.want)
 			}
 		})
@@ -62,7 +64,7 @@ func TestSeverityStyleIsDistinctPerSeverity(t *testing.T) {
 		glyph.SeverityWarning,
 		glyph.SeverityNeutral,
 	} {
-		fg := SeverityStyle(sev).GetForeground()
+		fg := th.SeverityStyle(sev).GetForeground()
 		if prev, dup := seen[fg]; dup {
 			t.Errorf("severities %v and %v share foreground %v", prev, sev, fg)
 		}
@@ -71,6 +73,8 @@ func TestSeverityStyleIsDistinctPerSeverity(t *testing.T) {
 }
 
 func TestSeverityStyleRendersWithSeverityColor(t *testing.T) {
+	t.Parallel()
+	th := Default()
 	for _, sev := range []glyph.Severity{
 		glyph.SeverityPositive,
 		glyph.SeverityNegative,
@@ -78,50 +82,45 @@ func TestSeverityStyleRendersWithSeverityColor(t *testing.T) {
 		glyph.SeverityNeutral,
 		glyph.Severity(42),
 	} {
-		want := SeverityStyle(sev).GetForeground()
-		if got := SeverityColor(sev); got != want {
+		want := th.SeverityStyle(sev).GetForeground()
+		if got := th.SeverityColor(sev); got != want {
 			t.Errorf("SeverityColor(%v) = %v, want SeverityStyle foreground %v", sev, got, want)
 		}
 	}
 }
 
-func TestSeverityStyleFollowsActiveTheme(t *testing.T) {
-	orig := Cur()
-	defer Use(orig)
-
+func TestSeverityStyleFollowsItsTheme(t *testing.T) {
+	t.Parallel()
 	th, ok := Named("solarized-dark")
 	if !ok {
 		t.Fatal("Named(solarized-dark) not found")
 	}
-	Use(th)
 
-	if got, want := SeverityStyle(glyph.SeverityPositive).GetForeground(), th.Can.GetForeground(); got != want {
-		t.Errorf("positive = %v, want %v after Use", got, want)
+	if got, want := th.SeverityStyle(glyph.SeverityPositive).GetForeground(), th.Can.GetForeground(); got != want {
+		t.Errorf("positive = %v, want that theme's Can %v", got, want)
 	}
-	if got, want := SeverityColor(glyph.SeverityWarning), th.Series[2].GetForeground(); got != want {
-		t.Errorf("warning = %v, want %v after Use", got, want)
+	if got, want := th.SeverityColor(glyph.SeverityWarning), th.Series[2].GetForeground(); got != want {
+		t.Errorf("warning = %v, want that theme's Series[2] %v", got, want)
 	}
 }
 
 func TestSeverityStyleWarningFallsBackToCantWithShortSeries(t *testing.T) {
-	orig := Cur()
-	defer Use(orig)
+	t.Parallel()
+	orig := Default()
 
 	short := orig
 	short.Series = append([]lipgloss.Style(nil), orig.Series[:2]...)
-	Use(short)
 
-	if got, want := SeverityStyle(glyph.SeverityWarning).GetForeground(), short.Cant.GetForeground(); got != want {
+	if got, want := short.SeverityStyle(glyph.SeverityWarning).GetForeground(), short.Cant.GetForeground(); got != want {
 		t.Errorf("warning fallback = %v, want Cant %v", got, want)
 	}
-	if got, want := SeverityColor(glyph.SeverityWarning), short.Cant.GetForeground(); got != want {
+	if got, want := short.SeverityColor(glyph.SeverityWarning), short.Cant.GetForeground(); got != want {
 		t.Errorf("SeverityColor warning fallback = %v, want Cant %v", got, want)
 	}
 
 	empty := orig
 	empty.Series = nil
-	Use(empty)
-	if got, want := SeverityStyle(glyph.SeverityWarning).GetForeground(), empty.Cant.GetForeground(); got != want {
+	if got, want := empty.SeverityStyle(glyph.SeverityWarning).GetForeground(), empty.Cant.GetForeground(); got != want {
 		t.Errorf("warning with no series = %v, want Cant %v", got, want)
 	}
 }

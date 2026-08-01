@@ -44,13 +44,13 @@ func (g FlexSections) Arrange(f Frame, tier Tier, panes []Pane, focusedName stri
 			blocks = append(blocks, body)
 			continue
 		}
-		blocks = append(blocks, StackTight(sectionHeader(width, name), body))
+		blocks = append(blocks, StackTight(sectionHeader(f.Theme(), width, name), body))
 	}
 	return Stack(blocks...)
 }
 
-func sectionHeader(width int, title string) string {
-	label := theme.Cur().PanelTitle.Render(ansi.Truncate(title, width, "…"))
-	rule := theme.Cur().Dim.Render(strings.Repeat("─", width))
+func sectionHeader(th theme.Theme, width int, title string) string {
+	label := th.PanelTitle.Render(ansi.Truncate(title, width, "…"))
+	rule := th.Dim.Render(strings.Repeat("─", width))
 	return label + "\n" + rule
 }

@@ -5,7 +5,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/codyconfer/viewkit/keys"
-	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/layout"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // ScrollSpec configures a Scroll, following the FormSpec pattern: every field
@@ -40,6 +41,7 @@ type Scroll struct {
 	ready  bool
 	body   string
 	loaded bool
+	scope  *ui.Scope
 }
 
 // NewScroll builds a Scroll view from spec.
@@ -65,11 +67,11 @@ func (m scrollViewLoadedMsg) recipient() View { return m.own }
 func (c *Scroll) Title() string { return c.title }
 
 // Context implements View.
-func (c *Scroll) Context() []keys.Hint { return c.ctx }
+func (c *Scroll) Context(scope *ui.Scope) []keys.Hint { return c.ctx }
 
 // Hints implements View: scrolling legend plus any spec-supplied hints.
-func (c *Scroll) Hints() []keys.Hint {
-	km := navMap()
+func (c *Scroll) Hints(scope *ui.Scope) []keys.Hint {
+	km := navMapFor(schemeOf(scope))
 	hints := []keys.Hint{
 		km.HintLabeled(keys.Up, "scroll"),
 		km.HintLabeled(keys.PageUp, "page"),
@@ -114,6 +116,7 @@ func (c *Scroll) loadCmd() tea.Cmd {
 // Update implements View: navigation keys scroll the viewport, Reload
 // re-runs Load, Cancel (or an IsCancel match) pops the view.
 func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
+	c.scope = h.UI()
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		if !c.ready {
@@ -134,7 +137,7 @@ func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 		if c.isCancel != nil && c.isCancel(m.String()) {
 			return h.Pop()
 		}
-		act, ok := navMap().Action(m.String())
+		act, ok := navMapFor(schemeOf(h.UI())).Action(m.String())
 		if !ok {
 			return nil
 		}
@@ -166,7 +169,7 @@ func (c *Scroll) refresh() {
 		return
 	}
 	if !c.loaded {
-		c.vp.SetContent(theme.Cur().Dim.Render("░▒▓ loading…"))
+		c.vp.SetContent(themeOf(c.scope).Dim.Render("░▒▓ loading…"))
 		return
 	}
 	c.vp.SetContent(c.body)
@@ -174,13 +177,13 @@ func (c *Scroll) refresh() {
 
 // Body implements View, resizing the viewport to the frame before rendering
 // so the scroll offset stays within the content.
-func (c *Scroll) Body(width, height int) string {
+func (c *Scroll) Body(f layout.Frame) string {
 	if !c.ready {
-		return theme.Cur().Dim.Render("loading…")
+		return f.Theme().Dim.Render("loading…")
 	}
-	c.vp.Width = width
-	if height > 0 {
-		c.vp.Height = height
+	c.vp.Width = f.Width
+	if f.Height > 0 {
+		c.vp.Height = f.Height
 	}
 	return c.vp.View()
 }

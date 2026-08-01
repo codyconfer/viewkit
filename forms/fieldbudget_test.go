@@ -12,6 +12,7 @@ const fieldBudgetContract = "layout.NewFrame clamps any width below theme.MinBod
 	"max(body-fieldRowChrome, 2) or the room/2 floor is invisible to the whole suite."
 
 func TestFieldRowBudgetNarrowArms(t *testing.T) {
+	t.Parallel()
 	t.Log(fieldBudgetContract)
 	const longLabel = 72
 
@@ -43,6 +44,7 @@ func TestFieldRowBudgetNarrowArms(t *testing.T) {
 }
 
 func TestFieldRowBudgetNeverNeedsAnUpperClamp(t *testing.T) {
+	t.Parallel()
 	t.Log("labelW = max(room-fieldValueMin, room/2) is always <= room-1 for room >= 2, which is why the " +
 		"trailing min(labelW, room-1) was deleted as a proven no-op. If a future edit breaks that, the " +
 		"value column goes to zero width and this test says so.")
@@ -59,6 +61,7 @@ func TestFieldRowBudgetNeverNeedsAnUpperClamp(t *testing.T) {
 }
 
 func TestFrameClampMakesNarrowWidthsIdentical(t *testing.T) {
+	t.Parallel()
 	t.Log(fieldBudgetContract)
 	base := layout.NewFrame(1).BodyWidth()
 	for _, w := range []int{1, 5, 10, 20, 24} {

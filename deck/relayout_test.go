@@ -11,10 +11,11 @@ import (
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 func relayoutEditorKeys() EditorKeys {
-	sc := keys.Cur()
+	sc := keys.Default()
 	return EditorKeys{
 		Map: keys.NewMap(
 			sc.Binding(keys.Cancel),
@@ -151,22 +152,21 @@ func TestEditorFreshRunStartsAtTheTopOfTheResults(t *testing.T) {
 	}
 }
 
-func TestEditorRebindsResultsWhenTheThemeChanges(t *testing.T) {
-	t.Cleanup(func() { theme.Use(theme.Default()) })
-	useTheme(t, "default")
-
+func TestEditorRebindsResultsWhenTheScopeChanges(t *testing.T) {
+	t.Parallel()
 	doc := &keyedDoc{stubDoc: &stubDoc{}, rows: []string{"u1", "u2", "u3"}}
 	e, h := ranEditor(t, doc)
 	h = editorMoveTo(t, h, e, "u2")
 	before := doc.binds
 
-	useTheme(t, "solarized-dark")
-	driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 40})
+	if cmd := h.SetScope(themedScope(t, "solarized-dark")); cmd != nil {
+		driveHost(h, cmd())
+	}
 	if doc.binds == before {
-		t.Fatal("a theme change must re-bind the result rows: Results.Items may style them from theme.Cur()")
+		t.Fatal("a scope change must re-bind the result rows: Results.Items may style them from the scope's theme")
 	}
 	if it, ok := e.Selected(); !ok || it.Key != "u2" {
-		t.Fatalf("cursor = %q (%v), want u2 preserved across a theme re-bind", it.Key, ok)
+		t.Fatalf("cursor = %q (%v), want u2 preserved across a scope re-bind", it.Key, ok)
 	}
 }
 
@@ -244,95 +244,97 @@ func TestHomeShellSameWidthRelayoutDoesNotRebindSide(t *testing.T) {
 	}
 }
 
-func themeSGR(t *testing.T) string {
-	t.Helper()
-	return sgrPrefix(t, theme.Cur().Val)
-}
-
-func useTheme(t *testing.T, key string) {
+func themedScope(t *testing.T, key string) *ui.Scope {
 	t.Helper()
 	th, ok := theme.Named(key)
 	if !ok {
 		t.Fatalf("theme %q is not registered", key)
 	}
-	theme.Use(th)
+	scope := ui.Default()
+	scope.Theme = th
+	return scope
 }
 
-func themedRows() []list.Item {
-	th := theme.Cur()
+func themedRows(th theme.Theme) []list.Item {
 	return []list.Item{
 		{Block: th.Val.Render("alpha"), Key: "u1", Selectable: true},
 		{Block: th.Val.Render("beta"), Key: "u2", Selectable: true},
 	}
 }
 
-func TestItemListRebindsWhenTheThemeChanges(t *testing.T) {
-	t.Cleanup(func() { theme.Use(theme.Default()) })
-	useTheme(t, "default")
-	stale := themeSGR(t)
+func TestItemListRebindsWhenTheScopeChanges(t *testing.T) {
+	t.Parallel()
+	scope := ui.Default()
+	stale := sgrPrefix(t, scope.Theme.Val)
 
 	il := NewItemList(ItemListSpec{
 		Title: "results",
 		Fetch: func() any { return "payload" },
-		Bind:  func(int, any) []list.Item { return themedRows() },
+		Bind:  func(int, any) []list.Item { return themedRows(scope.Theme) },
 	})
 	h := loadedItemList(t, il)
 	if !strings.Contains(h.View(), stale) {
 		t.Fatalf("precondition: rows do not carry the theme SGR %q", stale)
 	}
 
-	useTheme(t, "solarized-dark")
-	fresh := themeSGR(t)
+	dark := themedScope(t, "solarized-dark")
+	fresh := sgrPrefix(t, dark.Theme.Val)
 	if fresh == stale {
 		t.Fatalf("precondition: both themes render the same SGR %q", fresh)
 	}
 
-	driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
-	body := il.Body(80, 24)
+	scope = dark
+	if cmd := h.SetScope(dark); cmd != nil {
+		driveHost(h, cmd())
+	}
+	body := il.Body(layout.Frame{Width: 80, Height: 24, UI: dark})
 	if strings.Contains(body, stale) {
-		t.Fatalf("a same-size relayout stranded the previous theme's SGR %q:\n%q", stale, body)
+		t.Fatalf("a scope swap stranded the previous theme's SGR %q:\n%q", stale, body)
 	}
 	if !strings.Contains(body, fresh) {
 		t.Fatalf("rows missing the new theme's SGR %q:\n%q", fresh, body)
 	}
 	if _, ok := il.Selected(); !ok {
-		t.Fatal("theme re-bind lost the selection")
+		t.Fatal("scope re-bind lost the selection")
 	}
 }
 
-func TestHomeShellRebindsWhenTheThemeChanges(t *testing.T) {
-	t.Cleanup(func() { theme.Use(theme.Default()) })
-	useTheme(t, "default")
-	stale := themeSGR(t)
+func TestHomeShellRebindsWhenTheScopeChanges(t *testing.T) {
+	t.Parallel()
+	scope := ui.Default()
+	stale := sgrPrefix(t, scope.Theme.Val)
 
 	shell := NewHomeShell(HomeShellSpec{
 		Title:     "home",
 		Items:     []MenuItem{{Label: "Go"}},
 		SideLabel: "home flight",
 		SideFetch: func() any { return "payload" },
-		SideBind:  func(int, any) []list.Item { return themedRows() },
+		SideBind:  func(int, any) []list.Item { return themedRows(scope.Theme) },
 	})
 	h := focusedHomeHost(t, shell)
 	if !strings.Contains(h.View(), stale) {
 		t.Fatalf("precondition: side rows do not carry the theme SGR %q", stale)
 	}
 
-	useTheme(t, "solarized-dark")
-	fresh := themeSGR(t)
+	dark := themedScope(t, "solarized-dark")
+	fresh := sgrPrefix(t, dark.Theme.Val)
 	if fresh == stale {
 		t.Fatalf("precondition: both themes render the same SGR %q", fresh)
 	}
 
-	driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
-	body := shell.Body(80, 24)
+	scope = dark
+	if cmd := h.SetScope(dark); cmd != nil {
+		driveHost(h, cmd())
+	}
+	body := shell.Body(layout.Frame{Width: 80, Height: 24, UI: dark})
 	if strings.Contains(body, stale) {
-		t.Fatalf("a same-width relayout stranded the previous theme's SGR %q:\n%q", stale, body)
+		t.Fatalf("a scope swap stranded the previous theme's SGR %q:\n%q", stale, body)
 	}
 	if !strings.Contains(body, fresh) {
 		t.Fatalf("side rows missing the new theme's SGR %q:\n%q", fresh, body)
 	}
 	if _, ok := shell.side.Selected(); !ok {
-		t.Fatal("theme re-bind lost the side selection")
+		t.Fatal("scope re-bind lost the side selection")
 	}
 }
 

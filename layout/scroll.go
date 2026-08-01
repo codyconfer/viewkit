@@ -92,7 +92,7 @@ func (f Frame) ScrollPanelWithPrefix(title string, prefix, lines []string, rows,
 	out = append(out, prefix...)
 	out = append(out, window...)
 	if ok {
-		out = append(out, theme.Cur().Dim.Render(footer))
+		out = append(out, f.Theme().Dim.Render(footer))
 	}
 	return f.Panel(title, out...)
 }
@@ -102,7 +102,11 @@ func (f Frame) ScrollPanelWithPrefix(title string, prefix, lines []string, rows,
 // margin row) is spent on a "▲▼ pgup/pgdn · a–b of n" hint, so the content
 // window is ViewportContentRows(rows) tall. Offsets are clamped; rows < 1
 // returns "".
-func Viewport(body string, rows, offset int) string {
+func (f Frame) Viewport(body string, rows, offset int) string {
+	return viewportIn(f.Theme(), body, rows, offset)
+}
+
+func viewportIn(th theme.Theme, body string, rows, offset int) string {
 	lines := strings.Split(body, "\n")
 	if rows < 1 {
 		return ""
@@ -113,7 +117,7 @@ func Viewport(body string, rows, offset int) string {
 	}
 	if rows == 1 {
 		off := clampOffset(offset, total, 1)
-		return viewportHint(off, off+1, total)
+		return viewportHint(th, off, off+1, total)
 	}
 
 	margin := 0
@@ -128,7 +132,7 @@ func Viewport(body string, rows, offset int) string {
 	if margin == 1 {
 		out = append(out, "")
 	}
-	out = append(out, viewportHint(off, end, total))
+	out = append(out, viewportHint(th, off, end, total))
 	return strings.Join(out, "\n")
 }
 
@@ -160,7 +164,7 @@ func clampOffset(offset, total, rows int) int {
 	return offset
 }
 
-func viewportHint(offset, end, total int) string {
+func viewportHint(th theme.Theme, offset, end, total int) string {
 	up, down := "  ", "  "
 	if offset > 0 {
 		up = "▲ "
@@ -168,5 +172,5 @@ func viewportHint(offset, end, total int) string {
 	if end < total {
 		down = "▼ "
 	}
-	return theme.Cur().Dim.Render(fmt.Sprintf("%s%s pgup/pgdn  ·  %d–%d of %d", up, down, offset+1, end, total))
+	return th.Dim.Render(fmt.Sprintf("%s%s pgup/pgdn  ·  %d–%d of %d", up, down, offset+1, end, total))
 }

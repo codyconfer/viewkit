@@ -3,12 +3,14 @@ package deck
 import (
 	"sort"
 	"sync"
+
+	"github.com/codyconfer/viewkit/layout"
 )
 
 // Component is a reusable UI fragment registered by id.
 // Components are not full Views — they paint a region when asked.
 type Component interface {
-	Render(width, height int) string
+	Render(f layout.Frame) string
 }
 
 var (

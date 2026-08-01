@@ -5,6 +5,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
+	"github.com/codyconfer/viewkit/theme"
 )
 
 type safeBuf struct {
@@ -403,4 +408,19 @@ func TestZeroOptionsFallsBackToStderr(t *testing.T) {
 		t.Fatal("Start returned nil")
 	}
 	s.Stop()
+}
+
+func TestOptionsThemeIsSnapshotted(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+
+	th := theme.Default()
+	th.Dim = lipgloss.NewStyle().Foreground(lipgloss.Color("#00ffee"))
+	buf := &safeBuf{}
+	s := Start(Options{Writer: buf, Prefix: "pfx", Theme: &th, Force: true, Interval: time.Hour})
+	s.Done()
+	if want := th.Dim.Render("pfx"); !strings.Contains(buf.String(), want) {
+		t.Fatalf("scoped Dim prefix %q missing from output %q", want, buf.String())
+	}
 }

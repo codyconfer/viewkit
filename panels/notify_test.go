@@ -10,6 +10,7 @@ import (
 )
 
 func TestNotificationToast(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(NotificationToast(layout.DefaultFrame(), notify.Positive("Saved", "all good")))
 	for _, want := range []string{glyph.GlyphFor(glyph.SeverityPositive), "Saved", "all good"} {
 		if !strings.Contains(out, want) {
@@ -19,6 +20,7 @@ func TestNotificationToast(t *testing.T) {
 }
 
 func TestNotificationPanelEmpty(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(NotificationPanel(layout.DefaultFrame(), "ALERTS", nil))
 	if !strings.Contains(out, "no notifications") {
 		t.Fatalf("empty panel missing placeholder:\n%s", out)
@@ -26,6 +28,7 @@ func TestNotificationPanelEmpty(t *testing.T) {
 }
 
 func TestNotificationPanelLists(t *testing.T) {
+	t.Parallel()
 	ns := []notify.Notification{
 		notify.Warning("Latency", "p99 climbing"),
 		notify.Negative("Down", "region us-east"),
@@ -39,6 +42,7 @@ func TestNotificationPanelLists(t *testing.T) {
 }
 
 func TestNotificationOverlayFloatsCard(t *testing.T) {
+	t.Parallel()
 	bg := strings.TrimRight(strings.Repeat(strings.Repeat(".", 60)+"\n", 12), "\n")
 	out := stripANSI(NotificationOverlay(bg, layout.NewFrame(30), notify.Neutral("Heads up", "something happened")))
 	if !strings.Contains(out, "Heads up") {

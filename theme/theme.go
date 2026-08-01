@@ -1,7 +1,7 @@
 package theme
 
 import (
-	"sync/atomic"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -48,6 +48,10 @@ type Palette struct {
 // notification frames, and a seven-entry Series ramp, with the too-narrow
 // messages set to their defaults.
 func New(p Palette) Theme {
+	return withCachedStyles(newTheme(p))
+}
+
+func newTheme(p Palette) Theme {
 	return Theme{
 		Title:  lipgloss.NewStyle().Bold(true).Foreground(p.Accent),
 		Accent: lipgloss.NewStyle().Bold(true).Foreground(p.Accent),
@@ -99,8 +103,8 @@ const (
 
 // Theme is a bundle of ready-to-use lipgloss styles: text roles, panel and
 // notification frames, chart Series styles, the screen background color, and
-// the too-narrow-screen message templates. Build one with New and install it
-// with Use; read the active theme with Cur.
+// the too-narrow-screen message templates. Build one with New and carry it in
+// a ui.Scope.
 type Theme struct {
 	Title  lipgloss.Style
 	Accent lipgloss.Style
@@ -136,32 +140,10 @@ type Theme struct {
 	stripBold lipgloss.Style
 }
 
-// Default returns the theme built from the built-in default palette.
-func Default() Theme { return New(defaultPalette) }
+var defaultTheme = sync.OnceValue(func() Theme { return New(defaultPalette) })
 
-var current = func() *atomic.Pointer[Theme] {
-	p := new(atomic.Pointer[Theme])
-	t := withCachedStyles(Default())
-	p.Store(&t)
-	return p
-}()
-
-var generation atomic.Uint64
-
-// Cur returns the active theme by value (matching keys.Cur).
-func Cur() Theme { return *current.Load() }
-
-// Generation returns a counter incremented by every Use. Views that cache
-// theme-derived render state compare generations instead of theme identity
-// to detect a theme change.
-func Generation() uint64 { return generation.Load() }
-
-// Use makes t the active theme. Safe to call while other goroutines render.
-func Use(t Theme) {
-	t = withCachedStyles(t)
-	current.Store(&t)
-	generation.Add(1)
-}
+// Default returns the (memoized) theme built from the built-in default palette.
+func Default() Theme { return defaultTheme() }
 
 func withCachedStyles(t Theme) Theme {
 	t.stripBg = stripBgOf(t)

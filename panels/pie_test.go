@@ -9,6 +9,7 @@ import (
 )
 
 func TestPieNonFiniteValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}, {"neginf", math.Inf(-1)}, {"ok", 4}}
 	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
 	if len(out) > 1<<16 {
@@ -26,6 +27,7 @@ func TestPieNonFiniteValues(t *testing.T) {
 }
 
 func TestPieAllNonFiniteValues(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"posinf", math.Inf(1)}, {"nan", math.NaN()}}
 	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
 	if len(out) > 1<<16 {
@@ -37,6 +39,7 @@ func TestPieAllNonFiniteValues(t *testing.T) {
 }
 
 func TestPieTotalOverflowsToInf(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"a", math.MaxFloat64}, {"b", math.MaxFloat64}}
 	out := Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "nothing here")
 	if len(out) > 1<<16 {
@@ -48,6 +51,7 @@ func TestPieTotalOverflowsToInf(t *testing.T) {
 }
 
 func TestPieEmpty(t *testing.T) {
+	t.Parallel()
 	out := Pie(layout.DefaultFrame(), "Mix", []Datum{{"a", 0}, {"b", -5}}, 20, fnum, "nothing here")
 	if !strings.Contains(out, "nothing here") {
 		t.Fatalf("empty pie missing placeholder:\n%s", out)
@@ -55,6 +59,7 @@ func TestPieEmpty(t *testing.T) {
 }
 
 func TestPieLegendAndProportions(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"cash", 75}, {"eggs", 25}}
 	out := Pie(layout.DefaultFrame(), "Mix", data, 20, fnum, "")
 	for _, want := range []string{"cash", "eggs", "75%", "25%", "■", "█"} {
@@ -65,6 +70,7 @@ func TestPieLegendAndProportions(t *testing.T) {
 }
 
 func TestPieBarStaysWithinWidth(t *testing.T) {
+	t.Parallel()
 	data := []Datum{{"a", 1}, {"b", 1}, {"c", 1}}
 	lines := strings.Split(stripANSI(Pie(layout.DefaultFrame(), "Mix", data, 10, fnum, "")), "\n")
 

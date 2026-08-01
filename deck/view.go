@@ -4,6 +4,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // View is a navigable screen hosted by Model. Apps implement domain views;
@@ -16,11 +18,11 @@ type View interface {
 	// Update handles one message. m is the hosting Model, for Push/Pop
 	// and size; the returned command is run by the tea loop.
 	Update(m *Model, msg tea.Msg) tea.Cmd
-	// Body renders the view's content into the given width and height
-	// (the area left between header and footer chrome).
-	Body(width, height int) string
+	// Body renders the view's content into f (the area left between header
+	// and footer chrome).
+	Body(f layout.Frame) string
 	// Hints lists key legend entries for the footer.
-	Hints() []keys.Hint
+	Hints(scope *ui.Scope) []keys.Hint
 	// Context lists key/label cues for the header context strip.
-	Context() []keys.Hint
+	Context(scope *ui.Scope) []keys.Hint
 }

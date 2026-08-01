@@ -6,6 +6,7 @@ import (
 )
 
 func TestNewRingFiltersInteractive(t *testing.T) {
+	t.Parallel()
 	got := NewRing(
 		Focusable{Name: "a", Interactive: true},
 		Focusable{Name: "b", Interactive: false},
@@ -17,6 +18,7 @@ func TestNewRingFiltersInteractive(t *testing.T) {
 }
 
 func TestRingStepWrapsAndAtClamps(t *testing.T) {
+	t.Parallel()
 	ring := Ring{"a", "c"}
 	if got := ring.Step(0, 1); got != 1 {
 		t.Errorf("step forward = %d, want 1", got)

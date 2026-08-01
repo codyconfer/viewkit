@@ -7,6 +7,7 @@ import (
 )
 
 func TestStr(t *testing.T) {
+	t.Parallel()
 	vals := map[string]any{
 		"name":   "  munin  ",
 		"blank":  "   ",
@@ -42,6 +43,7 @@ func TestStr(t *testing.T) {
 }
 
 func TestBool(t *testing.T) {
+	t.Parallel()
 	vals := map[string]any{
 		"on":     true,
 		"off":    false,
@@ -73,6 +75,7 @@ func TestBool(t *testing.T) {
 }
 
 func TestInt(t *testing.T) {
+	t.Parallel()
 	vals := map[string]any{
 		"n":        "42",
 		"padded":   "  7  ",
@@ -118,6 +121,7 @@ func TestInt(t *testing.T) {
 }
 
 func TestStrings(t *testing.T) {
+	t.Parallel()
 	want := []string{"a", "b", "c"}
 	vals := map[string]any{
 		"tags":   want,
@@ -145,6 +149,7 @@ func TestStrings(t *testing.T) {
 }
 
 func TestSelectIndex(t *testing.T) {
+	t.Parallel()
 	options := []string{"alpha", "beta", "gamma"}
 	cases := []struct {
 		name    string
@@ -171,12 +176,14 @@ func TestSelectIndex(t *testing.T) {
 }
 
 func TestSelectIndexPicksFirstOfDuplicates(t *testing.T) {
+	t.Parallel()
 	if got := SelectIndex([]string{"a", "b", "a"}, "a"); got != 0 {
 		t.Errorf("SelectIndex duplicates = %d, want 0", got)
 	}
 }
 
 func TestSelectFirstMovesCurrentToFront(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		options []string
@@ -200,6 +207,7 @@ func TestSelectFirstMovesCurrentToFront(t *testing.T) {
 }
 
 func TestSelectFirstPreservesRelativeOrderOfTheRest(t *testing.T) {
+	t.Parallel()
 	options := []string{"a", "b", "c", "d", "e"}
 	got := SelectFirst(options, "d")
 	want := []string{"d", "a", "b", "c", "e"}
@@ -212,6 +220,7 @@ func TestSelectFirstPreservesRelativeOrderOfTheRest(t *testing.T) {
 }
 
 func TestSelectFirstReturnsOptionsUnchangedWhenCurrentIsAbsent(t *testing.T) {
+	t.Parallel()
 	options := []string{"a", "b", "c"}
 	cases := []struct {
 		name string
@@ -242,6 +251,7 @@ func TestSelectFirstReturnsOptionsUnchangedWhenCurrentIsAbsent(t *testing.T) {
 }
 
 func TestSelectFirstDoesNotMutateInput(t *testing.T) {
+	t.Parallel()
 	options := []string{"a", "b", "c"}
 	before := slices.Clone(options)
 
@@ -260,6 +270,7 @@ func TestSelectFirstDoesNotMutateInput(t *testing.T) {
 }
 
 func TestSelectFirstKeepsDuplicateCurrentValues(t *testing.T) {
+	t.Parallel()
 	options := []string{"a", "b", "a", "c"}
 	got := SelectFirst(options, "a")
 	want := []string{"a", "b", "a", "c"}

@@ -5,18 +5,21 @@ import (
 	"testing"
 
 	"github.com/codyconfer/viewkit/layout"
+	"github.com/codyconfer/viewkit/theme"
 )
 
 func TestLinePlotEmpty(t *testing.T) {
-	if got := linePlot(nil, 10, 5, fnum); got != nil {
+	t.Parallel()
+	if got := linePlot(theme.Default(), nil, 10, 5, fnum); got != nil {
 		t.Fatalf("linePlot(nil) = %v, want nil", got)
 	}
 }
 
 func TestLinePlotShape(t *testing.T) {
+	t.Parallel()
 	series := []float64{1, 3, 2, 5, 4}
 	const height = 4
-	lines := linePlot(series, 10, height, fnum)
+	lines := linePlot(theme.Default(), series, 10, height, fnum)
 	if len(lines) != height+1 {
 		t.Fatalf("linePlot returned %d lines, want %d (height + axis)", len(lines), height+1)
 	}
@@ -36,6 +39,7 @@ func TestLinePlotShape(t *testing.T) {
 }
 
 func TestLineWrapsWithFooter(t *testing.T) {
+	t.Parallel()
 	out := Line(layout.DefaultFrame(), "EGGS ON HAND", []float64{1, 2, 3}, 10, 4, fnum, "now: 3")
 	if !strings.Contains(out, "EGGS ON HAND") || !strings.Contains(out, "now: 3") {
 		t.Errorf("line panel missing title or footer:\n%s", out)

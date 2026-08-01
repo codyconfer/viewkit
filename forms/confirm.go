@@ -4,7 +4,6 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/panels"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // Result is the outcome of feeding a key action to a Confirm dialog.
@@ -66,10 +65,10 @@ func (c Confirm) Render(f layout.Frame) string {
 	yes, no := c.labels()
 	lines := []string{}
 	if c.Message != "" {
-		lines = append(lines, theme.Cur().Val.Render(f.Fit(c.Message)))
+		lines = append(lines, f.Theme().Val.Render(f.Fit(c.Message)))
 		lines = append(lines, "")
 	}
-	lines = append(lines, panels.Toggle(yes, no, c.Yes))
+	lines = append(lines, panels.Toggle(f.Theme(), yes, no, c.Yes))
 	return f.Panel(c.Title, lines...)
 }
 

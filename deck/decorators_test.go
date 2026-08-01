@@ -7,6 +7,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 type decoView struct {
@@ -16,11 +18,11 @@ type decoView struct {
 	updated int
 }
 
-func (d *decoView) Title() string        { return d.title }
-func (d *decoView) Init() tea.Cmd        { return nil }
-func (d *decoView) Body(int, int) string { return "inner-body" }
-func (d *decoView) Hints() []keys.Hint   { return d.hints }
-func (d *decoView) Context() []keys.Hint { return d.ctx }
+func (d *decoView) Title() string                 { return d.title }
+func (d *decoView) Init() tea.Cmd                 { return nil }
+func (d *decoView) Body(layout.Frame) string      { return "inner-body" }
+func (d *decoView) Hints(*ui.Scope) []keys.Hint   { return d.hints }
+func (d *decoView) Context(*ui.Scope) []keys.Hint { return d.ctx }
 
 func (d *decoView) Update(*Model, tea.Msg) tea.Cmd {
 	d.updated++
@@ -29,7 +31,7 @@ func (d *decoView) Update(*Model, tea.Msg) tea.Cmd {
 
 func TestWithExtraHintsAppendsAfterInnerHints(t *testing.T) {
 	inner := &decoView{hints: []keys.Hint{{Key: "↑/↓", Label: "move"}}}
-	got := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}, {Key: "r", Label: "run"}}).Hints()
+	got := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}, {Key: "r", Label: "run"}}).Hints(ui.Default())
 	want := []keys.Hint{{Key: "↑/↓", Label: "move"}, {Key: "g", Label: "go"}, {Key: "r", Label: "run"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("hints = %v, want %v", got, want)
@@ -52,8 +54,8 @@ func TestWithExtraHintsLeavesInnerSliceAlone(t *testing.T) {
 	inner := &decoView{hints: base}
 	wrapped := WithExtraHints(inner, []keys.Hint{{Key: "g", Label: "go"}})
 
-	first := wrapped.Hints()
-	second := wrapped.Hints()
+	first := wrapped.Hints(ui.Default())
+	second := wrapped.Hints(ui.Default())
 	if !reflect.DeepEqual(first, second) {
 		t.Errorf("repeated Hints differ: %v then %v", first, second)
 	}
@@ -72,11 +74,11 @@ func TestWithExtraHintsPassesEverythingElseThrough(t *testing.T) {
 	if wrapped.Title() != "roles" {
 		t.Errorf("title = %q, want roles", wrapped.Title())
 	}
-	if wrapped.Body(20, 5) != "inner-body" {
-		t.Errorf("body = %q", wrapped.Body(20, 5))
+	if wrapped.Body(layout.Frame{Width: 20, Height: 5}) != "inner-body" {
+		t.Errorf("body = %q", wrapped.Body(layout.Frame{Width: 20, Height: 5}))
 	}
-	if !reflect.DeepEqual(wrapped.Context(), inner.ctx) {
-		t.Errorf("context = %v, want %v", wrapped.Context(), inner.ctx)
+	if !reflect.DeepEqual(wrapped.Context(ui.Default()), inner.ctx) {
+		t.Errorf("context = %v, want %v", wrapped.Context(ui.Default()), inner.ctx)
 	}
 	wrapped.Update(nil, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
 	if inner.updated != 1 {
@@ -89,11 +91,11 @@ func TestWithLiveContextReEvaluatesEveryRead(t *testing.T) {
 	inner := &decoView{ctx: []keys.Hint{{Key: "role", Label: "stale"}}}
 	wrapped := WithLiveContext(inner, func() []keys.Hint { return []keys.Hint{{Key: "role", Label: role}} })
 
-	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
+	if got := wrapped.Context(ui.Default()); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
 		t.Fatalf("context = %v, want role sre", got)
 	}
 	role = "oncall"
-	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "oncall"}}) {
+	if got := wrapped.Context(ui.Default()); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "oncall"}}) {
 		t.Fatalf("context = %v, want role oncall after the value changed", got)
 	}
 }
@@ -112,11 +114,11 @@ func TestWithLiveContextPassesEverythingElseThrough(t *testing.T) {
 	if wrapped.Title() != "home" {
 		t.Errorf("title = %q, want home", wrapped.Title())
 	}
-	if wrapped.Body(20, 5) != "inner-body" {
-		t.Errorf("body = %q", wrapped.Body(20, 5))
+	if wrapped.Body(layout.Frame{Width: 20, Height: 5}) != "inner-body" {
+		t.Errorf("body = %q", wrapped.Body(layout.Frame{Width: 20, Height: 5}))
 	}
-	if !reflect.DeepEqual(wrapped.Hints(), inner.hints) {
-		t.Errorf("hints = %v, want %v", wrapped.Hints(), inner.hints)
+	if !reflect.DeepEqual(wrapped.Hints(ui.Default()), inner.hints) {
+		t.Errorf("hints = %v, want %v", wrapped.Hints(ui.Default()), inner.hints)
 	}
 	wrapped.Update(nil, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
 	if inner.updated != 1 {
@@ -130,10 +132,10 @@ func TestDecoratorsStackOnEachOther(t *testing.T) {
 		return []keys.Hint{{Key: "role", Label: "sre"}}
 	}), []keys.Hint{{Key: "g", Label: "go"}})
 
-	if got := wrapped.Hints(); !reflect.DeepEqual(got, []keys.Hint{{Key: "↑/↓", Label: "move"}, {Key: "g", Label: "go"}}) {
+	if got := wrapped.Hints(ui.Default()); !reflect.DeepEqual(got, []keys.Hint{{Key: "↑/↓", Label: "move"}, {Key: "g", Label: "go"}}) {
 		t.Errorf("hints = %v", got)
 	}
-	if got := wrapped.Context(); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
+	if got := wrapped.Context(ui.Default()); !reflect.DeepEqual(got, []keys.Hint{{Key: "role", Label: "sre"}}) {
 		t.Errorf("context = %v", got)
 	}
 }

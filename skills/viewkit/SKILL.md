@@ -2,13 +2,13 @@
 name: viewkit
 description: >-
   Overview and router for building terminal UIs with the viewkit Go toolkit
-  (github.com/codyconfer/viewkit — packages layout, panels, theme, keys, forms,
-  notify). Read this BEFORE writing or modifying any code that imports a
+  (github.com/codyconfer/viewkit — packages layout, panels, ui, theme, keys,
+  forms, notify). Read this BEFORE writing or modifying any code that imports a
   viewkit package, or when you see layout.Frame, layout.Pane, layout.Registry,
-  layout.ScreenSpec, theme.Use/theme.Cur, keys.Map, panels.Bar/Pie/Line,
+  layout.ScreenSpec, ui.Scope, theme.Theme, keys.Map, panels.Bar/Pie/Line,
   forms.Form, or notify.Queue. Explains the Frame render model, the
-  domain-agnostic data contract, the two big gotchas (global theme/keys state;
-  render returns strings), and points to the task-specific viewkit-* skills.
+  domain-agnostic data contract, the two big gotchas (scope plumbing; render
+  returns strings), and points to the task-specific viewkit-* skills.
 ---
 
 # viewkit
@@ -28,21 +28,23 @@ Module path: `github.com/codyconfer/viewkit`. Import subpackages directly, e.g.
 |----------|-------------------|
 | `layout` | The `Frame` render primitive; structural helpers (`Header`, `Panel`, `Row`, `Stack`, `HintLine`); height **tiers**; scrolling/viewport; the **focus ring**; and the data-driven **pane/layout/screen** system (`Registry`, `ScreenSpec`, `BuildScreen`, `SingleColumn`/`Grid`/`FlexColumns`/`FlexRows`). |
 | `panels` | Charts (`Bar`, `Line`, `Candle`, `Pie`, `Ledger`, `Markdown`, `Clock`) and small widgets (`Meter`, `Toggle`, `Flash`, `ProgressBar`) + index helpers (`ClampIndex`, `MoveIndex`, `StepIndex`). |
-| `theme`  | The active `Theme` (palette + styles + copy), `theme.Use`/`theme.Cur`, exported style vars (`DimSty`, `AccentSty`, …), named palettes, and `theme.Screen` (background). |
-| `keys`   | Semantic `Action`s, `Binding`s, a `Scheme` (`keys.Cur`/`keys.Use`), and a `Map` that resolves input → action and generates footer hints. |
+| `ui`     | `Scope`, the per-program rendering context (`Theme` + `Keys` + `Glyphs`); `ui.Default()` for the built-ins. Carried by `layout.Frame` (`WithUI`) and `deck.Model` (`WithScope`/`SetScope`). |
+| `theme`  | `Theme` values (palette + styles + copy) built by `theme.New`/`theme.Default`/`theme.Named`, named palettes, and `Theme.Screen` (background). |
+| `keys`   | Semantic `Action`s, `Binding`s, a `Scheme` value (`keys.Default`/`keys.Named`), and a `Map` that resolves input → action and generates footer hints. |
 | `forms`  | Interactive `Form`/`Field` and `Confirm` dialogs, driven by `keys.Action`s. |
 | `notify` | `Notification`/`Tone` and a TTL `Queue` for transient toasts. |
 
-Dependency flow: `panels`/`forms` → `layout` → `theme`; `keys` and `notify` are leaf helpers.
+Dependency flow: `panels`/`forms` → `layout` → `ui` → `theme`/`keys`/`glyph`; `notify` is a leaf helper.
 
 ## The Frame model
 
 Everything renders relative to a `layout.Frame` — it carries the render `Width`,
-`Height`, and `Focused` state. Build the top one from the terminal width and thread
-narrower child frames down into panes/charts:
+`Height`, `Focused` state, and the `UI` scope. Build the top one from the terminal
+width and thread narrower child frames down into panes/charts (derive with
+`WithWidth`/`Screen`/`WithUI` so the scope is never dropped):
 
 ```go
-f := layout.NewFrame(width)          // clamps to [theme.MinBodyWidth, …]
+f := layout.NewFrame(width).WithUI(scope) // clamps to [theme.MinBodyWidth, …]
 body := f.Panel("STATUS", f.Row("tokens", "1.2M"))
 chart := panels.Bar(f, "GPUs", data, 40, fmtNum, "no data")
 ```
@@ -53,17 +55,19 @@ methods (use the frame's width) — prefer the method form: `f.Header`, `f.Panel
 
 ## Two gotchas that trip up every newcomer
 
-1. **Theme and keys are process-global singletons, not values you thread.**
-   Install once at startup with `theme.Use(...)` / `keys.Use(...)`, then read the
-   active state via `theme.Cur()`, the exported style vars (`theme.DimSty`,
-   `theme.AccentSty`, …), and `keys.Cur()`. Do **not** invent a `Theme` parameter
-   to pass around. In tests this means you must restore global state —
-   `defer theme.Use(theme.Default())`. See **viewkit-theme** and **viewkit-test**.
+1. **Theme and keys are scoped values, not process globals.** Bundle them in a
+   `ui.Scope` (`ui.Default()` for the built-ins) and hand it to the root —
+   `deck.WithScope(scope)` or `frame.WithUI(scope)`. Frames and deck views read
+   it back via `f.Theme()`/`f.Scheme()`/`f.Glyphs()` and `m.UI()`; a nil scope
+   falls back to the built-in defaults. Swap at runtime with `Model.SetScope`
+   (run the returned relayout cmd). Do **not** stash a `Theme` in a package-level
+   var; tests build their own scope per test — no save/restore needed. See
+   **viewkit-theme** and **viewkit-test**.
 
 2. **Rendering returns strings; there is no widget tree.** A screen's `View()`
    composes strings with `layout.Stack`/`StackFit` and paints the background with
-   `theme.Screen(body, w, h)`. State (cursor, scroll offset, focus index) lives in
-   *your* model, not in viewkit.
+   `th.Screen(body, w, h)` (a `Theme` method). State (cursor, scroll offset,
+   focus index) lives in *your* model, not in viewkit.
 
 ## Which skill to use
 

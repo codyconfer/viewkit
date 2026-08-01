@@ -17,6 +17,7 @@ func push(q *Queue, title string, ttlSec int) {
 }
 
 func TestQueueEmpty(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	if q.Active() {
 		t.Fatal("fresh queue should be inactive")
@@ -28,6 +29,7 @@ func TestQueueEmpty(t *testing.T) {
 }
 
 func TestQueueShowsHeadUntilExpiry(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	push(q, "a", 2)
 
@@ -45,6 +47,7 @@ func TestQueueShowsHeadUntilExpiry(t *testing.T) {
 }
 
 func TestQueueAdvancesThroughBacklog(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	push(q, "a", 1)
 	q.PushFor(n("b"), base, 2*time.Second)
@@ -66,6 +69,7 @@ func TestQueueAdvancesThroughBacklog(t *testing.T) {
 }
 
 func TestQueueDropsZeroTTL(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	push(q, "a", 0)
 	push(q, "b", -5)
@@ -75,6 +79,7 @@ func TestQueueDropsZeroTTL(t *testing.T) {
 }
 
 func TestQueueCapDropsOldestPending(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(2)
 	push(q, "head", 10)
 	push(q, "old", 10)
@@ -93,6 +98,7 @@ func TestQueueCapDropsOldestPending(t *testing.T) {
 }
 
 func TestQueueCapOneShowsTheNewest(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(1)
 	push(q, "first", 5)
 	push(q, "second", 5)
@@ -107,6 +113,7 @@ func TestQueueCapOneShowsTheNewest(t *testing.T) {
 }
 
 func TestQueueCapOneRefreshesTheTTL(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(1)
 	push(q, "first", 1)
 	push(q, "second", 3)
@@ -123,6 +130,7 @@ func TestQueueCapOneRefreshesTheTTL(t *testing.T) {
 }
 
 func TestQueueNeverDropsTheNewestPush(t *testing.T) {
+	t.Parallel()
 	for _, capacity := range []int{1, 2, 3, 5} {
 		q := NewQueue(capacity)
 		for i := range 12 {
@@ -140,6 +148,7 @@ func TestQueueNeverDropsTheNewestPush(t *testing.T) {
 }
 
 func TestQueueCapKeepsTheHeadAndTheNewest(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(3)
 	push(q, "head", 10)
 	push(q, "p1", 10)

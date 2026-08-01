@@ -3,7 +3,7 @@ name: viewkit-keys
 description: >-
   Define keybindings and footer hint legends with viewkit's keys package. Use
   when working with keys.Action, keys.Binding, keys.NewMap / Map.Action,
-  keys.Cur / keys.Use / Scheme, keys.Register / keys.Named / keys.Keys /
+  keys.Scheme / keys.Default, keys.Register / keys.Named / keys.Keys /
   keys.DisplayName, or generating hints with Map.Hint / HintLabeled /
   Hints for layout.HintLine. Covers semantic actions, the glyph/label grouping
   rule, and how hints feed the footer legend.
@@ -29,12 +29,13 @@ const (
 )
 ```
 
-`keys.Cur()` returns the active `Scheme` (default glyphs/keys for the shared
-actions). Build a per-screen `*keys.Map` layering app bindings on the scheme:
+The `Scheme` (default glyphs/keys for the shared actions) comes from your
+rendering scope: `keys.Default()` at construction time, `f.Scheme()` on a
+`layout.Frame`, or `m.UI().Keys` in a deck view. Build a per-screen `*keys.Map`
+layering app bindings on the scheme:
 
 ```go
-func gameKeymap() *keys.Map {
-    sc := keys.Cur()
+func gameKeymap(sc keys.Scheme) *keys.Map {
     return keys.NewMap(
         keys.Binding{Keys: []string{"ctrl+c", "q", "esc"}, Action: keys.Quit, Glyph: "esc/q", Label: "quit"},
         sc.Binding(keys.Confirm).WithLabel("generate"),   // reuse scheme glyph, set label
@@ -71,7 +72,8 @@ keys.Binding{Keys: []string{"S"}, Action: actMaxSell},              // no glyph/
 
 ## Footer hints
 
-`Map` produces `[2]string{glyph, label}` pairs that feed `layout.Frame.HintLine`:
+`Map` produces `keys.Hint` values (key glyph + label) that feed
+`layout.Frame.HintLine`:
 
 ```go
 f.HintLine(
@@ -88,9 +90,11 @@ empty.
 
 ## Custom scheme (optional)
 
-To change global defaults, install a scheme once at startup with `keys.Use(...)`
-(`Scheme.With(overrides...)` for tweaks). Like theme, this is global — restore it
-in tests with `defer keys.Use(keys.Default())`.
+To change an app's defaults, build a modified scheme (`Scheme.With(overrides...)`
+for tweaks, `WithDefaults` to fill gaps) and carry it in the `ui.Scope` you hand
+to the root (`deck.WithScope` / `frame.WithUI`). Like theme, a scheme is a plain
+value — tests construct their own and need no restore. `Scheme.MapFor(actions...)`
+builds a `*keys.Map` straight from a scheme's own bindings.
 
 ## Named schemes
 
@@ -104,13 +108,12 @@ keys.Register("wasd", "WASD", keys.Default().With(
     keys.Binding{Keys: []string{"w"}, Action: keys.Up, Glyph: "w"},
     keys.Binding{Keys: []string{"s"}, Action: keys.Down},
 ))
-if sc, ok := keys.Named("wasd"); ok {
-    keys.Use(sc)
-}
+sc, _ := keys.Named("wasd")   // unknown key falls back to keys.Default()
+// carry sc in a ui.Scope (deck.WithScope / frame.WithUI)
 ```
 
-The registry is a process-global, unsynchronized slice; call `keys.Register` at
-startup before concurrent access.
+The registry is safe for concurrent use; registering at startup keeps the
+`keys.Keys()` ordering predictable.
 
 ## Verification
 

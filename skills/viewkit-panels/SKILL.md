@@ -78,7 +78,7 @@ panels.Matrix(f, "MATRIX", r)                                 // render this fra
 Drive `r.Beat()` from your Bubble Tea tick loop — the same place you call
 `notifs.Beat()` — and `r.Resize(f.BodyWidth(), rows)` on `tea.WindowSizeMsg`. Rows
 are explicit (not derived from `Frame.Height`); the panel border adds 2 lines.
-Colors adapt to the active theme (bright head → `Accent`, body → `Can`, tail →
+Colors adapt to the frame's theme (bright head → `Accent`, body → `Can`, tail →
 `Dim`). A fixed seed makes the animation reproducible for tests.
 
 All chart renderers show the empty-state string (or degrade gracefully) when data

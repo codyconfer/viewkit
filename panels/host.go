@@ -20,7 +20,7 @@ const (
 // Implementations must not import bubbletea — tea stays in viewkit/deck.
 type DualHost interface {
 	RenderInline(f layout.Frame) string
-	RenderDeck(width, height int) string
+	RenderDeck(f layout.Frame) string
 }
 
 // Render dispatches to the target-appropriate DualHost method.
@@ -30,7 +30,7 @@ func Render(p DualHost, target Target, f layout.Frame, width, height int) string
 	}
 	switch target {
 	case TargetDeck:
-		return p.RenderDeck(width, height)
+		return p.RenderDeck(layout.Frame{Width: width, Height: height, UI: f.UI})
 	default:
 		return p.RenderInline(f)
 	}
@@ -49,8 +49,7 @@ func (p StaticPanel) RenderInline(f layout.Frame) string {
 }
 
 // RenderDeck implements DualHost.
-func (p StaticPanel) RenderDeck(width, height int) string {
-	f := layout.NewFrame(width)
-	body := f.Panel(p.Title, p.Lines...)
-	return layout.FillHeight(body, max(height, 1))
+func (p StaticPanel) RenderDeck(f layout.Frame) string {
+	body := f.WithWidth(f.Width).Panel(p.Title, p.Lines...)
+	return layout.FillHeight(body, max(f.Height, 1))
 }

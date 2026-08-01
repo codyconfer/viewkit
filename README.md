@@ -66,20 +66,29 @@ chart := panels.Bar(frame, "GPUs", []panels.Datum{
 
 ### Theming
 
+Rendering context is scoped, not global: bundle a theme, key scheme, and glyph
+set into a `ui.Scope` and hand it to frames/views. The only process state left
+is glyph's write-once default mode (`glyph.SetMode`), by design.
+
 ```go
 th := theme.Default()
 th.Accent = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-theme.Use(th)
+
+scope := ui.Default()
+scope.Theme = th
+
+frame := layout.NewFrame(80).WithUI(scope)
 ```
 
 Structural dimensions (`theme.BodyWidth`, …) are exported constants — set
 per-view width via `layout.NewFrame(width)`.
 
-### Deck Model + singletons
+### Deck Model + scope
 
-Interactive apps use `deck.Model` as the session tea root.
-Install process-global theme/keys (and optional `RegisterView`) before
-`deck.Run`. Full contract: [`deck/INTERFACE.md`](deck/INTERFACE.md).
+Interactive apps use `deck.Model` as the session tea root. Pass the scope with
+`deck.WithScope` (swap at runtime via `Model.SetScope`) and register named
+themes/keys/views before `deck.Run`. Full contract:
+[`deck/INTERFACE.md`](deck/INTERFACE.md).
 
 ## Status
 

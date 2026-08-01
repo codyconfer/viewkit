@@ -13,6 +13,7 @@ func groupPane(name, group string, tier Tier) Pane {
 }
 
 func TestFlexSectionsGroupsWithHeaders(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -37,6 +38,7 @@ func TestFlexSectionsGroupsWithHeaders(t *testing.T) {
 }
 
 func TestFlexSectionsUngroupedLeadsWithoutHeader(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -60,6 +62,7 @@ func TestFlexSectionsUngroupedLeadsWithoutHeader(t *testing.T) {
 }
 
 func TestFlexSectionsSkipsGroupWithNoVisiblePanes(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
@@ -91,6 +94,7 @@ func maxTopBorders(out string) int {
 }
 
 func TestFlexSectionsReflowsColumnsWithinGroup(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{

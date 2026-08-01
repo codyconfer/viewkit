@@ -8,7 +8,8 @@ import (
 )
 
 func TestFillLineClampsNegativeWidth(t *testing.T) {
-	c := Cur().Dim.GetForeground()
+	t.Parallel()
+	c := Default().Dim.GetForeground()
 	for _, width := range []int{-8, -1, 0, 1} {
 		got := FillLine(c, width)
 		want := max(width, 0)
@@ -19,7 +20,8 @@ func TestFillLineClampsNegativeWidth(t *testing.T) {
 }
 
 func TestPadBlockClampsNegativeWidthAndRows(t *testing.T) {
-	c := Cur().Dim.GetForeground()
+	t.Parallel()
+	c := Default().Dim.GetForeground()
 	for _, width := range []int{-8, -1, 0, 1} {
 		for _, rows := range []int{-3, -1, 0, 1} {
 			got := PadBlock(c, width, rows, "body")
@@ -32,8 +34,10 @@ func TestPadBlockClampsNegativeWidthAndRows(t *testing.T) {
 }
 
 func TestStripBlockSurvivesNarrowScreen(t *testing.T) {
+	t.Parallel()
+	th := Default()
 	for _, screenWidth := range []int{1, 2, 8, 9, 80} {
-		got := StripBlock(screenWidth-8, "body")
+		got := th.StripBlock(screenWidth-8, "body")
 		if got == "" && screenWidth > 8 {
 			t.Errorf("StripBlock(%d) returned empty", screenWidth-8)
 		}

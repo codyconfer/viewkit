@@ -10,8 +10,8 @@ import (
 // through View with the height that View.Body receives (the deck passes the
 // usable body height, so no chrome constants are needed).
 //
-//	func (v *myView) Body(width, height int) string {
-//		return v.scroll.View(render(width), height)
+//	func (v *myView) Body(f layout.Frame) string {
+//		return v.scroll.View(f, render(f), f.Height)
 //	}
 type ScrollBody struct {
 	layout.ScrollState
@@ -44,9 +44,10 @@ func (s *ScrollBody) Handle(act keys.Action) bool {
 func (s *ScrollBody) Total() int { return s.total }
 
 // View windows body to height rows at the current offset and records the
-// totals Handle needs. height is the usable body height View.Body receives.
-func (s *ScrollBody) View(body string, height int) string {
+// totals Handle needs. height is the usable body height View.Body receives;
+// f supplies the rendering scope for the hint line.
+func (s *ScrollBody) View(f layout.Frame, body string, height int) string {
 	s.rows = max(height, 1)
 	s.total = layout.CountLines(body)
-	return layout.Viewport(body, s.rows, s.Offset)
+	return f.Viewport(body, s.rows, s.Offset)
 }

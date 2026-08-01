@@ -48,10 +48,10 @@ func chartLabel(i, last int, lo, hi float64, fmtVal func(float64) string) string
 	return strings.Repeat(" ", axisLabelWidth)
 }
 
-func chartGutter(label string) string {
-	return theme.Cur().Dim.Render(label + " │")
+func chartGutter(th theme.Theme, label string) string {
+	return th.Dim.Render(label + " │")
 }
 
-func chartBaseline(width int) string {
-	return theme.Cur().Dim.Render(strings.Repeat(" ", axisGutter) + "└" + strings.Repeat("─", width))
+func chartBaseline(th theme.Theme, width int) string {
+	return th.Dim.Render(strings.Repeat(" ", axisGutter) + "└" + strings.Repeat("─", width))
 }

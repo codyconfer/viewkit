@@ -184,12 +184,12 @@ func (s suggState) pick() string {
 
 const suggListMax = 5
 
-func fieldLabel(text string, focused bool) string {
-	t := theme.Cur()
+func fieldLabel(f layout.Frame, text string, focused bool) string {
+	t := f.Theme()
 	if focused {
-		return layout.Cursor(true) + t.Accent.Render(text)
+		return f.Cursor(true) + t.Accent.Render(text)
 	}
-	return layout.Cursor(false) + t.Dim.Render(text)
+	return f.Cursor(false) + t.Dim.Render(text)
 }
 
 const (
@@ -207,15 +207,15 @@ func fieldRowBudget(body, label int) (labelW, valW int) {
 }
 
 func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
-	t := theme.Cur()
-	label := fieldLabel(fd.Label, focused)
+	t := f.Theme()
+	label := fieldLabel(f, fd.Label, focused)
 
 	switch fd.Kind {
 	case FieldToggle:
-		return []string{label + "  " + panels.Toggle("on", "off", fd.On)}
+		return []string{label + "  " + panels.Toggle(t, "on", "off", fd.On)}
 
 	case FieldSelect:
-		return []string{label + "  " + selectGlyph(fd, focused)}
+		return []string{label + "  " + selectGlyph(t, fd, focused)}
 
 	case FieldRadio:
 		lines := []string{label}
@@ -237,7 +237,7 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 			}
 			cursor := "  "
 			if focused && i == fd.Selected {
-				cursor = layout.Cursor(true)
+				cursor = f.Cursor(true)
 			}
 			lines = append(lines, cursor+box+t.Val.Render(f.Fit(opt)))
 		}
@@ -247,7 +247,7 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 		lines := []string{label}
 		body := fd.display()
 		if focused {
-			body += "▎" + fd.ghost(sg)
+			body += "▎" + fd.ghost(t, sg)
 		}
 		if body == "" {
 			body = t.Dim.Render("…")
@@ -260,11 +260,11 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 	default:
 		labelW, valW := fieldRowBudget(f.BodyWidth(), ansi.StringWidth(fd.Label))
 		if labelW < ansi.StringWidth(fd.Label) {
-			label = fieldLabel(ansi.Truncate(fd.Label, labelW, "…"), focused)
+			label = fieldLabel(f, ansi.Truncate(fd.Label, labelW, "…"), focused)
 		}
 		val := ansi.Truncate(fd.display(), valW, "…")
 		if focused {
-			val = fd.caretRow(valW, sg)
+			val = fd.caretRow(t, valW, sg)
 		}
 		shown := t.Val.Render(val)
 		if fd.Text == "" && !focused {
@@ -274,16 +274,16 @@ func (fd *Field) render(f layout.Frame, focused bool, sg suggState) []string {
 	}
 }
 
-func (fd *Field) caretRow(valW int, sg suggState) string {
+func (fd *Field) caretRow(th theme.Theme, valW int, sg suggState) string {
 	body := ansi.Truncate(fd.display(), max(valW-1, 1), "…")
 	room := valW - ansi.StringWidth(body) - 1
 	if room <= 0 {
 		return body + "▎"
 	}
-	return body + "▎" + ansi.Truncate(fd.ghost(sg), room, "")
+	return body + "▎" + ansi.Truncate(fd.ghost(th, sg), room, "")
 }
 
-func (fd *Field) ghost(sg suggState) string {
+func (fd *Field) ghost(th theme.Theme, sg suggState) string {
 	pick := sg.pick()
 	if pick == "" || fd.Secret {
 		return ""
@@ -293,21 +293,21 @@ func (fd *Field) ghost(sg suggState) string {
 	if rest == "" {
 		return ""
 	}
-	return theme.Cur().Dim.Render(rest)
+	return th.Dim.Render(rest)
 }
 
 func (fd *Field) suggestions(f layout.Frame, focused bool, sg suggState) []string {
 	if !focused || len(sg.cands) == 0 {
 		return nil
 	}
-	t := theme.Cur()
+	t := f.Theme()
 	shown := min(len(sg.cands), suggListMax)
 	out := make([]string, 0, shown+1)
 	for i := range shown {
 		style := t.Dim
 		mark := "  "
 		if i == sg.idx {
-			style, mark = t.Val, layout.Cursor(true)
+			style, mark = t.Val, f.Cursor(true)
 		}
 		out = append(out, "  "+mark+style.Render(f.Fit(sg.cands[i])))
 	}
@@ -332,8 +332,7 @@ func (fd *Field) display() string {
 	return b.String()
 }
 
-func selectGlyph(fd *Field, focused bool) string {
-	t := theme.Cur()
+func selectGlyph(t theme.Theme, fd *Field, focused bool) string {
 	cur := ""
 	if fd.Selected >= 0 && fd.Selected < len(fd.Options) {
 		cur = fd.Options[fd.Selected]

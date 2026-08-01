@@ -177,18 +177,6 @@ func Keys() []string {
 	return out
 }
 
-// Activate looks up the named theme and makes it active, replacing the
-// Named-then-Use two-step. It reports whether key was registered; the active
-// theme is left unchanged when it was not.
-func Activate(key string) bool {
-	t, ok := Named(key)
-	if !ok {
-		return false
-	}
-	Use(t)
-	return true
-}
-
 // Named builds a Theme from the palette registered under key. When key is not
 // registered it returns Default() and false.
 func Named(key string) (Theme, bool) {

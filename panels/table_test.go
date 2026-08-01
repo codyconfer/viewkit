@@ -17,6 +17,7 @@ func tableLines(t *testing.T, out string) []string {
 func tableCells(line string) []string { return strings.Split(line, tableCellSep) }
 
 func TestTableAlignsWideRunes(t *testing.T) {
+	t.Parallel()
 	headers := []string{"name", "note"}
 	rows := [][]string{
 		{"漢字", "ok"},
@@ -63,6 +64,7 @@ func TestTableAlignsWideRunes(t *testing.T) {
 }
 
 func TestTableAlignsEmoji(t *testing.T) {
+	t.Parallel()
 	rows := [][]string{{"🐔🐔", "hen"}, {"abcd", "ok"}}
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"who", "what"}, rows))
 	base := lipgloss.Width(lines[0])
@@ -74,12 +76,14 @@ func TestTableAlignsEmoji(t *testing.T) {
 }
 
 func TestTableNoColumns(t *testing.T) {
+	t.Parallel()
 	if got := stripANSI(Table(layout.DefaultFrame(), nil, [][]string{{"a"}})); got != "(no columns)" {
 		t.Fatalf("Table(nil headers) = %q, want %q", got, "(no columns)")
 	}
 }
 
 func TestTableZeroRows(t *testing.T) {
+	t.Parallel()
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"a", "bb"}, nil))
 	if len(lines) != 3 {
 		t.Fatalf("got %d lines, want 3 (header, rule, footer):\n%s", len(lines), strings.Join(lines, "\n"))
@@ -96,6 +100,7 @@ func TestTableZeroRows(t *testing.T) {
 }
 
 func TestTableFooterCountsRows(t *testing.T) {
+	t.Parallel()
 	rows := [][]string{{"1"}, {"2"}, {"3"}}
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"n"}, rows))
 	if got := lines[len(lines)-1]; got != "(3 rows)" {
@@ -104,6 +109,7 @@ func TestTableFooterCountsRows(t *testing.T) {
 }
 
 func TestTableRuleMatchesColumns(t *testing.T) {
+	t.Parallel()
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"aaa", "b"}, [][]string{{"x", "yy"}}))
 	if got, want := lines[1], "───"+tableRuleSep+"──"; got != want {
 		t.Fatalf("rule = %q, want %q", got, want)
@@ -114,6 +120,7 @@ func TestTableRuleMatchesColumns(t *testing.T) {
 }
 
 func TestTableRaggedRows(t *testing.T) {
+	t.Parallel()
 	headers := []string{"a", "b"}
 	rows := [][]string{
 		{"1", "2", "3", "4"},
@@ -141,6 +148,7 @@ func TestTableRaggedRows(t *testing.T) {
 }
 
 func TestTableOverlongRowDoesNotWidenTable(t *testing.T) {
+	t.Parallel()
 	out := Table(layout.DefaultFrame(), []string{"a"}, [][]string{{"x", "a very long dropped cell"}})
 	lines := tableLines(t, out)
 	if got := lines[0]; got != "a" {
@@ -152,6 +160,7 @@ func TestTableOverlongRowDoesNotWidenTable(t *testing.T) {
 }
 
 func TestTableTruncatesWithEllipsis(t *testing.T) {
+	t.Parallel()
 	rows := [][]string{{"abcdefghij"}, {"hi"}}
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"col"}, rows, TableOpts{MaxCell: 5}))
 	if got, want := lines[2], "abcd…"; got != want {
@@ -168,6 +177,7 @@ func TestTableTruncatesWithEllipsis(t *testing.T) {
 }
 
 func TestTableTruncatesWideRunesToDisplayWidth(t *testing.T) {
+	t.Parallel()
 	rows := [][]string{{"日本語テスト"}, {"abcde"}}
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"c"}, rows, TableOpts{MaxCell: 5}))
 	for i, line := range lines[:len(lines)-1] {
@@ -181,6 +191,7 @@ func TestTableTruncatesWideRunesToDisplayWidth(t *testing.T) {
 }
 
 func TestTableDefaultMaxCell(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("x", TableMaxCell+20)
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"c"}, [][]string{{long}}))
 	if w := lipgloss.Width(lines[2]); w != TableMaxCell {
@@ -189,6 +200,7 @@ func TestTableDefaultMaxCell(t *testing.T) {
 }
 
 func TestTableMaxCellClampedToFrame(t *testing.T) {
+	t.Parallel()
 	f := layout.NewFrame(24)
 	long := strings.Repeat("x", 60)
 	lines := tableLines(t, Table(f, []string{"c"}, [][]string{{long}}, TableOpts{MaxCell: 50}))
@@ -198,6 +210,7 @@ func TestTableMaxCellClampedToFrame(t *testing.T) {
 }
 
 func TestTableFlattensCells(t *testing.T) {
+	t.Parallel()
 	rows := [][]string{{"a\r\nb\nc\td", "plain"}}
 	out := Table(layout.DefaultFrame(), []string{"multi\nhead", "x"}, rows)
 	lines := tableLines(t, out)
@@ -213,6 +226,7 @@ func TestTableFlattensCells(t *testing.T) {
 }
 
 func TestTableColumnWidthFromHeader(t *testing.T) {
+	t.Parallel()
 	lines := tableLines(t, Table(layout.DefaultFrame(), []string{"longheader", "b"}, [][]string{{"x", "y"}}))
 	cells := tableCells(lines[2])
 	if w := lipgloss.Width(cells[0]); w != len("longheader") {
@@ -221,6 +235,7 @@ func TestTableColumnWidthFromHeader(t *testing.T) {
 }
 
 func TestTableZeroFrameUsesDefaultBodyWidth(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("y", 100)
 	lines := tableLines(t, Table(layout.Frame{}, []string{"c"}, [][]string{{long}}))
 	if w := lipgloss.Width(lines[2]); w != TableMaxCell {

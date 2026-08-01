@@ -31,13 +31,13 @@ func TestToasterOverlaysAPushedNotification(t *testing.T) {
 	now := toastEpoch
 	tst := fixedToaster(3*time.Second, &now)
 
-	plain := tst.Body(toastBody(), 80)
+	plain := tst.Body(layout.Frame{Width: 80}, toastBody())
 	if strings.Contains(plain, "Saved") {
 		t.Fatal("an empty toaster should leave the body alone")
 	}
 
 	tst.Push(notify.Positive("Saved", "wrote config"))
-	got := tst.Body(toastBody(), 80)
+	got := tst.Body(layout.Frame{Width: 80}, toastBody())
 	if !strings.Contains(got, "Saved") || !strings.Contains(got, "wrote config") {
 		t.Fatalf("body is missing the toast:\n%s", got)
 	}
@@ -52,7 +52,7 @@ func TestToasterPruneTickExpiresTheToast(t *testing.T) {
 	if _, handled := tst.Update(tick(tst, now)); !handled {
 		t.Fatal("the toaster should claim its own tick")
 	}
-	if !strings.Contains(tst.Body(toastBody(), 80), "Installed") {
+	if !strings.Contains(tst.Body(layout.Frame{Width: 80}, toastBody()), "Installed") {
 		t.Error("a toast should survive a tick inside its TTL")
 	}
 
@@ -60,7 +60,7 @@ func TestToasterPruneTickExpiresTheToast(t *testing.T) {
 	if _, handled := tst.Update(tick(tst, now)); !handled {
 		t.Fatal("the toaster should claim its own tick")
 	}
-	if got := tst.Body(toastBody(), 80); strings.Contains(got, "Installed") {
+	if got := tst.Body(layout.Frame{Width: 80}, toastBody()); strings.Contains(got, "Installed") {
 		t.Fatalf("the toast outlived its TTL:\n%s", got)
 	}
 	if tst.Active() {
@@ -112,7 +112,7 @@ func TestToastersDoNotConsumeEachOthersTicks(t *testing.T) {
 	if !b.Active() {
 		t.Fatal("b's queue was pruned by a's tick")
 	}
-	if !strings.Contains(b.Body(toastBody(), 80), "beta") {
+	if !strings.Contains(b.Body(layout.Frame{Width: 80}, toastBody()), "beta") {
 		t.Error("b's toast should still be showing")
 	}
 
@@ -130,7 +130,7 @@ func TestToasterExpiresOnRenderWhenATickWasLost(t *testing.T) {
 	tst.Push(notify.Neutral("stale", ""))
 
 	now = toastEpoch.Add(time.Minute)
-	if got := tst.Body(toastBody(), 80); strings.Contains(got, "stale") {
+	if got := tst.Body(layout.Frame{Width: 80}, toastBody()); strings.Contains(got, "stale") {
 		t.Fatalf("Body should prune against the clock:\n%s", got)
 	}
 }
@@ -157,7 +157,7 @@ func TestToasterPushForOverridesTheDefaultTTL(t *testing.T) {
 	tst.PushFor(notify.Neutral("long", ""), time.Hour)
 
 	now = toastEpoch.Add(10 * time.Minute)
-	if !strings.Contains(tst.Body(toastBody(), 80), "long") {
+	if !strings.Contains(tst.Body(layout.Frame{Width: 80}, toastBody()), "long") {
 		t.Error("PushFor's TTL should win over the Toaster default")
 	}
 }
@@ -180,10 +180,10 @@ func TestToasterOverlayPosIsConfigurable(t *testing.T) {
 		t.Fatalf("default overlay position = %+v, want top centre", tst.pos)
 	}
 	tst.Push(notify.Neutral("Saved", ""))
-	top := tst.Body(toastBody(), 80)
+	top := tst.Body(layout.Frame{Width: 80}, toastBody())
 
 	tst.SetOverlayPos(layout.OverlayPos{XFrac: 0, YFrac: 1})
-	bottom := tst.Body(toastBody(), 80)
+	bottom := tst.Body(layout.Frame{Width: 80}, toastBody())
 	if top == bottom {
 		t.Error("SetOverlayPos should move the card")
 	}

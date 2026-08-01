@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // TableMaxCell is the default per-column display-width cap used by Table when
@@ -43,7 +42,7 @@ type TableOpts struct {
 // headers is empty, and a header, separator and "(0 rows)" when there are no
 // rows.
 func Table(f layout.Frame, headers []string, rows [][]string, opts ...TableOpts) string {
-	th := theme.Cur()
+	th := f.Theme()
 	if len(headers) == 0 {
 		return th.Dim.Render("(no columns)")
 	}

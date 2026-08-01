@@ -4,10 +4,10 @@
 // must not import bubbletea. Apps and plugins implement View and register via
 // RegisterView; Model owns stack navigation + chrome.
 //
-// Process-global singletons (install before Run):
-//   - theme.Use / theme.Cur — active palette
-//   - keys.Use / keys.Cur — active key scheme
-//   - theme.Register / keys.Register / RegisterView — contribution registries
+// Rendering context is a ui.Scope (theme, keys, glyphs) passed via WithScope
+// and swapped with Model.SetScope; there is no process-global theme or scheme.
+// Contribution registries (theme.Register / keys.Register / RegisterView) and
+// the glyph default mode (glyph.SetMode, write-once) remain process level.
 //
-// See INTERFACE.md for the Model + singleton contract.
+// See INTERFACE.md for the Model + scope contract.
 package deck

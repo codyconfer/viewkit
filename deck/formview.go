@@ -6,7 +6,7 @@ import (
 	"github.com/codyconfer/viewkit/forms"
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // FormKeys binds a FormView's commands to a host application's key scheme.
@@ -16,8 +16,8 @@ import (
 // name it something else entirely. This mirrors EditorKeys.
 type FormKeys struct {
 	// Map resolves keys while the form has focus. A nil Map falls back to the
-	// active scheme's editor bindings (navigation, confirm, cancel, erase,
-	// paging), resolved fresh on every key so a later keys.Use still applies.
+	// scope's editor bindings (navigation, confirm, cancel, erase, paging),
+	// resolved fresh on every key so a scheme swap still applies.
 	Map *keys.Map
 	// Save is the action that triggers OnSubmit. Leave it empty for a form
 	// with no save command (submit then only happens through OnKey).
@@ -101,7 +101,7 @@ func (v *FormView) Title() string {
 func (v *FormView) Init() tea.Cmd { return nil }
 
 // Context reports the chrome context cues.
-func (v *FormView) Context() []keys.Hint {
+func (v *FormView) Context(scope *ui.Scope) []keys.Hint {
 	if v.spec.ContextFunc != nil {
 		return v.spec.ContextFunc()
 	}
@@ -110,11 +110,11 @@ func (v *FormView) Context() []keys.Hint {
 
 // Hints reports the footer legend: the spec's override, else one derived from
 // the bound keys so the legend cannot advertise a binding the view ignores.
-func (v *FormView) Hints() []keys.Hint {
+func (v *FormView) Hints(scope *ui.Scope) []keys.Hint {
 	if v.spec.Hints != nil {
 		return v.spec.Hints
 	}
-	km := v.keyMap()
+	km := v.keyMap(schemeOf(scope))
 	if len(v.form.Suggestions()) > 0 && km.Has(keys.Complete) {
 		return []keys.Hint{
 			km.Hint(keys.Complete),
@@ -133,10 +133,10 @@ func (v *FormView) Hints() []keys.Hint {
 }
 
 // Body renders the form panel, with the status line appended when set.
-func (v *FormView) Body(width, _ int) string {
-	body := v.form.Render(layout.NewFrame(width), v.panelTitle())
+func (v *FormView) Body(f layout.Frame) string {
+	body := v.form.Render(f.WithWidth(f.Width), v.panelTitle())
 	if v.status != "" {
-		return body + "\n" + theme.Cur().Cant.Render(v.status)
+		return body + "\n" + f.Theme().Cant.Render(v.status)
 	}
 	return body
 }
@@ -148,15 +148,14 @@ func (v *FormView) panelTitle() string {
 	return v.Title()
 }
 
-func (v *FormView) keyMap() *keys.Map {
+func (v *FormView) keyMap(sc keys.Scheme) *keys.Map {
 	if v.spec.Keys.Map != nil {
 		return v.spec.Keys.Map
 	}
-	return formMap()
+	return formMapFor(sc)
 }
 
-func formMap() *keys.Map {
-	sc := keys.Cur()
+func formMapFor(sc keys.Scheme) *keys.Map {
 	return keys.NewMap(sc.EditorBindings(
 		keys.Complete, keys.CompleteNext, keys.CompletePrev,
 		keys.Up, keys.Down, keys.Left, keys.Right,
@@ -181,7 +180,7 @@ func (v *FormView) Update(a *Model, msg tea.Msg) tea.Cmd {
 			return cmd
 		}
 	}
-	act, ok := v.keyMap().Action(key.String())
+	act, ok := v.keyMap(schemeOf(a.UI())).Action(key.String())
 	if !ok {
 		v.insert(key)
 		return nil

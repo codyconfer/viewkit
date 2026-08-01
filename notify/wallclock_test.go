@@ -6,6 +6,7 @@ import (
 )
 
 func TestQueuePruneExpiresByWallClock(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	base := time.Date(2026, 7, 22, 12, 0, 0, 0, time.UTC)
 	q.PushUntil(n("a"), base.Add(10*time.Second))
@@ -24,6 +25,7 @@ func TestQueuePruneExpiresByWallClock(t *testing.T) {
 }
 
 func TestPushForZeroDurationDropped(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	q.PushFor(n("a"), time.Now(), 0)
 	if q.Active() {
@@ -32,6 +34,7 @@ func TestPushForZeroDurationDropped(t *testing.T) {
 }
 
 func TestSnapshotOrderOldestFirst(t *testing.T) {
+	t.Parallel()
 	q := NewQueue(0)
 	now := time.Now()
 	q.PushUntil(n("first"), now.Add(time.Hour))

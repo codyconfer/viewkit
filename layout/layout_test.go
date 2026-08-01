@@ -21,6 +21,7 @@ func pageClamp(body string, rows, offset int) int {
 }
 
 func TestPageScrollRevealsLastContentLine(t *testing.T) {
+	t.Parallel()
 	content := make([]string, 8)
 	for i := range content {
 		content[i] = "c" + string(rune('1'+i))
@@ -46,6 +47,7 @@ func TestPageScrollRevealsLastContentLine(t *testing.T) {
 }
 
 func TestSplitStickyFooter(t *testing.T) {
+	t.Parallel()
 	content, footer := SplitStickyFooter("body line\n\nfooter line")
 	if content != "body line" || footer != "footer line" {
 		t.Fatalf("SplitStickyFooter = (%q, %q), want (%q, %q)", content, footer, "body line", "footer line")
@@ -63,6 +65,7 @@ func TestSplitStickyFooter(t *testing.T) {
 }
 
 func TestCountLines(t *testing.T) {
+	t.Parallel()
 	cases := map[string]int{
 		"":           1,
 		"one":        1,
@@ -78,6 +81,7 @@ func TestCountLines(t *testing.T) {
 }
 
 func TestPadLines(t *testing.T) {
+	t.Parallel()
 	got := PadLines("a\nb", 4)
 	if CountLines(got) != 4 {
 		t.Errorf("PadLines to 4 rows produced %d rows:\n%q", CountLines(got), got)
@@ -96,6 +100,7 @@ func TestPadLines(t *testing.T) {
 }
 
 func TestViewportLayoutNoFooterScrollsWholeBody(t *testing.T) {
+	t.Parallel()
 	body := "l1\nl2\nl3\nl4\nl5"
 	got := ViewportLayout(body, 3, 0)
 	if !strings.Contains(got, "l1") {
@@ -107,6 +112,7 @@ func TestViewportLayoutNoFooterScrollsWholeBody(t *testing.T) {
 }
 
 func TestViewportLayoutPinsFooter(t *testing.T) {
+	t.Parallel()
 	body := "c1\nc2\nc3\nc4\nc5\n\nFOOTER"
 	got := ViewportLayout(body, 5, 0)
 	lines := strings.Split(got, "\n")
@@ -119,6 +125,7 @@ func TestViewportLayoutPinsFooter(t *testing.T) {
 }
 
 func TestScrollableRowsAndBody(t *testing.T) {
+	t.Parallel()
 	body := "c1\nc2\nc3\n\nFOOTER"
 
 	if got := ScrollableRows("just content", 6); got != 6 {

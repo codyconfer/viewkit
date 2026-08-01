@@ -8,6 +8,7 @@ import (
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 const (
@@ -82,13 +83,14 @@ type HomeShell struct {
 	ready   bool
 	loaded  bool
 	fetched any
+	scope   *ui.Scope
 	bound   sideBind
 }
 
 type sideBind struct {
 	width int
 	label string
-	gen   uint64
+	scope *ui.Scope
 	set   bool
 }
 
@@ -136,14 +138,14 @@ type ReloadMsg struct{}
 func (h *HomeShell) Title() string { return h.title }
 
 // Context implements View.
-func (h *HomeShell) Context() []keys.Hint { return h.ctx }
+func (h *HomeShell) Context(scope *ui.Scope) []keys.Hint { return h.ctx }
 
 // FocusSide reports whether the side pane has keyboard focus (for tests/adapters).
 func (h *HomeShell) FocusSide() bool { return h.focus == homeFocusSide }
 
 // Hints implements View; the legend follows which pane has focus.
-func (h *HomeShell) Hints() []keys.Hint {
-	km := navMap()
+func (h *HomeShell) Hints(scope *ui.Scope) []keys.Hint {
+	km := navMapFor(schemeOf(scope))
 	if h.focus == homeFocusSide {
 		hints := []keys.Hint{km.HintLabeled(keys.Up, "move")}
 		if h.onSelect != nil {
@@ -217,6 +219,7 @@ func (h *HomeShell) fetchSide() tea.Cmd {
 // Update implements View, handling resize, side-load completion, ReloadMsg
 // and keys for whichever pane has focus.
 func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
+	h.scope = host.UI()
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		h.width = m.Width
@@ -239,7 +242,7 @@ func (h *HomeShell) Update(host *Model, msg tea.Msg) tea.Cmd {
 }
 
 func (h *HomeShell) handleKey(host *Model, m tea.KeyMsg) tea.Cmd {
-	act, ok := h.action(m.String())
+	act, ok := h.action(schemeOf(host.UI()), m.String())
 	if !ok {
 		return nil
 	}
@@ -298,13 +301,13 @@ func (h *HomeShell) toggleFocus() {
 	h.side.SetFocused(h.focus == homeFocusSide)
 }
 
-func (h *HomeShell) action(key string) (keys.Action, bool) {
+func (h *HomeShell) action(sc keys.Scheme, key string) (keys.Action, bool) {
 	if h.isAction != nil {
 		if act, ok := h.isAction(key); ok {
 			return act, true
 		}
 	}
-	return navMap().Action(key)
+	return navMapFor(sc).Action(key)
 }
 
 func (h *HomeShell) confirmSelected(host *Model) tea.Cmd {
@@ -335,7 +338,7 @@ func (h *HomeShell) openSelected() tea.Cmd {
 }
 
 func (h *HomeShell) bindKey() sideBind {
-	return sideBind{width: h.width, label: h.sideLabel(), gen: theme.Generation(), set: true}
+	return sideBind{width: h.width, label: h.sideLabel(), scope: h.scope, set: true}
 }
 
 func (h *HomeShell) refresh() {
@@ -343,7 +346,7 @@ func (h *HomeShell) refresh() {
 	if !h.hasSide() || h.width == 0 {
 		return
 	}
-	th := theme.Cur()
+	th := themeOf(h.scope)
 	if !h.loaded {
 		h.side.SetItems([]list.Item{{Block: th.Dim.Render(h.sideLoading)}})
 		return
@@ -358,7 +361,7 @@ func (h *HomeShell) refresh() {
 }
 
 func (h *HomeShell) menuRows(f layout.Frame) []string {
-	th := theme.Cur()
+	th := f.Theme()
 	anyIcon := false
 	for _, it := range h.items {
 		if it.Icon != "" {
@@ -380,7 +383,7 @@ func (h *HomeShell) menuRows(f layout.Frame) []string {
 		row := cursor
 		switch {
 		case it.Icon != "":
-			row += theme.Icon(it.Icon, it.Hue)
+			row += th.Icon(it.Icon, it.Hue)
 		case anyIcon:
 			row += theme.IconBlank()
 		}
@@ -395,14 +398,16 @@ func (h *HomeShell) menuRows(f layout.Frame) []string {
 
 // Body implements View: the menu box, then the side list sized to the
 // remaining height when a side pane is configured.
-func (h *HomeShell) Body(width, height int) string {
-	f := layout.ScreenFrame(width)
+func (h *HomeShell) Body(f layout.Frame) string {
+	width, height := f.Width, f.Height
+	h.side.SetTheme(f.Theme())
+	f = f.Screen()
 	f.Focused = h.focus == homeFocusMenu
 	menuBox := f.TitledBox(h.boxTitle, h.menuRows(f)...)
 	if !h.hasSide() {
 		return menuBox
 	}
-	th := theme.Cur()
+	th := f.Theme()
 	label := "◈ " + h.sideLabel()
 	if h.focus == homeFocusSide {
 		label = th.Accent.Render(label)

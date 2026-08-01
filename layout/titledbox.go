@@ -5,8 +5,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // TitledBox renders a rounded box with the title embedded in the top border.
@@ -40,7 +38,7 @@ func (f Frame) CellTitledBoxIcon(icon, title string, lines ...string) string {
 }
 
 func (f Frame) titledBoxAt(inner int, icon, title string, lines ...string) string {
-	th := theme.Cur()
+	th := f.Theme()
 	span := inner + 2
 
 	border := th.Dim

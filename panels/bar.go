@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // Datum is one labeled value for the Bar, BarScroll, and Pie charts.
@@ -25,7 +24,7 @@ type Datum struct {
 func Bar(f layout.Frame, title string, data []Datum, width int, fmtNum func(float64) string, empty string) string {
 	lines, ok := barLines(f, data, width, fmtNum)
 	if !ok {
-		return f.Panel(title, theme.Cur().Dim.Render(empty))
+		return f.Panel(title, f.Theme().Dim.Render(empty))
 	}
 	return f.Panel(title, lines...)
 }
@@ -37,7 +36,7 @@ func Bar(f layout.Frame, title string, data []Datum, width int, fmtNum func(floa
 func BarScroll(f layout.Frame, title string, data []Datum, width int, fmtNum func(float64) string, empty string, visible, offset int) string {
 	lines, ok := barLines(f, data, width, fmtNum)
 	if !ok {
-		return f.Panel(title, theme.Cur().Dim.Render(empty))
+		return f.Panel(title, f.Theme().Dim.Render(empty))
 	}
 	return f.ScrollPanel(title, lines, visible, offset)
 }
@@ -71,15 +70,16 @@ func barLines(f layout.Frame, data []Datum, width int, fmtNum func(float64) stri
 	if width > available {
 		width = available
 	}
+	th := f.Theme()
 	lines := make([]string, len(data))
 	for i, d := range data {
 		v := finite(d.Value)
 		n := min(max(int(absf(v)/peak*float64(width)+0.5), 0), width)
-		sty := theme.Cur().Can
+		sty := th.Can
 		if v < 0 {
-			sty = theme.Cur().Cant
+			sty = th.Cant
 		}
-		label := theme.Cur().Dim.Render(padRight(d.Label, labelW))
+		label := th.Dim.Render(padRight(d.Label, labelW))
 		bar := sty.Render(strings.Repeat("█", n))
 		lines[i] = f.Spread(label+" "+bar, sty.Render(fmtNum(v)))
 	}

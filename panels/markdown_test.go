@@ -8,6 +8,7 @@ import (
 )
 
 func TestMarkdownStructure(t *testing.T) {
+	t.Parallel()
 	src := strings.Join([]string{
 		"# Title",
 		"",
@@ -46,6 +47,7 @@ func TestMarkdownStructure(t *testing.T) {
 }
 
 func TestMarkdownFencedCodePreserved(t *testing.T) {
+	t.Parallel()
 	src := "```\nx := 1\n```"
 	out := stripANSI(Markdown(layout.DefaultFrame(), src))
 	if !strings.Contains(out, "x := 1") {
@@ -57,6 +59,7 @@ func TestMarkdownFencedCodePreserved(t *testing.T) {
 }
 
 func TestMarkdownPanelHasTitle(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(MarkdownPanel(layout.DefaultFrame(), "DOCS", "hello"))
 	for _, want := range []string{"DOCS", "hello"} {
 		if !strings.Contains(out, want) {
@@ -66,6 +69,7 @@ func TestMarkdownPanelHasTitle(t *testing.T) {
 }
 
 func TestMarkdownWrapsLongParagraph(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("word ", 60)
 	f := layout.NewFrame(30)
 	out := stripANSI(Markdown(f, long))

@@ -11,20 +11,23 @@ import (
 
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/list"
+	"github.com/codyconfer/viewkit/ui"
 )
 
-func useScheme(t *testing.T, overrides ...keys.Binding) {
-	t.Helper()
-	keys.Use(keys.Default().With(overrides...))
-	t.Cleanup(func() { keys.Use(keys.Default()) })
+// schemeScope builds a Scope whose scheme is Default with overrides applied.
+func schemeScope(overrides ...keys.Binding) *ui.Scope {
+	scope := ui.Default()
+	scope.Keys = keys.Default().With(overrides...)
+	return scope
 }
 
 func TestFooterLegendFollowsScheme(t *testing.T) {
-	useScheme(t,
+	t.Parallel()
+	scope := schemeScope(
 		keys.Binding{Keys: []string{"q"}, Action: keys.Cancel, Glyph: "q"},
 		keys.Binding{Keys: []string{"ctrl+x"}, Action: keys.Quit, Glyph: "ctrl+x"},
 	)
-	h := New(stubView{title: "root"})
+	h := New(stubView{title: "root"}, WithScope(scope))
 	h = driveHost(h, tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	view := ansi.Strip(h.View())
@@ -41,8 +44,9 @@ func TestFooterLegendFollowsScheme(t *testing.T) {
 }
 
 func TestHostQuitFollowsScheme(t *testing.T) {
-	useScheme(t, keys.Binding{Keys: []string{"ctrl+x"}, Action: keys.Quit, Glyph: "ctrl+x"})
-	h := New(stubView{title: "root"})
+	t.Parallel()
+	scope := schemeScope(keys.Binding{Keys: []string{"ctrl+x"}, Action: keys.Quit, Glyph: "ctrl+x"})
+	h := New(stubView{title: "root"}, WithScope(scope))
 
 	_, cmd := h.Update(tea.KeyMsg{Type: tea.KeyCtrlX})
 	if cmd == nil {
@@ -60,6 +64,7 @@ func TestHostQuitFollowsScheme(t *testing.T) {
 }
 
 func TestWithQuitHintRendersCustomMatcher(t *testing.T) {
+	t.Parallel()
 	h := New(stubView{title: "root"},
 		WithQuitCheck(func(k string) bool { return k == "ctrl+d" }),
 		WithQuitHint("ctrl+d"),
@@ -76,7 +81,8 @@ func TestWithQuitHintRendersCustomMatcher(t *testing.T) {
 }
 
 func TestHomeShellFocusFollowsScheme(t *testing.T) {
-	useScheme(t, keys.Binding{Keys: []string{"ctrl+n"}, Action: keys.FocusNext, Glyph: "ctrl+n"})
+	t.Parallel()
+	scope := schemeScope(keys.Binding{Keys: []string{"ctrl+n"}, Action: keys.FocusNext, Glyph: "ctrl+n"})
 	shell := NewHomeShell(HomeShellSpec{
 		Title:     "home",
 		Items:     []MenuItem{{Label: "Go"}},
@@ -86,7 +92,7 @@ func TestHomeShellFocusFollowsScheme(t *testing.T) {
 			return []list.Item{{Block: "row-one", Selectable: true}}
 		},
 	})
-	h := New(shell)
+	h := New(shell, WithScope(scope))
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	h = driveHost(h, tea.KeyMsg{Type: tea.KeyTab})
@@ -98,8 +104,8 @@ func TestHomeShellFocusFollowsScheme(t *testing.T) {
 		t.Fatal("rebound FocusNext key did not switch panes")
 	}
 
-	glyphs := make([]string, 0, len(shell.Hints()))
-	for _, hint := range shell.Hints() {
+	glyphs := make([]string, 0, len(shell.Hints(scope)))
+	for _, hint := range shell.Hints(scope) {
 		glyphs = append(glyphs, hint.Key)
 	}
 	if !slices.Contains(glyphs, "ctrl+n") {
@@ -108,13 +114,14 @@ func TestHomeShellFocusFollowsScheme(t *testing.T) {
 }
 
 func TestScrollPagesViaScheme(t *testing.T) {
-	useScheme(t, keys.Binding{Keys: []string{"ctrl+f"}, Action: keys.PageDown, Glyph: "ctrl+f"})
+	t.Parallel()
+	scope := schemeScope(keys.Binding{Keys: []string{"ctrl+f"}, Action: keys.PageDown, Glyph: "ctrl+f"})
 	lines := make([]string, 200)
 	for i := range lines {
 		lines[i] = fmt.Sprintf("line-%03d", i)
 	}
 	sc := NewScroll(ScrollSpec{Title: "log", Load: func() string { return strings.Join(lines, "\n") }})
-	h := New(sc)
+	h := New(sc, WithScope(scope))
 	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
 	if cmd := sc.Init(); cmd != nil {
 		h = driveHost(h, cmd())

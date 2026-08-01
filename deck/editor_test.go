@@ -12,6 +12,7 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 const (
@@ -47,20 +48,20 @@ type stubDoc struct {
 	removeErr error
 }
 
-func (d *stubDoc) Kind() string            { return "report" }
-func (d *stubDoc) Title() string           { return "build report" }
-func (d *stubDoc) Context() []keys.Hint    { return nil }
-func (d *stubDoc) SavedName() string       { return d.saved }
-func (d *stubDoc) Sync() bool              { return false }
-func (d *stubDoc) Summary() string         { return "draft" }
-func (d *stubDoc) PreviewLines() []string  { return []string{"name: draft"} }
-func (d *stubDoc) Remove() (string, error) { return "removed", d.removeErr }
+func (d *stubDoc) Kind() string                       { return "report" }
+func (d *stubDoc) Title() string                      { return "build report" }
+func (d *stubDoc) Context() []keys.Hint               { return nil }
+func (d *stubDoc) SavedName() string                  { return d.saved }
+func (d *stubDoc) Sync() bool                         { return false }
+func (d *stubDoc) Summary() string                    { return "draft" }
+func (d *stubDoc) PreviewLines(layout.Frame) []string { return []string{"name: draft"} }
+func (d *stubDoc) Remove() (string, error)            { return "removed", d.removeErr }
 
 func (d *stubDoc) Fields(prev map[string]any) []forms.Field {
 	return []forms.Field{{Key: "name", Label: "name", Kind: forms.FieldText, Text: forms.Raw(prev, "name")}}
 }
 
-func (d *stubDoc) ValidateLines() ([]string, error) { return []string{"ok"}, nil }
+func (d *stubDoc) ValidateLines(layout.Frame) ([]string, error) { return []string{"ok"}, nil }
 
 func (d *stubDoc) Run() (string, func() Results, error) {
 	return "draft", func() Results { return stubResults{n: 1} }, nil
@@ -87,7 +88,7 @@ func (d outputDoc) WriteOutput() (string, error) {
 }
 
 func editorTestKeys() EditorKeys {
-	sc := keys.Cur()
+	sc := keys.Default()
 	return EditorKeys{
 		Map: keys.NewMap(
 			sc.Binding(keys.Cancel),
@@ -145,8 +146,8 @@ func TestEditorOutputErrorBecomesStatus(t *testing.T) {
 	if e.Status() != "run ctrl+r first" {
 		t.Fatalf("status = %q, want the copy error", e.Status())
 	}
-	if !hasHint(e.Hints(), "ctrl+g") {
-		t.Errorf("hints should offer copy: %v", e.Hints())
+	if !hasHint(e.Hints(ui.Default()), "ctrl+g") {
+		t.Errorf("hints should offer copy: %v", e.Hints(ui.Default()))
 	}
 }
 
@@ -188,8 +189,8 @@ func TestEditorWithoutOutputIgnoresCopyAndWrite(t *testing.T) {
 		t.Errorf("plain doc should ignore copy, got status %q", e.Status())
 	}
 	for _, glyph := range []string{"ctrl+g", "ctrl+w"} {
-		if hasHint(e.Hints(), glyph) {
-			t.Errorf("plain doc should not offer %s: %v", glyph, e.Hints())
+		if hasHint(e.Hints(ui.Default()), glyph) {
+			t.Errorf("plain doc should not offer %s: %v", glyph, e.Hints(ui.Default()))
 		}
 	}
 }

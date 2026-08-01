@@ -11,6 +11,7 @@ import (
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // Results is the lower pane of an Editor: whatever a run produced.
@@ -48,11 +49,11 @@ type EditorDoc interface {
 	// Summary is the one-line description shown when the form is collapsed.
 	Summary() string
 	// PreviewLines renders the document for the yaml-style preview panel.
-	PreviewLines() []string
+	PreviewLines(f layout.Frame) []string
 	// ValidateLines checks the document and returns display lines for the
 	// validation panel. A non-nil error means the document could not be
 	// built at all, and is surfaced as the status line instead.
-	ValidateLines() ([]string, error)
+	ValidateLines(f layout.Frame) ([]string, error)
 	// Run executes the document. The returned loader runs off the UI
 	// goroutine, so it must not touch the doc.
 	Run() (label string, load func() Results, err error)
@@ -144,10 +145,11 @@ type Editor struct {
 
 	bodyHeight int
 	bodyWidth  int
+	frame      layout.Frame
 
 	bound      bool
 	boundWidth int
-	boundGen   uint64
+	boundUI    *ui.Scope
 }
 
 // NewEditor builds an Editor over doc. seed pre-fills the form and is
@@ -223,11 +225,11 @@ func (e *Editor) Title() string { return e.doc.Title() }
 func (e *Editor) Init() tea.Cmd { return nil }
 
 // Context implements View, delegating to the document.
-func (e *Editor) Context() []keys.Hint { return e.doc.Context() }
+func (e *Editor) Context(scope *ui.Scope) []keys.Hint { return e.doc.Context() }
 
 // Hints implements View. The legend follows the current mode: delete
 // confirmation, results pane, suggestion completion, or plain form editing.
-func (e *Editor) Hints() []keys.Hint {
+func (e *Editor) Hints(scope *ui.Scope) []keys.Hint {
 	if e.confirm != nil {
 		return []keys.Hint{{Key: "←/→", Label: "choose"}, {Key: "enter", Label: "confirm"}}
 	}
@@ -281,6 +283,7 @@ func (e *Editor) withHint(hints []keys.Hint, act keys.Action, label string) []ke
 // open, otherwise to the focused pane (form or results); it also handles
 // resize, run completion (editorRanMsg) and ReloadMsg re-runs.
 func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
+	e.frame.UI = a.UI()
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		e.bodyHeight, e.bodyWidth = m.Height, m.Width
@@ -453,7 +456,7 @@ func (e *Editor) askDelete() {
 
 func (e *Editor) validate() {
 	e.notice = nil
-	lines, err := e.doc.ValidateLines()
+	lines, err := e.doc.ValidateLines(e.frame)
 	if err != nil {
 		e.status = err.Error()
 		return
@@ -508,7 +511,7 @@ func (e *Editor) save(a *Model) tea.Cmd {
 }
 
 func (e *Editor) relayoutResults() {
-	if e.bound && e.bodyWidth == e.boundWidth && e.boundGen == theme.Generation() {
+	if e.bound && e.bodyWidth == e.boundWidth && e.boundUI == e.frame.UI {
 		return
 	}
 	e.bindResults(e.results.SetItemsKeepingCursor)
@@ -522,9 +525,9 @@ func (e *Editor) bindResults(install func([]list.Item)) {
 	if !e.hasResults || e.bodyWidth <= 0 || e.set == nil {
 		return
 	}
-	items := e.set.Items(layout.ScreenFrame(e.bodyWidth - editorListIndent))
+	items := e.set.Items(layout.ScreenFrame(e.bodyWidth - editorListIndent).WithUI(e.frame.UI))
 	install(items)
-	e.bound, e.boundWidth, e.boundGen = true, e.bodyWidth, theme.Generation()
+	e.bound, e.boundWidth, e.boundUI = true, e.bodyWidth, e.frame.UI
 	lines := 0
 	for i, it := range items {
 		if i > 0 {
@@ -576,11 +579,14 @@ func (e *Editor) openSelected() tea.Cmd {
 // Body implements View. When both panes exceed the height budget it
 // collapses the unfocused pane — then both — to one-line summaries, and it
 // overlays the delete-confirm dialog when that is open.
-func (e *Editor) Body(width, height int) string {
+func (e *Editor) Body(frame layout.Frame) string {
+	e.frame = frame
+	e.results.SetTheme(frame.Theme())
+	width, height := frame.Width, frame.Height
 	if height > 0 {
 		e.bodyHeight = height
 	}
-	f := layout.NewFrame(width)
+	f := frame.WithWidth(width)
 
 	body := e.compose(f, width, collapseNone)
 	if e.hasResults && (e.overflows(body) || (e.onResults && e.resultsHeight < e.resultsNeed())) {
@@ -594,7 +600,7 @@ func (e *Editor) Body(width, height int) string {
 		}
 	}
 	if e.confirm != nil {
-		return e.confirm.Overlay(body, layout.NewFrame(layout.DialogWidth(width)))
+		return e.confirm.Overlay(body, frame.WithWidth(layout.DialogWidth(width)))
 	}
 	return body
 }
@@ -606,13 +612,13 @@ func (e *Editor) overflows(body string) bool {
 func (e *Editor) compose(f layout.Frame, width int, mode editorCollapse) string {
 	var tail []string
 	if e.preview {
-		tail = append(tail, f.Panel("yaml", e.doc.PreviewLines()...))
+		tail = append(tail, f.Panel("yaml", e.doc.PreviewLines(f)...))
 	}
 	if len(e.notice) > 0 {
 		tail = append(tail, f.Panel("validation", e.notice...))
 	}
 	if e.status != "" {
-		tail = append(tail, theme.Cur().Cant.Render(e.status))
+		tail = append(tail, f.Theme().Cant.Render(e.status))
 	}
 
 	var head string
@@ -652,7 +658,7 @@ func (e *Editor) formBudget(tail []string) int {
 }
 
 func (e *Editor) collapsedResults(f layout.Frame) string {
-	th := theme.Cur()
+	th := f.Theme()
 	if e.running {
 		return f.Panel(e.resultsTitle(), th.Dim.Render("running…"))
 	}
@@ -671,12 +677,12 @@ func (e *Editor) collapsedResults(f layout.Frame) string {
 func (e *Editor) resultsTitle() string { return "results: " + e.resultLabel }
 
 func (e *Editor) collapsedForm(f layout.Frame) string {
-	th := theme.Cur()
+	th := f.Theme()
 	return f.Panel(e.Title(), th.Dim.Render(e.doc.Summary()+"  ·  tab to edit"))
 }
 
 func (e *Editor) resultsPanel(f layout.Frame, width int, above []string) string {
-	th := theme.Cur()
+	th := f.Theme()
 	title := e.resultsTitle()
 	switch {
 	case e.running:

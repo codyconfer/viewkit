@@ -35,7 +35,7 @@ func requireTrueColor(tb testing.TB) {
 	if got := lipgloss.ColorProfile(); got != termenv.TrueColor {
 		tb.Fatalf("lipgloss.ColorProfile() = %v, want termenv.TrueColor", got)
 	}
-	if out := theme.Cur().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
+	if out := theme.Default().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
 		tb.Fatalf("theme render lacks %q (profile not in effect): %q", trueColorFgSGR, out)
 	}
 }

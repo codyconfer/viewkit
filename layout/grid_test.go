@@ -36,6 +36,7 @@ func lineAt(out string, y int) string {
 }
 
 func TestGridTilesTwoColumnsGapFree(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -62,6 +63,7 @@ func TestGridTilesTwoColumnsGapFree(t *testing.T) {
 }
 
 func TestGridEdgeTilingHasNoOddWidthGap(t *testing.T) {
+	t.Parallel()
 	cells := []gridCell{{x: 0, w: 1}, {x: 1, w: 1}, {x: 2, w: 1}}
 	total := 0
 	prevEnd := 0
@@ -79,6 +81,7 @@ func TestGridEdgeTilingHasNoOddWidthGap(t *testing.T) {
 }
 
 func TestGridRowSpanStacksVertically(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -103,6 +106,7 @@ func TestGridRowSpanStacksVertically(t *testing.T) {
 }
 
 func TestGridAutoFlowFillsFreeCells(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -121,6 +125,7 @@ func TestGridAutoFlowFillsFreeCells(t *testing.T) {
 }
 
 func TestGridCollidingPositionsKeepEveryPane(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{
 		fixedPane("A", false, &GridPos{Col: 0, Row: 0}),
 		fixedPane("B", false, &GridPos{Col: 0, Row: 0}),
@@ -140,6 +145,7 @@ func TestGridCollidingPositionsKeepEveryPane(t *testing.T) {
 }
 
 func TestGridCollidingPositionsCascadeToNextRow(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{
 		fixedPane("A", false, &GridPos{Col: 0, Row: 0}),
 		fixedPane("B", false, &GridPos{Col: 0, Row: 0}),
@@ -158,6 +164,7 @@ func TestGridCollidingPositionsCascadeToNextRow(t *testing.T) {
 }
 
 func TestGridReflowKeepsColSpanIntent(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{
 		fixedPane("HDR", false, &GridPos{Col: 0, Row: 0, ColSpan: 3}),
 		fixedPane("x", false, nil),
@@ -188,6 +195,7 @@ func TestGridReflowKeepsColSpanIntent(t *testing.T) {
 }
 
 func TestGridReflowKeepsRowSpanIntent(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{
 		fixedPane("A", false, &GridPos{Col: 0, Row: 0, RowSpan: 2}),
 		fixedPane("B", false, nil),
@@ -214,6 +222,7 @@ func TestGridReflowKeepsRowSpanIntent(t *testing.T) {
 // autoFlow used to zero every span, so an absurd RowSpan was silently ignored;
 // now that spans survive, the free-block search must not walk them forever.
 func TestGridReflowCapsAbsurdRowSpan(t *testing.T) {
+	t.Parallel()
 	panes := []Pane{
 		fixedPane("A", false, &GridPos{Col: 0, Row: 0, RowSpan: 1 << 30}),
 		fixedPane("B", false, nil),
@@ -239,6 +248,7 @@ func TestGridReflowCapsAbsurdRowSpan(t *testing.T) {
 // out left to right and pads them to the frame width, so any pair of overlapping
 // rects would push a pane off the end of its row and delete it outright.
 func TestGridCellsNeverOverlap(t *testing.T) {
+	t.Parallel()
 	specs := [][]*GridPos{
 		{{Col: 0, Row: 0}, {Col: 0, Row: 0}, {Col: 1, Row: 0}},
 		{{Col: 0, Row: 0, ColSpan: 3}, {Col: 1, Row: 0}, nil},
@@ -291,6 +301,7 @@ func cellsOverlap(a, b gridCell) bool {
 }
 
 func TestGridColSpanClampsToGrid(t *testing.T) {
+	t.Parallel()
 	c := cellFor(GridPos{Col: 1, ColSpan: 5}, 3)
 	if c.x != 1 || c.w != 2 {
 		t.Fatalf("cellFor clamp = {x:%d w:%d}, want {x:1 w:2}", c.x, c.w)
@@ -298,6 +309,7 @@ func TestGridColSpanClampsToGrid(t *testing.T) {
 }
 
 func TestGridFocusesRingSelection(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -315,6 +327,7 @@ func TestGridFocusesRingSelection(t *testing.T) {
 }
 
 func TestGridFallsBackToStackWithoutHeight(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -339,6 +352,7 @@ func demoPanel(title string, body ...string) Pane {
 }
 
 func TestGridRendersBorderedDashboard(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -375,6 +389,7 @@ func ansiWidth(s string) int {
 }
 
 func TestFitBlockClipsAndPads(t *testing.T) {
+	t.Parallel()
 	got := FitBlock("abcdef\nxy", 4, 3)
 	lines := strings.Split(got, "\n")
 	if len(lines) != 3 {
@@ -392,6 +407,7 @@ func TestFitBlockClipsAndPads(t *testing.T) {
 }
 
 func TestGridSlimNarrowsAndDonates(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{
@@ -417,6 +433,7 @@ func TestGridSlimNarrowsAndDonates(t *testing.T) {
 }
 
 func TestGridSlimFloorAt20(t *testing.T) {
+	t.Parallel()
 	if got := slimWidth(40); got != 20 {
 		t.Fatalf("slimWidth(40) = %d, want 20", got)
 	}
@@ -432,6 +449,7 @@ func TestGridSlimFloorAt20(t *testing.T) {
 }
 
 func TestGridSoleAutoPaneFillsWidth(t *testing.T) {
+	t.Parallel()
 	scr := Screen{
 		Layout: Grid{Cols: 2},
 		Panes: []Pane{

@@ -17,23 +17,24 @@ type LedgerRow struct {
 // zero as a dim em dash with no unit. fmtNum formats the delta magnitude.
 // With no rows the panel shows empty in the dim style.
 func Ledger(f layout.Frame, title string, rows []LedgerRow, unit string, fmtNum func(float64) string, visible, offset int, empty string) string {
+	th := f.Theme()
 	if len(rows) == 0 {
-		return f.Panel(title, theme.Cur().Dim.Render(empty))
+		return f.Panel(title, th.Dim.Render(empty))
 	}
 	lines := make([]string, len(rows))
 	for i, r := range rows {
-		lines[i] = f.Spread(theme.Cur().Val.Render(r.Label), delta(r.Delta, unit, fmtNum))
+		lines[i] = f.Spread(th.Val.Render(r.Label), delta(th, r.Delta, unit, fmtNum))
 	}
 	return f.ScrollPanel(title, lines, visible, offset)
 }
 
-func delta(v float64, unit string, fmtNum func(float64) string) string {
+func delta(th theme.Theme, v float64, unit string, fmtNum func(float64) string) string {
 	switch {
 	case v > 0:
-		return theme.Cur().Can.Render("+" + fmtNum(v) + " " + unit)
+		return th.Can.Render("+" + fmtNum(v) + " " + unit)
 	case v < 0:
-		return theme.Cur().Cant.Render(fmtNum(v) + " " + unit)
+		return th.Cant.Render(fmtNum(v) + " " + unit)
 	default:
-		return theme.Cur().Dim.Render("—")
+		return th.Dim.Render("—")
 	}
 }

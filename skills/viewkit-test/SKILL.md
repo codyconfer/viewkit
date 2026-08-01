@@ -4,30 +4,34 @@ description: >-
   Test code that consumes viewkit. Use when writing Go tests that render a screen
   and assert on output, verify keymaps/hint legends, check theme/background, or
   sandbox a config file. Covers the render-and-grep idiom, color-profile pinning
-  for deterministic ANSI, HOME-sandboxed config tests, and the mandatory
-  theme.Use / keys.Use restore that prevents cross-test bleed.
+  for deterministic ANSI, HOME-sandboxed config tests, per-test ui.Scope
+  construction, and the layout.StrictScope hook.
 ---
 
 # Testing viewkit consumers
 
 viewkit renders to strings, so tests are mostly **render then assert on substrings**.
-The only sharp edges are the process-global theme/keys state (must be restored) and
-ANSI determinism (pin the color profile).
+The only sharp edge left is ANSI determinism (pin the color profile) — theme and
+keys are plain values, so there is no global state to restore.
 
-## Restore global state — always
+## Scope per test — no restore, free `t.Parallel()`
 
-Theme and keybindings are process globals (`theme.Use`/`keys.Use`). A test that
-installs one leaks into every later test. Restore with `defer` at the top:
+Theme and keybindings travel in a `ui.Scope` (or a bare `theme.Theme`). A test
+constructs what it needs and passes it; nothing leaks between tests:
 
 ```go
 func TestThing(t *testing.T) {
-    defer theme.Use(theme.Default())   // required if the test (or code) calls theme.Use
-    // defer keys.Use(keys.Default())  // add if the test changes the key scheme
+    t.Parallel()
+    th, _ := theme.Named("solarized-light")
+    scope := &ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}
+    // hand scope to the model (deck.WithScope) or frame (layout.NewFrame(w).WithUI(scope))
     ...
 }
 ```
 
-Missing this is the #1 cause of flaky, order-dependent viewkit tests.
+To catch code that silently falls back to the built-in defaults, set
+`layout.StrictScope = true` in `TestMain` — any `Frame` theme/scheme/glyph read
+with a nil `UI` then panics instead of defaulting.
 
 ## Render-and-grep idiom
 
@@ -76,17 +80,16 @@ and restore it (reference: `internal/game/theme_picker_test.go:59`):
 prev := lipgloss.ColorProfile()
 lipgloss.SetColorProfile(termenv.TrueColor)
 defer lipgloss.SetColorProfile(prev)
-defer theme.Use(theme.Default())
 
 th, _ := theme.Named("solarized-light")
-theme.Use(th)
+m := New(..., deck.WithScope(&ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}))
 if !strings.Contains(renderForHints(m), "48;2;253;246;227") { // the bg RGB
     t.Fatal("View() missing themed background fill")
 }
 ```
 
-Compare theme colors via `theme.Cur().Accent.GetForeground()` and a
-`theme.Named(key)` helper rather than hardcoding hex.
+Compare theme colors via `th.Accent.GetForeground()` on the `Theme` value under
+test (`theme.Named(key)` to build it) rather than hardcoding hex.
 
 ## Sandbox config files with a temp HOME
 
@@ -102,8 +105,10 @@ data, err := os.ReadFile(filepath.Join(home, ".goose", "theme.json"))
 
 ## Verification
 
-Run `go test ./...` from the repo root. Then run it again with `-count=1 -shuffle=on`
-— if results change with order, a test is missing a `defer theme.Use(...)` /
-`keys.Use(...)` restore.
+Run `go test ./...` from the repo root. Scoped theme/keys have no cross-test
+state, so `-count=1 -shuffle=on` and `t.Parallel()` are safe — if shuffling
+changes results, look for remaining process state (e.g. `glyph.SetMode` called
+outside `TestMain`; the glyph default mode is deliberately write-once process
+state).
 
 Full API: see the `viewkit` skill's [references/api.md](../viewkit/references/api.md).

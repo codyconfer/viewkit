@@ -28,6 +28,7 @@ func flightSample() []Item {
 }
 
 func TestMoveBackToFirstSelectableRevealsLeadingHeaders(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -53,6 +54,7 @@ func TestMoveBackToFirstSelectableRevealsLeadingHeaders(t *testing.T) {
 }
 
 func TestFirstSelectableKeepsCursorVisibleUnderTallLeadingBlock(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{
 		{Block: "h1\nh2\nh3\nh4\nh5\nh6"},
@@ -76,6 +78,7 @@ func TestFirstSelectableKeepsCursorVisibleUnderTallLeadingBlock(t *testing.T) {
 }
 
 func TestLastSelectableRevealsTrailingNonSelectableRow(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{
 		{Block: "hdr"},
@@ -93,6 +96,7 @@ func TestLastSelectableRevealsTrailingNonSelectableRow(t *testing.T) {
 }
 
 func TestScrollDragsCursorSoMoveDoesNotSnapBack(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -112,6 +116,7 @@ func TestScrollDragsCursorSoMoveDoesNotSnapBack(t *testing.T) {
 }
 
 func TestScrollLeavesCursorUnsetWhenNothingSelectable(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{{Block: "nothing to show"}})
 	m.SetSize(80, 1)
@@ -127,6 +132,7 @@ func TestScrollLeavesCursorUnsetWhenNothingSelectable(t *testing.T) {
 }
 
 func TestSetItemsSelectsFirstSelectable(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(sample())
 	it, ok := m.Selected()
@@ -136,6 +142,7 @@ func TestSetItemsSelectsFirstSelectable(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorSurvivesIdenticalRebind(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -165,6 +172,7 @@ func TestSetItemsKeepingCursorSurvivesIdenticalRebind(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorTracksMovedItemAcrossChangedList(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -186,6 +194,7 @@ func TestSetItemsKeepingCursorTracksMovedItemAcrossChangedList(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorFallsBackWhenKeyIsGone(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -210,6 +219,7 @@ func TestSetItemsKeepingCursorFallsBackWhenKeyIsGone(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorHoldsIndexForKeylessRows(t *testing.T) {
+	t.Parallel()
 	rows := func(suffix string) []Item {
 		return []Item{
 			{Block: "header"},
@@ -238,6 +248,7 @@ func TestSetItemsKeepingCursorHoldsIndexForKeylessRows(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorDropsKeylessCursorWhenTheIndexIsGone(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{
 		{Block: "header"},
@@ -265,6 +276,7 @@ func TestSetItemsKeepingCursorDropsKeylessCursorWhenTheIndexIsGone(t *testing.T)
 }
 
 func TestSetItemsKeepingCursorResolvesDuplicateKeysToTheFirstMatch(t *testing.T) {
+	t.Parallel()
 	dupes := []Item{
 		{Block: "Open PRs  (3)"},
 		{Block: "pr one", Key: "dup", Selectable: true},
@@ -291,6 +303,7 @@ func TestSetItemsKeepingCursorResolvesDuplicateKeysToTheFirstMatch(t *testing.T)
 }
 
 func TestSetItemsKeepingCursorHandlesEmptyAndUnselectableLists(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -313,6 +326,7 @@ func TestSetItemsKeepingCursorHandlesEmptyAndUnselectableLists(t *testing.T) {
 }
 
 func TestSetItemsKeepingCursorKeepsScrollWithoutSelectables(t *testing.T) {
+	t.Parallel()
 	rows := []Item{{Block: "a\nb\nc\nd\ne\nf"}}
 	m := New()
 	m.SetItems(rows)
@@ -332,6 +346,7 @@ func TestSetItemsKeepingCursorKeepsScrollWithoutSelectables(t *testing.T) {
 }
 
 func TestSetItemsStillResetsSelection(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(flightSample())
 	m.SetSize(80, 5)
@@ -350,6 +365,7 @@ func TestSetItemsStillResetsSelection(t *testing.T) {
 }
 
 func TestMoveSkipsHeadersAndClamps(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(sample())
 
@@ -372,6 +388,7 @@ func TestMoveSkipsHeadersAndClamps(t *testing.T) {
 }
 
 func TestNoSelectableYieldsNoSelection(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{{Block: "nothing to show"}})
 	if _, ok := m.Selected(); ok {
@@ -380,6 +397,7 @@ func TestNoSelectableYieldsNoSelection(t *testing.T) {
 }
 
 func TestViewWindowsToHeightAndKeepsCursorVisible(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems(sample())
 	m.SetSize(80, 2)
@@ -395,6 +413,7 @@ func TestViewWindowsToHeightAndKeepsCursorVisible(t *testing.T) {
 }
 
 func TestRenderInsertsItemGapBetweenNodes(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{
 		{Block: "a", Key: "a", Selectable: true},
@@ -421,6 +440,7 @@ func TestRenderInsertsItemGapBetweenNodes(t *testing.T) {
 }
 
 func TestRenderGapStemContinuesTreeThroughItemGap(t *testing.T) {
+	t.Parallel()
 	m := New()
 	m.SetItems([]Item{
 		{Block: "│  ├─ a", Key: "a", Selectable: true, GapStem: "│  │  "},

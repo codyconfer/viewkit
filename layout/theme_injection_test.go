@@ -4,35 +4,39 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 func TestThemeInjectionFlowsThroughPanels(t *testing.T) {
-	t.Cleanup(func() { theme.Use(theme.Default()) })
-
+	t.Parallel()
 	custom := theme.Default()
 	custom.TooNarrowTitle = "SCREEN TOO SMALL"
-	theme.Use(custom)
 
-	out := stripANSI(TooNarrow(theme.MinScreenWidth - 1))
+	out := stripANSI(TooNarrowIn(custom, theme.MinScreenWidth-1))
 	if !strings.Contains(out, "SCREEN TOO SMALL") {
-		t.Fatalf("injected copy not rendered by TooNarrow: %q", out)
+		t.Fatalf("injected copy not rendered by TooNarrowIn: %q", out)
 	}
 	if strings.Contains(out, theme.DefaultTooNarrowTitle) {
-		t.Fatalf("default copy leaked after Use: %q", out)
+		t.Fatalf("default copy leaked past the injected theme: %q", out)
 	}
 }
 
-func TestThemeUseIsRestorable(t *testing.T) {
-	t.Cleanup(func() { theme.Use(theme.Default()) })
+func TestScopedFrameRendersWithItsThemeNotTheDefault(t *testing.T) {
+	t.Parallel()
+	garish := theme.Default()
+	garish.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff00ff"))
 
-	theme.Use(theme.Theme{TooNarrowTitle: "X"})
-	if got := theme.Cur().TooNarrowTitle; got != "X" {
-		t.Fatalf("Cur did not reflect Use: %q", got)
+	f := NewFrame(40).WithUI(&ui.Scope{Theme: garish})
+	scoped := f.Cursor(true)
+	fallback := NewFrame(40).Cursor(true)
+
+	if !strings.Contains(scoped, "38;2;255;0;255") {
+		t.Fatalf("scoped render missing the scope theme's SGR: %q", scoped)
 	}
-
-	theme.Use(theme.Default())
-	if got := theme.Cur().TooNarrowTitle; got != theme.DefaultTooNarrowTitle {
-		t.Fatalf("default not restored: %q", got)
+	if scoped == fallback {
+		t.Fatalf("scoped render matched the built-in default theme's: %q", scoped)
 	}
 }

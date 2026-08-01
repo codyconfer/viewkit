@@ -8,6 +8,7 @@ import (
 )
 
 func TestSpectrumEmpty(t *testing.T) {
+	t.Parallel()
 	out := Spectrum(layout.DefaultFrame(), "EQ", nil, 6, "silent")
 	if !strings.Contains(out, "silent") {
 		t.Fatalf("empty spectrum missing placeholder:\n%s", out)
@@ -18,6 +19,7 @@ func TestSpectrumEmpty(t *testing.T) {
 }
 
 func TestSpectrumFullAndZeroBands(t *testing.T) {
+	t.Parallel()
 	const height = 6
 	out := stripANSI(Spectrum(layout.DefaultFrame(), "EQ", []float64{0, 1}, height, ""))
 
@@ -33,6 +35,7 @@ func TestSpectrumFullAndZeroBands(t *testing.T) {
 }
 
 func TestSpectrumClampsAndHeight(t *testing.T) {
+	t.Parallel()
 	const height = 4
 	out := stripANSI(Spectrum(layout.DefaultFrame(), "EQ", []float64{5.0}, height, ""))
 	if got := strings.Count(out, "█"); got != height {
@@ -41,6 +44,7 @@ func TestSpectrumClampsAndHeight(t *testing.T) {
 }
 
 func TestSpectrumPeakCap(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(Spectrum(layout.DefaultFrame(), "EQ", []float64{0}, 4, "",
 		SpectrumOpts{Peaks: []float64{1}}))
 	if !strings.Contains(out, "▔") {
@@ -49,6 +53,7 @@ func TestSpectrumPeakCap(t *testing.T) {
 }
 
 func TestSpectrumTrimsToWidth(t *testing.T) {
+	t.Parallel()
 	levels := make([]float64, 60)
 	levels[len(levels)-1] = 1
 	out := stripANSI(Spectrum(layout.NewFrame(24), "EQ", levels, 5, ""))
@@ -58,6 +63,7 @@ func TestSpectrumTrimsToWidth(t *testing.T) {
 }
 
 func TestSpectrumCell(t *testing.T) {
+	t.Parallel()
 	if got := spectrumCell(0, 0, 4); got != "" {
 		t.Errorf("zero level cell = %q, want empty", got)
 	}
@@ -74,6 +80,7 @@ func TestSpectrumCell(t *testing.T) {
 }
 
 func TestPeakCell(t *testing.T) {
+	t.Parallel()
 	if got := peakCell(0, 4); got != -1 {
 		t.Errorf("zero peak = %d, want -1", got)
 	}

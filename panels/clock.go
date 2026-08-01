@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // ClockZone is one labeled time zone row for a world clock. A nil Loc falls
@@ -53,14 +52,16 @@ func Clock(f layout.Frame, title string, t time.Time, opts ...ClockOpts) string 
 		return worldClock(f, title, t, layoutStr, o)
 	}
 
-	lines := []string{theme.Cur().Accent.Render(f.Fit(t.Format(layoutStr)))}
+	th := f.Theme()
+	lines := []string{th.Accent.Render(f.Fit(t.Format(layoutStr)))}
 	if o.ShowDate {
-		lines = append(lines, theme.Cur().Dim.Render(f.Fit(t.Format("Mon Jan 2 2006"))))
+		lines = append(lines, th.Dim.Render(f.Fit(t.Format("Mon Jan 2 2006"))))
 	}
 	return f.Panel(title, lines...)
 }
 
 func worldClock(f layout.Frame, title string, t time.Time, layoutStr string, o ClockOpts) string {
+	th := f.Theme()
 	lines := make([]string, 0, len(o.Zones)+1)
 	for _, z := range o.Zones {
 		loc := z.Loc
@@ -68,8 +69,8 @@ func worldClock(f layout.Frame, title string, t time.Time, layoutStr string, o C
 			loc = time.Local
 		}
 		zt := t.In(loc)
-		label := theme.Cur().Dim.Render(z.Label)
-		clock := theme.Cur().Accent.Render(zt.Format(layoutStr + " MST"))
+		label := th.Dim.Render(z.Label)
+		clock := th.Accent.Render(zt.Format(layoutStr + " MST"))
 		lines = append(lines, f.Spread(label, clock))
 	}
 	if o.ShowDate {
@@ -77,7 +78,7 @@ func worldClock(f layout.Frame, title string, t time.Time, layoutStr string, o C
 		if loc == nil {
 			loc = time.Local
 		}
-		lines = append(lines, theme.Cur().Dim.Render(f.Fit(t.In(loc).Format("Mon Jan 2 2006"))))
+		lines = append(lines, th.Dim.Render(f.Fit(t.In(loc).Format("Mon Jan 2 2006"))))
 	}
 	return f.Panel(title, lines...)
 }

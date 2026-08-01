@@ -40,10 +40,10 @@ func ScreenFrame(screenWidth int) Frame {
 	return NewFrame(screenWidth - theme.ScreenPaddingWidth)
 }
 
-// TooNarrow renders the theme's "terminal too narrow" notice, sized to the
-// given width (or the minimum layout width when the width is unknown), showing
-// the current and required column counts.
-func TooNarrow(screenWidth int) string {
+// TooNarrowIn renders th's "terminal too narrow" notice, sized to the given
+// width (or the minimum layout width when the width is unknown), showing the
+// current and required column counts.
+func TooNarrowIn(t theme.Theme, screenWidth int) string {
 	current := "unknown"
 	if screenWidth > 0 {
 		current = fmt.Sprintf("%d", screenWidth)
@@ -54,7 +54,6 @@ func TooNarrow(screenWidth int) string {
 		width = max(screenWidth-theme.AppMarginX*2, 1)
 	}
 
-	t := theme.Cur()
 	title := t.Title.Render(ansi.Truncate(t.TooNarrowTitle, width, "…"))
 	subtitle := t.Dim.Render(ansi.Truncate(fmt.Sprintf(t.TooNarrowNeed, theme.MinScreenWidth), width, "…"))
 	body := lipgloss.NewStyle().Width(width).Render(

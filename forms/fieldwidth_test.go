@@ -8,6 +8,7 @@ import (
 )
 
 func TestLongLabelKeepsValueVisible(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "a", Label: strings.Repeat("L", 30), Text: "SECRETVALUE"})
 	out := stripANSI(fm.Render(layout.NewFrame(24), "form"))
 
@@ -31,6 +32,7 @@ const clampedWidthsContract = "widths 1, 10 and 24 all render identically: layou
 	"and this list needs widening again."
 
 func TestLongLabelValueVisibleAcrossWidths(t *testing.T) {
+	t.Parallel()
 	t.Log(clampedWidthsContract)
 	for _, tc := range []struct {
 		name    string
@@ -60,6 +62,7 @@ func TestLongLabelValueVisibleAcrossWidths(t *testing.T) {
 }
 
 func TestGhostNeverEvictsTheCaret(t *testing.T) {
+	t.Parallel()
 	wide := NewForm(Field{
 		Key:     "a",
 		Label:   "LLL",
@@ -96,6 +99,7 @@ func valueRow(t *testing.T, rendered string) string {
 }
 
 func TestShortLabelValueBudgetUnchanged(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "a", Label: "Name", Text: strings.Repeat("v", 40)})
 	out := stripANSI(fm.Render(layout.NewFrame(24), "form"))
 	if !strings.Contains(out, "Name") {
@@ -107,6 +111,7 @@ func TestShortLabelValueBudgetUnchanged(t *testing.T) {
 }
 
 func TestUnfocusedLongLabelStillShowsValue(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "first", Label: "First"},
 		Field{Key: "second", Label: strings.Repeat("L", 30), Text: "SECRETVALUE"},

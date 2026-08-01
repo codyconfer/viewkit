@@ -105,13 +105,11 @@ func (m *Map) Hints(actions ...Action) []Hint {
 	return out
 }
 
-// MapFor builds a Map from the active scheme's bindings for the given actions,
-// replacing the sc := Cur(); NewMap(sc.Binding(...), ...) boilerplate.
-func MapFor(actions ...Action) *Map {
-	sc := Cur()
+// MapFor builds a Map from this scheme's bindings for the given actions.
+func (s Scheme) MapFor(actions ...Action) *Map {
 	bindings := make([]Binding, 0, len(actions))
 	for _, a := range actions {
-		bindings = append(bindings, sc.Binding(a))
+		bindings = append(bindings, s.Binding(a))
 	}
 	return NewMap(bindings...)
 }

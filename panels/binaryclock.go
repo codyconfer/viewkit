@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 const (
@@ -26,7 +25,8 @@ func BinaryClock(f layout.Frame, title string, t time.Time) string {
 		ts = 0
 	}
 
-	acc, dim := theme.Cur().Accent, theme.Cur().Dim
+	th := f.Theme()
+	acc, dim := th.Accent, th.Dim
 
 	rows := make([]string, 0, binBytes+1)
 	for i := binBytes - 1; i >= 0; i-- {

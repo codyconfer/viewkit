@@ -67,6 +67,9 @@ type Connectors struct {
 	Space string
 	// Empty marks a parent that has no children at all.
 	Empty string
+	// Dim styles the connectors and gap stems. A zero value falls back to the
+	// process default theme's Dim; build with ConnectorsIn to scope it.
+	Dim lipgloss.Style
 }
 
 var (
@@ -74,13 +77,21 @@ var (
 	asciiConnectors   = Connectors{Trunk: "*", Mid: "+- ", End: "`- ", Vert: "|  ", Space: "   ", Empty: "o "}
 )
 
-// DefaultConnectors returns the connector set for the current glyph mode: a
-// plain ASCII set when glyphs are off, box-drawing characters otherwise.
+// DefaultConnectors returns the connector set for the default glyph mode and
+// the built-in default theme: a plain ASCII set when glyphs are off,
+// box-drawing characters otherwise.
 func DefaultConnectors() Connectors {
-	if glyph.CurrentMode() == glyph.ModeNone {
-		return asciiConnectors
+	return ConnectorsIn(glyph.DefaultSet(), theme.Default())
+}
+
+// ConnectorsIn returns the connector set for g's mode, styled with th's Dim.
+func ConnectorsIn(g glyph.Set, th theme.Theme) Connectors {
+	c := unicodeConnectors
+	if g.Mode() == glyph.ModeNone {
+		c = asciiConnectors
 	}
-	return unicodeConnectors
+	c.Dim = th.Dim
+	return c
 }
 
 // Edge returns the connector that joins a child to its parent and the stem that
@@ -106,22 +117,31 @@ func (c Connectors) Indent(stem string) int {
 // multi-line body stays under its connector. A non-empty key makes the row
 // selectable.
 func Leaf(c Connectors, stem string, last bool, body []string, key string) Row {
-	th := theme.Cur()
+	dim := c.dim()
 	connector, cont := c.Edge(last)
 	lines := make([]string, len(body))
 	for i, line := range body {
 		if i == 0 {
-			lines[i] = th.Dim.Render(stem+connector) + line
+			lines[i] = dim.Render(stem+connector) + line
 			continue
 		}
-		lines[i] = th.Dim.Render(stem+cont) + line
+		lines[i] = dim.Render(stem+cont) + line
 	}
 	return Row{
 		Lines:      lines,
 		Key:        key,
 		Selectable: key != "",
-		GapStem:    th.Dim.Render(stem + cont),
+		GapStem:    dim.Render(stem + cont),
 	}
+}
+
+// dim returns c.Dim, falling back to the built-in default theme's Dim when
+// the field was left zero (callers constructing Connectors literals).
+func (c Connectors) dim() lipgloss.Style {
+	if c.Dim.GetForeground() == (lipgloss.NoColor{}) {
+		return theme.Default().Dim
+	}
+	return c.Dim
 }
 
 // Branch renders body as a direct child of the trunk: a Leaf with no parent

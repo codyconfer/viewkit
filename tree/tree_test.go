@@ -4,9 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/glyph"
+	"github.com/codyconfer/viewkit/theme"
 )
 
 func withMode(t *testing.T, m glyph.Mode) {
@@ -26,20 +28,55 @@ func plainLines(r Row) []string {
 	return out
 }
 
+func glyphsOf(c Connectors) [6]string {
+	return [6]string{c.Trunk, c.Mid, c.End, c.Vert, c.Space, c.Empty}
+}
+
 func TestDefaultConnectorsFollowsGlyphMode(t *testing.T) {
 	withMode(t, glyph.ModeNone)
-	if got := DefaultConnectors(); got != asciiConnectors {
+	if got := DefaultConnectors(); glyphsOf(got) != glyphsOf(asciiConnectors) {
 		t.Fatalf("ModeNone connectors = %+v, want ASCII set", got)
 	}
 	for _, m := range []glyph.Mode{glyph.ModeNerd, glyph.ModeUnicode} {
 		glyph.SetMode(m)
-		if got := DefaultConnectors(); got != unicodeConnectors {
+		if got := DefaultConnectors(); glyphsOf(got) != glyphsOf(unicodeConnectors) {
 			t.Fatalf("mode %v connectors = %+v, want Unicode set", m, got)
 		}
 	}
 }
 
+func TestConnectorsInSelectsByModeAndCarriesDim(t *testing.T) {
+	t.Parallel()
+	th := theme.Default()
+	th.Dim = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
+
+	c := ConnectorsIn(glyph.SetFor(glyph.ModeNone), th)
+	if glyphsOf(c) != glyphsOf(asciiConnectors) {
+		t.Fatalf("ModeNone set = %+v, want ASCII", c)
+	}
+	for _, m := range []glyph.Mode{glyph.ModeNerd, glyph.ModeUnicode} {
+		if got := ConnectorsIn(glyph.SetFor(m), th); glyphsOf(got) != glyphsOf(unicodeConnectors) {
+			t.Fatalf("mode %v set = %+v, want Unicode", m, got)
+		}
+	}
+	uni := ConnectorsIn(glyph.SetFor(glyph.ModeUnicode), th)
+	line := Leaf(uni, "", false, []string{"a"}, "").Lines[0]
+	if want := th.Dim.Render("├─ ") + "a"; line != want {
+		t.Fatalf("leaf = %q, want scoped-dim %q", line, want)
+	}
+}
+
+func TestLeafDimFallsBackForConnectorsLiterals(t *testing.T) {
+	withMode(t, glyph.ModeUnicode)
+	line := Leaf(unicodeConnectors, "", false, []string{"a"}, "").Lines[0]
+	want := theme.Default().Dim.Render("├─ ") + "a"
+	if line != want {
+		t.Fatalf("literal Connectors leaf = %q, want default-dim %q", line, want)
+	}
+}
+
 func TestConnectorWidthsMatch(t *testing.T) {
+	t.Parallel()
 	for name, c := range map[string]Connectors{"ascii": asciiConnectors, "unicode": unicodeConnectors} {
 		width := len([]rune(c.Mid))
 		for field, s := range map[string]string{"End": c.End, "Vert": c.Vert, "Space": c.Space} {
@@ -51,6 +88,7 @@ func TestConnectorWidthsMatch(t *testing.T) {
 }
 
 func TestEdgePicksMidThenEnd(t *testing.T) {
+	t.Parallel()
 	c := unicodeConnectors
 	if conn, stem := c.Edge(false); conn != "├─ " || stem != "│  " {
 		t.Fatalf("Edge(false) = %q, %q; want mid and vert", conn, stem)

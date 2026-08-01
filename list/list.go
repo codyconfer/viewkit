@@ -36,10 +36,14 @@ type Model struct {
 	width   int
 	height  int
 	focused bool
+	th      *theme.Theme
 }
 
 // New returns an empty model with no selection.
 func New() Model { return Model{cursor: -1} }
+
+// SetTheme pins the theme View renders with; unset, the process default applies.
+func (m *Model) SetTheme(t theme.Theme) { m.th = &t }
 
 // SetItems replaces the rows and resets cursor and scroll to the top.
 func (m *Model) SetItems(items []Item) {
@@ -166,7 +170,10 @@ func (m *Model) Scroll(delta int) {
 }
 
 func (m *Model) render() []string {
-	th := theme.Cur()
+	th := theme.Default()
+	if m.th != nil {
+		th = *m.th
+	}
 	var out []string
 	for i, it := range m.items {
 		if i > 0 {

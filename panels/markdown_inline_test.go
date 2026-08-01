@@ -14,7 +14,7 @@ import (
 )
 
 func mdInlineLegacy(s string) string {
-	t := theme.Cur()
+	t := theme.Default()
 	s = mdCode.ReplaceAllStringFunc(s, func(m string) string {
 		return t.Key.Render(mdCode.FindStringSubmatch(m)[1])
 	})
@@ -125,7 +125,7 @@ func TestMdInlineMatchesLegacyByteForByte(t *testing.T) {
 			lipgloss.SetColorProfile(prof.p)
 			for _, in := range mdInlineCorpus() {
 				want := mdInlineLegacy(in)
-				if got := mdInline(in); got != want {
+				if got := mdInline(theme.Default(), in); got != want {
 					t.Errorf("mdInline(%q):\n got %q\nwant %q", in, got, want)
 				}
 			}
@@ -177,7 +177,7 @@ func TestMarkdownMatchesLegacyInlineByteForByte(t *testing.T) {
 
 func markdownLegacy(f layout.Frame, src string) string {
 	width := f.BodyWidth()
-	t := theme.Cur()
+	t := theme.Default()
 
 	var out []string
 	inCode := false
@@ -232,10 +232,10 @@ func TestMdInlinePlainLineSkipsTheRegexPasses(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 
 	plain := "a plain sentence of prose with no markdown syntax at all"
-	mdInline(plain)
+	mdInline(theme.Default(), plain)
 	mdInlineLegacy(plain)
 
-	guarded := testing.AllocsPerRun(200, func() { benchSink = mdInline(plain) })
+	guarded := testing.AllocsPerRun(200, func() { benchSink = mdInline(theme.Default(), plain) })
 	legacy := testing.AllocsPerRun(200, func() { benchSink = mdInlineLegacy(plain) })
 	t.Logf("plain line allocations: guarded=%v legacy=%v", guarded, legacy)
 
@@ -268,10 +268,10 @@ func TestMdInlinePlainLineEmitsNoEscapes(t *testing.T) {
 		if matched {
 			continue
 		}
-		if got := mdInline(in); got != in {
+		if got := mdInline(theme.Default(), in); got != in {
 			t.Errorf("mdInline(%q) = %q, want the input unchanged", in, got)
 		}
-		if mdInlineEscapeRe.MatchString(mdInline(in)) {
+		if mdInlineEscapeRe.MatchString(mdInline(theme.Default(), in)) {
 			t.Errorf("mdInline(%q) emitted escapes", in)
 		}
 	}
@@ -298,7 +298,7 @@ func TestMdInlineKeepsLinksIntactAfterStyledSpans(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 
 	for _, c := range mdInlineEscapeHazards() {
-		got := mdInline(c.in)
+		got := mdInline(theme.Default(), c.in)
 		if plain := stripANSI(got); plain != c.want {
 			t.Errorf("mdInline(%q)\n plain %q\n  want %q\n   raw %q", c.in, plain, c.want, got)
 		}
@@ -327,6 +327,7 @@ func TestMarkdownKeepsLinksIntactAfterStyledSpans(t *testing.T) {
 // fast-path guard would have skipped. Adding a pass whose markers are missing
 // from the guard makes this fail instead of silently shipping a dead feature.
 func TestMdMarkersCoverEveryInlinePattern(t *testing.T) {
+	t.Parallel()
 	for _, p := range mdInlinePasses {
 		alphabet := append(reLiterals(p.re), 'a', 'b')
 		seen := map[rune]bool{}
@@ -368,8 +369,7 @@ func TestMdInlineBoldsEvenWhenTheThemeAccentIsNot(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 	lipgloss.SetColorProfile(termenv.TrueColor)
 
-	orig := theme.Cur()
-	t.Cleanup(func() { theme.Use(orig) })
+	orig := theme.Default()
 	if !orig.Accent.GetBold() {
 		t.Skip("the active theme's Accent is already non-bold, so the byte-for-byte tests cover this")
 	}
@@ -377,9 +377,8 @@ func TestMdInlineBoldsEvenWhenTheThemeAccentIsNot(t *testing.T) {
 	flat := lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00"))
 	th := orig
 	th.Accent = flat
-	theme.Use(th)
 
-	got := mdInline("**x**")
+	got := mdInline(th, "**x**")
 	if got == flat.Render("x") {
 		t.Fatalf("mdInline(\"**x**\") = %q, which is the unbolded Accent render: %s", got, boldPassContract)
 	}
@@ -389,6 +388,7 @@ func TestMdInlineBoldsEvenWhenTheThemeAccentIsNot(t *testing.T) {
 }
 
 func TestMdMaskBlanksEscapesInPlace(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},
 		{"a\x1b[1mb", "a\x00\x00\x00\x00b"},
@@ -410,6 +410,7 @@ func TestMdMaskBlanksEscapesInPlace(t *testing.T) {
 }
 
 func TestMarkdownRuleFitsTheBody(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{20, 40, 81} {
 		f := layout.NewFrame(width)
 		for _, src := range []string{"---", "***", "___"} {

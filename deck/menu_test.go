@@ -9,6 +9,7 @@ import (
 	"github.com/muesli/termenv"
 
 	"github.com/codyconfer/viewkit/glyph"
+	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -45,13 +46,13 @@ func TestMenuStylesOnlyTheCursorRow(t *testing.T) {
 	m := NewMenu("queries", nil, MenuItem{Label: "first"}, MenuItem{Label: "second"})
 
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	th := theme.Cur()
+	th := theme.Default()
 	keySGR, valSGR := sgrPrefix(t, th.Key), sgrPrefix(t, th.Val)
 	if keySGR == valSGR {
 		t.Fatalf("theme cannot distinguish the cursor row: key and value both render %q", keySGR)
 	}
 
-	lines := strings.Split(m.Body(60, 30), "\n")
+	lines := strings.Split(m.Body(layout.Frame{Width: 60, Height: 30}), "\n")
 	cursorAt, otherAt := rowIndex(lines, "first"), rowIndex(lines, "second")
 	if cursorAt < 0 || otherAt < 0 {
 		t.Fatalf("rows not found by plain text:\n%q", lines)
@@ -73,7 +74,7 @@ func TestMenuStylesOnlyTheCursorRow(t *testing.T) {
 	}
 
 	lipgloss.SetColorProfile(termenv.Ascii)
-	if plain := m.Body(60, 30); strings.Contains(plain, "\x1b[") {
+	if plain := m.Body(layout.Frame{Width: 60, Height: 30}); strings.Contains(plain, "\x1b[") {
 		t.Errorf("the escape-free profile still emitted SGR:\n%q", plain)
 	}
 }
@@ -87,7 +88,7 @@ func TestMenuRowsStayTightWhereverTheCursorSits(t *testing.T) {
 		)
 		for cursor := range m.items {
 			m.cursor = cursor
-			lines := strings.Split(m.Body(60, 30), "\n")
+			lines := strings.Split(m.Body(layout.Frame{Width: 60, Height: 30}), "\n")
 
 			firstAt := rowIndex(lines, "first")
 			secondAt := rowIndex(lines, "second")
@@ -110,11 +111,11 @@ func TestMenuHeightDoesNotChangeRowSpacing(t *testing.T) {
 		}
 		m := NewMenu("queries", nil, items...)
 
-		tight := m.Body(60, len(items)+menuBoxChrome)
+		tight := m.Body(layout.Frame{Width: 60, Height: len(items) + menuBoxChrome})
 		if got := strings.Count(tight, "\n") + 1; got != len(items)+menuBoxChrome {
 			t.Errorf("menu rendered %d lines, want %d:\n%s", got, len(items)+menuBoxChrome, tight)
 		}
-		if roomy := m.Body(60, 40); roomy != tight {
+		if roomy := m.Body(layout.Frame{Width: 60, Height: 40}); roomy != tight {
 			t.Errorf("a tall terminal changed the menu body:\n%s", roomy)
 		}
 	})
@@ -142,7 +143,7 @@ func TestMenuAlignsLabelsWhenOnlySomeItemsHaveIcons(t *testing.T) {
 				MenuItem{Label: "noicon"},
 				MenuItem{Label: "widericon", Icon: "gh"},
 			)
-			lines := strings.Split(m.Body(60, 30), "\n")
+			lines := strings.Split(m.Body(layout.Frame{Width: 60, Height: 30}), "\n")
 			with := labelColumn(t, lines, "withicon")
 			without := labelColumn(t, lines, "noicon")
 			wider := labelColumn(t, lines, "widericon")
@@ -163,8 +164,8 @@ func TestMenuWithoutAnyIconsKeepsLabelsFlush(t *testing.T) {
 		bare := NewMenu("queries", nil, MenuItem{Label: "alpha"}, MenuItem{Label: "beta"})
 		iconed := NewMenu("queries", nil, MenuItem{Label: "alpha", Icon: glyph.Bullet()}, MenuItem{Label: "beta"})
 
-		bareAt := labelColumn(t, strings.Split(bare.Body(60, 30), "\n"), "alpha")
-		iconedAt := labelColumn(t, strings.Split(iconed.Body(60, 30), "\n"), "alpha")
+		bareAt := labelColumn(t, strings.Split(bare.Body(layout.Frame{Width: 60, Height: 30}), "\n"), "alpha")
+		iconedAt := labelColumn(t, strings.Split(iconed.Body(layout.Frame{Width: 60, Height: 30}), "\n"), "alpha")
 		if bareAt+glyph.LeadWidth != iconedAt {
 			t.Errorf("icon-free labels at column %d and iconed at %d, want a %d-column difference",
 				bareAt, iconedAt, glyph.LeadWidth)

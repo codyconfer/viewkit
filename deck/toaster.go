@@ -121,14 +121,14 @@ func (t *Toaster) Active() bool {
 	return t.queue.Active()
 }
 
-// Body overlays the current notification on an already-rendered body, sized
-// for the same screen width the body was rendered at. It returns body
-// unchanged when nothing is showing.
-func (t *Toaster) Body(body string, width int) string {
+// Body overlays the current notification on an already-rendered body. f is
+// the frame the view's Body received (full terminal width, carrying the
+// scope). It returns body unchanged when nothing is showing.
+func (t *Toaster) Body(f layout.Frame, body string) string {
 	t.Prune()
 	n, ok := t.queue.Current()
 	if !ok {
 		return body
 	}
-	return panels.NotificationOverlay(body, layout.ScreenFrame(width), n, t.pos)
+	return panels.NotificationOverlay(body, f.Screen(), n, t.pos)
 }

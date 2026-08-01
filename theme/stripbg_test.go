@@ -13,9 +13,8 @@ const stripBgContract = "the strip background is the panel border colour and not
 	"gets NoColor{}, NOT Dim's foreground; if Dim is the intent, that is a product change, not a test fix."
 
 func TestStripBgIsThePanelBorderColour(t *testing.T) {
+	t.Parallel()
 	t.Log(stripBgContract)
-	orig := Cur()
-	t.Cleanup(func() { Use(orig) })
 
 	for _, key := range Keys() {
 		th, ok := Named(key)
@@ -31,14 +30,14 @@ func TestStripBgIsThePanelBorderColour(t *testing.T) {
 			t.Errorf("%s: panel border foreground is NoColor, so the status strip renders with no "+
 				"background at all", key)
 		}
-		Use(th)
-		if got := StripBg(); got != want {
+		if got := th.StripBg(); got != want {
 			t.Errorf("%s: StripBg() = %v, want the panel border %v", key, got, want)
 		}
 	}
 }
 
 func TestStripBgOfIgnoresDim(t *testing.T) {
+	t.Parallel()
 	t.Log(stripBgContract)
 	border := lipgloss.Color("#111111")
 	dim := lipgloss.Color("#999999")

@@ -79,8 +79,10 @@ type Variants struct {
 // filled variant when a Variants is only partially populated. A plugin that
 // registers a Nerd-only glyph still shows something in unicode/ASCII mode
 // instead of silently rendering nothing.
-func (v Variants) String() string {
-	switch CurrentMode() {
+func (v Variants) String() string { return v.stringIn(CurrentMode()) }
+
+func (v Variants) stringIn(m Mode) string {
+	switch m {
 	case ModeUnicode:
 		return firstNonEmpty(v.Uni, v.ASCII, v.Nerd)
 	case ModeNone:

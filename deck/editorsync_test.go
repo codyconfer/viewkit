@@ -13,15 +13,15 @@ import (
 
 type syncDoc struct{}
 
-func (d *syncDoc) Kind() string            { return "query" }
-func (d *syncDoc) Title() string           { return "new query" }
-func (d *syncDoc) Context() []keys.Hint    { return nil }
-func (d *syncDoc) SavedName() string       { return "" }
-func (d *syncDoc) Sync() bool              { return true }
-func (d *syncDoc) Summary() string         { return "draft" }
-func (d *syncDoc) PreviewLines() []string  { return []string{"kind: query"} }
-func (d *syncDoc) Remove() (string, error) { return "removed", nil }
-func (d *syncDoc) ValidateLines() ([]string, error) {
+func (d *syncDoc) Kind() string                       { return "query" }
+func (d *syncDoc) Title() string                      { return "new query" }
+func (d *syncDoc) Context() []keys.Hint               { return nil }
+func (d *syncDoc) SavedName() string                  { return "" }
+func (d *syncDoc) Sync() bool                         { return true }
+func (d *syncDoc) Summary() string                    { return "draft" }
+func (d *syncDoc) PreviewLines(layout.Frame) []string { return []string{"kind: query"} }
+func (d *syncDoc) Remove() (string, error)            { return "removed", nil }
+func (d *syncDoc) ValidateLines(layout.Frame) ([]string, error) {
 	return []string{"ok"}, nil
 }
 func (d *syncDoc) Persist() (string, error) { return "saved", nil }
@@ -46,7 +46,7 @@ func (syncResults) Items(layout.Frame) []list.Item { return nil }
 func (syncResults) Count() int                     { return 0 }
 
 func syncTestKeys() EditorKeys {
-	sc := keys.Cur()
+	sc := keys.Default()
 	return EditorKeys{
 		Map: keys.NewMap(
 			sc.Binding(keys.Cancel),

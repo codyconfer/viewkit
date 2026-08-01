@@ -6,6 +6,7 @@ import (
 )
 
 func TestNewRegistryHasBuiltinLayouts(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry[testCtx]()
 	got := r.LayoutKeys()
 	want := []string{"flex-columns", "flex-rows", "grid", "sections", "single"}
@@ -15,6 +16,7 @@ func TestNewRegistryHasBuiltinLayouts(t *testing.T) {
 }
 
 func TestBuiltinFlexReadsParams(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry[testCtx]()
 	l, err := r.layouts["flex-columns"](Params{"minWidth": 25, "maxCols": 4})
 	if err != nil {
@@ -30,6 +32,7 @@ func TestBuiltinFlexReadsParams(t *testing.T) {
 }
 
 func TestBuiltinFlexDefaults(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry[testCtx]()
 	l, _ := r.layouts["flex-columns"](nil)
 	fg := l.(FlexColumns)
@@ -39,6 +42,7 @@ func TestBuiltinFlexDefaults(t *testing.T) {
 }
 
 func TestPaneKeysStableOrder(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry[testCtx]()
 	r.Pane("z", "Zed", func(testCtx) (Pane, bool) { return Pane{}, true })
 	r.Pane("a", "Ay", func(testCtx) (Pane, bool) { return Pane{}, true })
@@ -60,6 +64,7 @@ func TestPaneKeysStableOrder(t *testing.T) {
 }
 
 func TestPaneReRegisterKeepsOrder(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry[testCtx]()
 	r.Pane("a", "A", func(testCtx) (Pane, bool) { return Pane{}, true })
 	r.Pane("b", "B", func(testCtx) (Pane, bool) { return Pane{}, true })

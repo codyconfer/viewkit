@@ -23,12 +23,12 @@ func Candle(f layout.Frame, title string, candles []OHLC, width, height int, fmt
 	if max := f.BodyWidth() - 7; max > 0 && width > max {
 		width = max
 	}
-	lines := candlePlot(candles, width, height, fmtVal)
+	lines := candlePlot(f.Theme(), candles, width, height, fmtVal)
 	lines = append(lines, footer...)
 	return f.Panel(title, lines...)
 }
 
-func candlePlot(candles []OHLC, width, height int, fmtVal func(float64) string) []string {
+func candlePlot(th theme.Theme, candles []OHLC, width, height int, fmtVal func(float64) string) []string {
 	if len(candles) == 0 || width < 1 || height < 1 {
 		return nil
 	}
@@ -46,16 +46,16 @@ func candlePlot(candles []OHLC, width, height int, fmtVal func(float64) string) 
 		}
 	}
 
-	body := candleRows(candles, width, height, lo, hi)
+	body := candleRows(th, candles, width, height, lo, hi)
 	lines := make([]string, 0, height+1)
 	for i, row := range body {
-		lines = append(lines, chartGutter(chartLabel(i, height-1, lo, hi, fmtVal))+row)
+		lines = append(lines, chartGutter(th, chartLabel(i, height-1, lo, hi, fmtVal))+row)
 	}
-	lines = append(lines, chartBaseline(width))
+	lines = append(lines, chartBaseline(th, width))
 	return lines
 }
 
-func candleRows(candles []OHLC, width, height int, lo, hi float64) []string {
+func candleRows(th theme.Theme, candles []OHLC, width, height int, lo, hi float64) []string {
 	span := chartSpan(lo, hi)
 	levels := height * 2
 	lvl := func(p float64) int {
@@ -77,9 +77,9 @@ func candleRows(candles []OHLC, width, height int, lo, hi float64) []string {
 			if bot > top {
 				top, bot = bot, top
 			}
-			sty := theme.Cur().Can
+			sty := th.Can
 			if c.Close < c.Open {
-				sty = theme.Cur().Cant
+				sty = th.Cant
 			}
 			bodyU := upper >= bot && upper <= top
 			bodyL := lower >= bot && lower <= top

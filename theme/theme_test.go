@@ -7,6 +7,7 @@ import (
 )
 
 func TestNamedReturnsRegisteredTheme(t *testing.T) {
+	t.Parallel()
 	th, ok := Named("monokai")
 	if !ok {
 		t.Fatal("Named(monokai) not found")
@@ -20,24 +21,20 @@ func TestNamedReturnsRegisteredTheme(t *testing.T) {
 	}
 }
 
-func TestUseUpdatesCur(t *testing.T) {
-	orig := Cur()
-	defer Use(orig)
-
+func TestNamedBuildsFromPalette(t *testing.T) {
+	t.Parallel()
 	th, _ := Named("solarized-dark")
-	Use(th)
 
-	if Cur().Accent.GetForeground() != solarizedDarkPalette.Accent {
-		t.Fatal("Cur() not updated by Use()")
+	if th.Accent.GetForeground() != solarizedDarkPalette.Accent {
+		t.Fatal("Named(solarized-dark) accent not from its palette")
 	}
-	if Cur().Dim.GetForeground() != solarizedDarkPalette.Muted {
-		t.Fatalf("Cur().Dim = %v, want %v", Cur().Dim.GetForeground(), solarizedDarkPalette.Muted)
+	if th.Dim.GetForeground() != solarizedDarkPalette.Muted {
+		t.Fatalf("Dim = %v, want %v", th.Dim.GetForeground(), solarizedDarkPalette.Muted)
 	}
 }
 
-// The exported style vars are a write-once snapshot of the default theme: that
-// is what makes them safe to read from a render goroutine while Use runs.
 func TestKeysDefaultFirst(t *testing.T) {
+	t.Parallel()
 	keys := Keys()
 	if len(keys) == 0 || keys[0] != "default" {
 		t.Fatalf("Keys() = %v, want default first", keys)

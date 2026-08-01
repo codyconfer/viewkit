@@ -8,6 +8,7 @@ import (
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // MenuItem is one row in a Menu.
@@ -40,11 +41,11 @@ func (m *Menu) Title() string { return m.title }
 func (m *Menu) Init() tea.Cmd { return nil }
 
 // Context implements View.
-func (m *Menu) Context() []keys.Hint { return m.ctx }
+func (m *Menu) Context(scope *ui.Scope) []keys.Hint { return m.ctx }
 
 // Hints implements View.
-func (m *Menu) Hints() []keys.Hint {
-	km := navMap()
+func (m *Menu) Hints(scope *ui.Scope) []keys.Hint {
+	km := navMapFor(schemeOf(scope))
 	return []keys.Hint{
 		km.HintLabeled(keys.Up, "move"),
 		km.HintLabeled(keys.Confirm, "open"),
@@ -58,7 +59,7 @@ func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	act, ok := navMap().Action(key.String())
+	act, ok := navMapFor(schemeOf(h.UI())).Action(key.String())
 	if !ok {
 		return nil
 	}
@@ -84,9 +85,9 @@ func (m *Menu) Update(h *Model, msg tea.Msg) tea.Cmd {
 const menuBoxChrome = 2
 
 // Body implements View, rendering the rows in a titled box.
-func (m *Menu) Body(width, height int) string {
-	th := theme.Cur()
-	f := layout.ScreenFrame(width)
+func (m *Menu) Body(f layout.Frame) string {
+	th := f.Theme()
+	f = f.Screen()
 	anyIcon := false
 	for _, it := range m.items {
 		if it.Icon != "" {
@@ -105,7 +106,7 @@ func (m *Menu) Body(width, height int) string {
 		row := cursor
 		switch {
 		case it.Icon != "":
-			row += theme.Icon(it.Icon, it.Hue)
+			row += th.Icon(it.Icon, it.Hue)
 		case anyIcon:
 			row += theme.IconBlank()
 		}
@@ -120,15 +121,17 @@ func (m *Menu) Body(width, height int) string {
 
 // Message is a dismissible text View.
 type Message struct {
-	title string
-	body  string
-	ctx   []keys.Hint
+	title   string
+	body    string
+	errText string
+	ctx     []keys.Hint
 }
 
 // NewError builds a Message that renders err in the theme's failure style —
 // the standard error screen, so hosts stop hand-rolling Cant.Render(err).
+// Styling is deferred to Body so the render-time scope applies.
 func NewError(title string, err error, ctx []keys.Hint) *Message {
-	return NewMessage(title, theme.Cur().Cant.Render(err.Error()), ctx)
+	return &Message{title: title, errText: err.Error(), ctx: ctx}
 }
 
 // NewMessage builds a Message view.
@@ -143,10 +146,10 @@ func (m *Message) Title() string { return m.title }
 func (m *Message) Init() tea.Cmd { return nil }
 
 // Context implements View.
-func (m *Message) Context() []keys.Hint { return m.ctx }
+func (m *Message) Context(scope *ui.Scope) []keys.Hint { return m.ctx }
 
 // Hints implements View; a Message adds no legend entries of its own.
-func (m *Message) Hints() []keys.Hint { return nil }
+func (m *Message) Hints(scope *ui.Scope) []keys.Hint { return nil }
 
 // Update implements View: Cancel or Confirm dismisses the message.
 func (m *Message) Update(h *Model, msg tea.Msg) tea.Cmd {
@@ -154,7 +157,7 @@ func (m *Message) Update(h *Model, msg tea.Msg) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	sc := keys.Cur()
+	sc := schemeOf(h.UI())
 	km := keys.NewMap(sc.Binding(keys.Cancel), sc.Binding(keys.Confirm), sc.Binding(keys.Quit))
 	if act, ok := km.Action(key.String()); ok && (act == keys.Cancel || act == keys.Confirm) {
 		return h.Pop()
@@ -163,7 +166,11 @@ func (m *Message) Update(h *Model, msg tea.Msg) tea.Cmd {
 }
 
 // Body implements View, rendering the text in a titled box.
-func (m *Message) Body(width, _ int) string {
-	f := layout.ScreenFrame(width)
-	return f.TitledBox(strings.ToUpper(m.title), strings.Split(m.body, "\n")...)
+func (m *Message) Body(f layout.Frame) string {
+	f = f.Screen()
+	body := m.body
+	if m.errText != "" {
+		body = f.Theme().Cant.Render(m.errText)
+	}
+	return f.TitledBox(strings.ToUpper(m.title), strings.Split(body, "\n")...)
 }

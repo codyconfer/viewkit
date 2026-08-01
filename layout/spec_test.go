@@ -25,6 +25,7 @@ func testRegistry() *Registry[testCtx] {
 }
 
 func TestBuildScreenMatchesHandBuilt(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	spec := ScreenSpec{
 		Layout: "flex-columns",
@@ -47,6 +48,7 @@ func TestBuildScreenMatchesHandBuilt(t *testing.T) {
 }
 
 func TestBuildScreenSkipsUnavailablePanes(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	spec := ScreenSpec{
 		Layout: "single",
@@ -74,6 +76,7 @@ func TestBuildScreenSkipsUnavailablePanes(t *testing.T) {
 }
 
 func TestBuildScreenUnknownKeysError(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 
 	if _, err := BuildScreen(ScreenSpec{Layout: "nope", Panes: []PaneRef{{Key: "status"}}}, testCtx{}, r); err == nil {
@@ -85,6 +88,7 @@ func TestBuildScreenUnknownKeysError(t *testing.T) {
 }
 
 func TestBuildScreenEmptySpec(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	scr, err := BuildScreen(ScreenSpec{Layout: "single"}, testCtx{}, r)
 	if err != nil {
@@ -96,6 +100,7 @@ func TestBuildScreenEmptySpec(t *testing.T) {
 }
 
 func TestBuildScreenAppliesOverrides(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	tier := TierTall
 	spec := ScreenSpec{
@@ -118,6 +123,7 @@ func TestBuildScreenAppliesOverrides(t *testing.T) {
 }
 
 func TestBuildScreenRingOrder(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	spec := ScreenSpec{Layout: "single", Panes: []PaneRef{{Key: "status"}, {Key: "feed"}}}
 	scr, err := BuildScreen(spec, testCtx{}, r)
@@ -131,6 +137,7 @@ func TestBuildScreenRingOrder(t *testing.T) {
 }
 
 func TestScreenSpecJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	spec := ScreenSpec{
 		Layout:       "flex-columns",
 		LayoutParams: Params{"minWidth": 30, "maxCols": 2},
@@ -156,6 +163,7 @@ func TestScreenSpecJSONRoundTrip(t *testing.T) {
 }
 
 func TestParamsInt(t *testing.T) {
+	t.Parallel()
 	p := Params{"a": 5, "b": float64(7), "c": "x"}
 	if p.Int("a", 0) != 5 {
 		t.Fatalf("int value")
@@ -174,6 +182,7 @@ func TestParamsInt(t *testing.T) {
 func tierPtr(t Tier) *Tier { return &t }
 
 func TestBuildScreenAppliesSlim(t *testing.T) {
+	t.Parallel()
 	r := testRegistry()
 	spec := ScreenSpec{
 		Layout: "grid",
@@ -192,6 +201,7 @@ func TestBuildScreenAppliesSlim(t *testing.T) {
 }
 
 func TestScreenSpecSlimJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	spec := ScreenSpec{
 		Layout:       "grid",
 		LayoutParams: Params{"cols": 4, "rows": 4},

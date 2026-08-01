@@ -2,39 +2,42 @@
 name: viewkit-theme
 description: >-
   Work with viewkit themes, palettes, colors, and the screen background. Use when
-  touching theme.Use / theme.Cur, the exported style vars (theme.DimSty,
-  AccentSty, PanelSty, …), theme.Palette / theme.New, theme.Named / theme.Keys /
-  theme.DisplayName / theme.Register, theme.Screen, or the layout-contract constants
-  (BodyWidth, MinScreenWidth, tiers). Covers the global-singleton model, adding a
-  palette, painting the background, and the mandatory test restore.
+  touching theme.Theme values, theme.Default, theme.Palette / theme.New,
+  theme.Named / theme.Keys / theme.DisplayName / theme.Register, Theme.Screen,
+  ui.Scope, or the layout-contract constants (BodyWidth, MinScreenWidth, tiers).
+  Covers the scoped-value model, adding a palette, painting the background, and
+  per-test themes.
 ---
 
 # viewkit theming
 
-The theme is a **process-global singleton**. There is no `Theme` value to thread —
-install one at startup and everything reads the active theme.
+A theme is a **plain value you carry**, not process state. Build one (or take
+`theme.Default()`), bundle it into a `ui.Scope`, and hand the scope to whatever
+renders.
 
-## Install once, read globally
-
-```go
-theme.Use(theme.Default())              // or theme.New(myPalette), or a named theme
-```
-
-`theme.Use` sets the current theme **and** syncs a set of exported style vars.
-Read styles either way:
+## Build once, pass explicitly
 
 ```go
-theme.Cur().Dim.Render("quiet")         // via the active Theme
-theme.DimSty.Render("quiet")            // via the synced exported var (equivalent)
-theme.AccentSty.Render("loud")
+th := theme.Default()                   // memoized built-in default
+scope := &ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}
+// or, for all built-in defaults: scope := ui.Default()
 ```
 
-Anti-pattern: adding a `Theme` parameter to your render functions. Don't — read the
-globals.
+Hand the scope to the root: `deck.WithScope(scope)` for a deck app, or
+`layout.NewFrame(w).WithUI(scope)` for a bare frame. Read styles off the value:
+
+```go
+th.Dim.Render("quiet")                  // directly, when you hold a Theme
+f.Theme().Accent.Render("loud")         // via a Frame's scope (defaults when UI is nil)
+m.UI().Theme.Val.Render("42")           // via a deck Model's scope
+```
+
+Anti-pattern: stashing a `Theme` in a package-level var to avoid threading the
+scope. Don't — pass the scope down.
 
 ## A Theme is built from a Palette
 
-`theme.Palette` is 11 named color roles; `theme.New(p)` maps them to lipgloss
+`theme.Palette` is 12 named color roles; `theme.New(p)` maps them to lipgloss
 styles. Build a custom look by constructing a palette:
 
 ```go
@@ -49,9 +52,10 @@ p := theme.Palette{
     Failure:  lipgloss.Color("#ff5286"),
     Info:     lipgloss.Color("#6e9fff"),
     Series2:  lipgloss.Color("#d4a0ff"),
+    Series3:  lipgloss.Color("#5ad2c8"),
     Bg:       lipgloss.Color("#1c1e26"),  // "" ⇒ no background paint
 }
-theme.Use(theme.New(p))
+th := theme.New(p)
 ```
 
 You can also start from a preset and override a few fields:
@@ -60,7 +64,7 @@ You can also start from a preset and override a few fields:
 th := theme.Default()
 th.Accent = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
 th.TooNarrowTitle = "SCREEN TOO SMALL"   // UI copy is overridable too
-theme.Use(th)
+scope := &ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}
 ```
 
 ## Named palettes
@@ -69,38 +73,35 @@ Built-in keys: `default` (Default), `solarized-dark`, `solarized-light`,
 `one-dark-vivid`, `monokai`, `classic`, `retro-dark`, `retro-light`.
 
 ```go
-keys := theme.Keys()                     // []string of keys
-if t, ok := theme.Named("monokai"); ok { // false ⇒ returns Default()
-    theme.Use(t)
-}
+names := theme.Keys()                    // []string of keys
+t, ok := theme.Named("monokai")          // !ok ⇒ t is theme.Default()
 label := theme.DisplayName("monokai")    // "Monokai"
 ```
 
 Register a **new named** palette from outside the package with `theme.Register`.
 It becomes resolvable by `theme.Named`, listed in `theme.Keys`, and titled by
 `theme.DisplayName`. Re-registering an existing key overwrites it. For a one-off
-look that needs no name, just `theme.Use(theme.New(p))`.
+look that needs no name, just `theme.New(p)`.
 
 ```go
 theme.Register("dracula", "Dracula", theme.Palette{
     Accent: lipgloss.Color("#bd93f9"),
     // ...remaining roles
 })
-if t, ok := theme.Named("dracula"); ok {
-    theme.Use(t)
-}
+th, _ := theme.Named("dracula")
 ```
 
-The registry is a process-global, unsynchronized slice; call `theme.Register` at
-startup before concurrent access.
+The registry is safe for concurrent use; registering at startup keeps the
+`theme.Keys()` ordering predictable.
 
 ## Background
 
-The background color is painted by `theme.Screen`, not by a style you apply
-yourself. Call it once at the top of your model's `View()`:
+The background color is painted by the `Theme.Screen` method, not by a style you
+apply yourself. Call it once at the top of your model's `View()`:
 
 ```go
-return theme.Screen(body, m.width, m.height) // fills palette Bg across the screen
+th := m.UI().Theme
+return th.Screen(body, m.width, m.height) // fills palette Bg across the screen
 ```
 
 If the palette's `Bg` is `""`, it's a no-op (transparent).
@@ -119,23 +120,30 @@ The consumer owns persistence. goose stores the chosen key in `~/.goose/theme.js
 and re-applies it on load (reference: `internal/game/theme_config.go`):
 
 ```go
-if t, ok := theme.Named(cfg.Theme); ok {
-    theme.Use(t)
-} else {
-    theme.Use(theme.Default())
-}
+th, _ := theme.Named(cfg.Theme)          // unknown key falls back to Default()
+scope := &ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}
 ```
 
-## Tests MUST restore global state
+To switch themes at runtime in a deck app, build a fresh scope and swap it —
+scopes are immutable, so always swap, never mutate — and run the returned
+relayout command:
 
-Because the theme is global, a test that calls `theme.Use` leaks into later tests.
-Always restore:
+```go
+return m.SetScope(&ui.Scope{Theme: th, Keys: m.UI().Keys, Glyphs: m.UI().Glyphs})
+```
+
+## Tests just build values
+
+There is no process state to install or restore. Construct the theme (or scope)
+each test needs and pass it; such tests are order-independent and can run in
+parallel:
 
 ```go
 func TestSomething(t *testing.T) {
-    defer theme.Use(theme.Default())     // ← required
-    theme.Use(mustNamed("solarized-light"))
-    // ...
+    t.Parallel()
+    th, _ := theme.Named("solarized-light")
+    scope := &ui.Scope{Theme: th, Keys: keys.Default(), Glyphs: glyph.DefaultSet()}
+    // hand scope to deck.WithScope(...) or layout.NewFrame(w).WithUI(scope)
 }
 ```
 
@@ -144,7 +152,7 @@ See **viewkit-test** for the full testing patterns (color-profile pinning, etc.)
 ## Verification
 
 `go build ./...`; run the app and confirm colors/background apply and switching
-themes restyles everything. Run `go test ./...` from the repo root and confirm no
-cross-test color bleed (a symptom of a missing `defer theme.Use(...)`).
+themes (via `SetScope`) restyles everything. Run `go test ./...` from the repo
+root.
 
 Full API: see the `viewkit` skill's [references/api.md](../viewkit/references/api.md).

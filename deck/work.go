@@ -12,7 +12,7 @@ import (
 
 	"github.com/codyconfer/viewkit/keys"
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // Job is one unit of work. Run must be safe for concurrent execution; return
@@ -47,11 +47,22 @@ func (w Work) Collect(ctx context.Context) ([]Content, error) {
 	return out, nil
 }
 
-// RunInteractive shows a progressive tea UI while the jobs run under errgroup.
-// Finished results print to scrollback in job order. Quit keys follow keys.Cur().
+// RunInteractive is RunInteractiveIn on the process-default scope.
 func (w Work) RunInteractive(ctx context.Context) error {
+	return w.RunInteractiveIn(ctx, nil)
+}
+
+// RunInteractiveIn shows a progressive tea UI while the jobs run under
+// errgroup, rendering with scope (nil snapshots the process defaults).
+// Finished results print to scrollback in job order; quit keys follow the
+// scope's scheme.
+func (w Work) RunInteractiveIn(ctx context.Context, scope *ui.Scope) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	if scope == nil {
+		scope = ui.Default()
+	}
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
@@ -63,6 +74,7 @@ func (w Work) RunInteractive(ctx context.Context) error {
 		panels: make([]jobPanel, len(w)),
 		spin:   sp,
 		left:   len(w),
+		ui:     scope,
 	}
 	for i, j := range w {
 		m.panels[i].label = j.Label
@@ -99,6 +111,7 @@ type workModel struct {
 	next    int
 	err     error
 	program *tea.Program
+	ui      *ui.Scope
 	once    sync.Once
 }
 
@@ -116,7 +129,7 @@ func (m *workModel) runWorkers() {
 			c, err := j.Run(ctx)
 			body := ""
 			if c != nil {
-				body = c.Render(theme.BodyWidth)
+				body = c.Render(layout.DocumentFrame().WithUI(m.ui))
 			}
 			if m.program != nil {
 				m.program.Send(jobDoneMsg{idx: i, content: body, err: err})
@@ -130,7 +143,7 @@ func (m *workModel) runWorkers() {
 func (m *workModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		sc := keys.Cur()
+		sc := m.ui.Keys
 		if act, ok := keys.NewMap(sc.Binding(keys.Quit), sc.Binding(keys.Cancel)).Action(msg.String()); ok {
 			if act == keys.Quit || act == keys.Cancel {
 				return m, tea.Quit
@@ -140,7 +153,7 @@ func (m *workModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.panels[msg.idx].done {
 			m.panels[msg.idx].done = true
 			if msg.err != nil {
-				m.panels[msg.idx].content = theme.Cur().Cant.Render(msg.err.Error())
+				m.panels[msg.idx].content = m.ui.Theme.Cant.Render(msg.err.Error())
 				if m.err == nil {
 					m.err = msg.err
 				}
@@ -183,7 +196,7 @@ func (m *workModel) drain() (string, bool) {
 
 func (m *workModel) View() string {
 	parts := make([]string, 0, len(m.panels))
-	f := layout.DocumentFrame()
+	f := layout.DocumentFrame().WithUI(m.ui)
 	for _, p := range m.panels {
 		if p.printed {
 			continue
@@ -192,7 +205,7 @@ func (m *workModel) View() string {
 		if p.done {
 			status = "queued…"
 		}
-		parts = append(parts, f.TitledBox(p.label, theme.Cur().Dim.Render(status)))
+		parts = append(parts, f.TitledBox(p.label, m.ui.Theme.Dim.Render(status)))
 	}
 	return strings.Join(parts, "\n") + "\n"
 }

@@ -9,7 +9,9 @@ import (
 	"github.com/muesli/termenv"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 const (
@@ -29,7 +31,7 @@ func requireTrueColor(tb testing.TB) {
 	if got := lipgloss.ColorProfile(); got != termenv.TrueColor {
 		tb.Fatalf("lipgloss.ColorProfile() = %v, want termenv.TrueColor", got)
 	}
-	if out := theme.Cur().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
+	if out := theme.Default().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
 		tb.Fatalf("theme render lacks %q (profile not in effect): %q", trueColorFgSGR, out)
 	}
 }
@@ -39,9 +41,9 @@ type benchView struct{}
 func (benchView) Title() string                  { return "Audit" }
 func (benchView) Init() tea.Cmd                  { return nil }
 func (benchView) Update(*Model, tea.Msg) tea.Cmd { return nil }
-func (benchView) Body(int, int) string           { return "body" }
+func (benchView) Body(layout.Frame) string       { return "body" }
 
-func (benchView) Hints() []keys.Hint {
+func (benchView) Hints(*ui.Scope) []keys.Hint {
 	return []keys.Hint{
 		{Key: "↑↓", Label: "move"},
 		{Key: "enter", Label: "open"},
@@ -50,7 +52,7 @@ func (benchView) Hints() []keys.Hint {
 	}
 }
 
-func (benchView) Context() []keys.Hint {
+func (benchView) Context(*ui.Scope) []keys.Hint {
 	return []keys.Hint{
 		{Key: "env", Label: "prod"},
 		{Key: "scope", Label: "all"},
@@ -58,7 +60,7 @@ func (benchView) Context() []keys.Hint {
 }
 
 func benchModel() *Model {
-	return &Model{
+	m := &Model{
 		stack:  []View{benchView{}, benchView{}},
 		width:  benchScreenWidth,
 		height: benchScreenHeight,
@@ -78,8 +80,10 @@ func benchModel() *Model {
 				{Name: "queue", Detail: "lag 2s", Glyph: "●"},
 			},
 		},
-		quitCheck: schemeQuit,
+		ui: ui.Default(),
 	}
+	m.quitCheck = m.schemeQuit
+	return m
 }
 
 func TestBenchmarksMeasureTrueColorRendering(t *testing.T) {

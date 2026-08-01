@@ -32,7 +32,7 @@ func requireTrueColor(tb testing.TB) {
 	if got := lipgloss.ColorProfile(); got != termenv.TrueColor {
 		tb.Fatalf("lipgloss.ColorProfile() = %v, want termenv.TrueColor", got)
 	}
-	if out := Cur().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
+	if out := Default().Val.Render("probe"); !strings.Contains(out, trueColorFgSGR) {
 		tb.Fatalf("theme render lacks %q (profile not in effect): %q", trueColorFgSGR, out)
 	}
 }
@@ -42,11 +42,12 @@ func TestBenchmarksMeasureTrueColorRendering(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 	requireTrueColor(t)
 
-	fg := Cur().Val.GetForeground()
+	th := Default()
+	fg := th.Val.GetForeground()
 	for name, out := range map[string]string{
-		"StripText":  StripText(fg, "probe"),
-		"StripBold":  StripBold(fg, "probe"),
-		"StripBlock": StripBlock(RuleWidth, StripText(fg, "probe")),
+		"StripText":  th.StripText(fg, "probe"),
+		"StripBold":  th.StripBold(fg, "probe"),
+		"StripBlock": th.StripBlock(RuleWidth, th.StripText(fg, "probe")),
 	} {
 		if !strings.Contains(out, trueColorSGR) {
 			t.Errorf("%s output lacks %q: %q", name, trueColorSGR, out)
@@ -58,12 +59,13 @@ func TestBenchmarksUnderstateCostInAsciiProfile(t *testing.T) {
 	prev := lipgloss.ColorProfile()
 	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
 
-	fg := Cur().Val.GetForeground()
+	th := Default()
+	fg := th.Val.GetForeground()
 
 	lipgloss.SetColorProfile(termenv.Ascii)
-	ascii := StripText(fg, "probe")
+	ascii := th.StripText(fg, "probe")
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	truecolor := StripText(fg, "probe")
+	truecolor := th.StripText(fg, "probe")
 
 	if strings.Contains(ascii, "\x1b[") {
 		t.Errorf("Ascii profile emitted escapes: %q", ascii)
@@ -75,65 +77,71 @@ func TestBenchmarksUnderstateCostInAsciiProfile(t *testing.T) {
 
 func BenchmarkStripText(b *testing.B) {
 	requireTrueColor(b)
-	fg := Cur().Val.GetForeground()
+	th := Default()
+	fg := th.Val.GetForeground()
 	s := "munin · audit"
 	b.ReportAllocs()
 	for b.Loop() {
-		benchSink = StripText(fg, s)
+		benchSink = th.StripText(fg, s)
 	}
 }
 
 func BenchmarkStripBold(b *testing.B) {
 	requireTrueColor(b)
-	fg := Cur().Accent.GetForeground()
+	th := Default()
+	fg := th.Accent.GetForeground()
 	s := "munin · audit"
 	b.ReportAllocs()
 	for b.Loop() {
-		benchSink = StripBold(fg, s)
+		benchSink = th.StripBold(fg, s)
 	}
 }
 
 func BenchmarkStripTextEmptyString(b *testing.B) {
 	requireTrueColor(b)
-	fg := Cur().Val.GetForeground()
+	th := Default()
+	fg := th.Val.GetForeground()
 	b.ReportAllocs()
 	for b.Loop() {
-		benchSink = StripText(fg, "")
+		benchSink = th.StripText(fg, "")
 	}
 }
 
 func BenchmarkStripBg(b *testing.B) {
 	requireTrueColor(b)
+	th := Default()
 	b.ReportAllocs()
 	for b.Loop() {
-		benchColor = StripBg()
+		benchColor = th.StripBg()
 	}
 }
 
 func BenchmarkStripBlockTwoLines(b *testing.B) {
 	requireTrueColor(b)
-	fg := Cur().Val.GetForeground()
-	left := StripText(fg, " brand · deck")
-	right := StripBold(fg, "12:34:56 ")
+	th := Default()
+	fg := th.Val.GetForeground()
+	left := th.StripText(fg, " brand · deck")
+	right := th.StripBold(fg, "12:34:56 ")
 	b.ReportAllocs()
 	for b.Loop() {
-		benchSink = StripBlock(RuleWidth, left, right)
+		benchSink = th.StripBlock(RuleWidth, left, right)
 	}
 }
 
 func BenchmarkStripCalls20PerFrame(b *testing.B) {
 	requireTrueColor(b)
-	fg := Cur().Val.GetForeground()
-	accent := Cur().Accent.GetForeground()
+	th := Default()
+	fg := th.Val.GetForeground()
+	accent := th.Accent.GetForeground()
 	s := "munin · audit"
 	b.ReportAllocs()
 	for b.Loop() {
 		var sb strings.Builder
 		for range 15 {
-			sb.WriteString(StripText(fg, s))
+			sb.WriteString(th.StripText(fg, s))
 		}
 		for range 5 {
-			sb.WriteString(StripBold(accent, s))
+			sb.WriteString(th.StripBold(accent, s))
 		}
 		benchSink = sb.String()
 	}

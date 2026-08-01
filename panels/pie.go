@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 // Pie renders proportions as a panel with a single stacked horizontal bar —
@@ -24,8 +23,9 @@ func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(f
 			total += v
 		}
 	}
+	th := f.Theme()
 	if total = finite(total); total <= 0 {
-		return f.Panel(title, theme.Cur().Dim.Render(empty))
+		return f.Panel(title, th.Dim.Render(empty))
 	}
 	if barWidth < 1 {
 		barWidth = 1
@@ -43,13 +43,13 @@ func Pie(f layout.Frame, title string, data []Datum, barWidth int, fmtNum func(f
 			continue
 		}
 		frac := v / total
-		sty := seriesStyle(i)
+		sty := seriesAt(th, i)
 		n := min(max(int(frac*float64(barWidth)+0.5), 0), barWidth-filled)
 		filled += n
 		bar.WriteString(sty.Render(strings.Repeat("█", n)))
 		legend = append(legend, f.Spread(
-			sty.Render("■ ")+theme.Cur().Val.Render(d.Label),
-			theme.Cur().Dim.Render(fmt.Sprintf("%s  ·  %.0f%%", fmtNum(d.Value), frac*100))))
+			sty.Render("■ ")+th.Val.Render(d.Label),
+			th.Dim.Render(fmt.Sprintf("%s  ·  %.0f%%", fmtNum(d.Value), frac*100))))
 	}
 
 	lines := append([]string{bar.String()}, legend...)

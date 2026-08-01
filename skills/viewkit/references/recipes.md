@@ -5,7 +5,7 @@ Task-oriented entry points for common viewkit work. Start with the main
 
 ## Add a new pane to an existing screen
 
-1. Read `viewkit` for the frame model and the global theme/keys gotchas.
+1. Read `viewkit` for the frame model and the ui.Scope plumbing gotchas.
 2. Read `viewkit-pane` for the register -> default spec -> render wiring.
 3. If the pane needs charts or widgets, also read `viewkit-panels`.
 4. Verify with `go test ./...` and tab through the focus ring if the pane is
@@ -22,7 +22,7 @@ Task-oriented entry points for common viewkit work. Start with the main
 
 1. Read `viewkit-forms`.
 2. Read `viewkit-screen` for where `Handle` and `Insert` belong in the key loop.
-3. If the modal changes global styling, read `viewkit-theme`.
+3. If the modal changes the app's theme or scope, read `viewkit-theme`.
 
 ## Add charts, ledgers, or compact widgets
 
@@ -42,7 +42,8 @@ Task-oriented entry points for common viewkit work. Start with the main
 ## Change the theme or add a palette
 
 1. Read `viewkit-theme`.
-2. Treat `theme.Use(...)` as startup-global state, not a dependency to thread
-   through render helpers.
-3. Restore `theme.Use(theme.Default())` in any test that changes the active
-   theme.
+2. Build the new `theme.Theme` (`theme.New` / `theme.Named`) and carry it in a
+   `ui.Scope`; deck apps swap at runtime with `Model.SetScope` (run the
+   returned relayout cmd).
+3. Tests construct their own scope (or `Theme` value) per test — no restore
+   needed, and `t.Parallel()` is fine.

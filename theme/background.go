@@ -42,12 +42,12 @@ func PadBlock(c lipgloss.TerminalColor, width, rows int, lines ...string) string
 	return strings.Join(out, "\n")
 }
 
-// Screen paints the active theme's background across a width-by-height area
-// behind body. Every ANSI reset inside body is re-followed by the background
+// Screen paints this theme's background across a width-by-height area behind
+// body. Every ANSI reset inside body is re-followed by the background
 // sequence so embedded styles do not punch holes in the fill. When the theme
 // has no background color, body is returned unchanged.
-func Screen(body string, width, height int) string {
-	bg := Cur().Bg
+func (t Theme) Screen(body string, width, height int) string {
+	bg := t.Bg
 	if bg == "" {
 		return body
 	}

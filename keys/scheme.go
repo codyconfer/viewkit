@@ -1,9 +1,6 @@
 package keys
 
-import (
-	"sync"
-	"sync/atomic"
-)
+import "sync"
 
 // Standard actions every scheme is expected to bind: cursor and focus
 // movement, confirm/cancel/quit, value adjustment (Inc/Dec), paging, and the
@@ -74,10 +71,12 @@ func (s Scheme) WithDefaults(defaults ...Binding) Scheme {
 	return next
 }
 
-// Default returns the built-in scheme: arrow keys doubled with vi-style
-// h/j/k/l, enter/space to confirm, esc to cancel, ctrl+c to quit, tab focus
-// cycling, and bracket/plus/minus value adjustment.
-func Default() Scheme {
+// Default returns the (memoized) built-in scheme: arrow keys doubled with
+// vi-style h/j/k/l, enter/space to confirm, esc to cancel, ctrl+c to quit,
+// tab focus cycling, and bracket/plus/minus value adjustment.
+func Default() Scheme { return defaultScheme() }
+
+var defaultScheme = sync.OnceValue(func() Scheme {
 	return Scheme{bindings: map[Action]Binding{
 		Up:        {Keys: []string{"up", "k"}, Action: Up, Glyph: "↑/↓/j/k"},
 		Down:      {Keys: []string{"down", "j"}, Action: Down},
@@ -100,21 +99,7 @@ func Default() Scheme {
 		CompleteNext: {Keys: []string{"ctrl+n"}, Action: CompleteNext, Glyph: "ctrl+n/ctrl+p", Label: "suggestion"},
 		CompletePrev: {Keys: []string{"ctrl+p"}, Action: CompletePrev, Glyph: "ctrl+p"},
 	}}
-}
-
-var current = func() *atomic.Pointer[Scheme] {
-	p := new(atomic.Pointer[Scheme])
-	s := Default()
-	p.Store(&s)
-	return p
-}()
-
-// Cur returns the active scheme by value (matching theme.Cur); a later Use
-// does not change a Scheme already returned.
-func Cur() Scheme { return *current.Load() }
-
-// Use makes s the active scheme. Safe to call while other goroutines read Cur.
-func Use(s Scheme) { current.Store(&s) }
+})
 
 type registryEntry struct {
 	key    string
@@ -157,18 +142,6 @@ func Keys() []string {
 		out[i] = e.key
 	}
 	return out
-}
-
-// Activate looks up the named scheme and makes it active, replacing the
-// Named-then-Use two-step. It reports whether key was registered; the active
-// scheme is left unchanged when it was not.
-func Activate(key string) bool {
-	s, ok := Named(key)
-	if !ok {
-		return false
-	}
-	Use(s)
-	return true
 }
 
 // Named returns the scheme registered under key. When key is not registered

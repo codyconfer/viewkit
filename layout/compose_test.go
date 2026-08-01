@@ -20,6 +20,7 @@ func markerPane(name string, interactive bool, tier Tier) Pane {
 }
 
 func TestPaneRingSkipsNonInteractive(t *testing.T) {
+	t.Parallel()
 	ring := PaneRing([]Pane{
 		markerPane("a", true, TierShort),
 		{Name: "title"},
@@ -32,6 +33,7 @@ func TestPaneRingSkipsNonInteractive(t *testing.T) {
 }
 
 func TestSingleColumnFocusesRingSelection(t *testing.T) {
+	t.Parallel()
 	scr := Screen{Panes: []Pane{
 		markerPane("a", true, TierShort),
 		markerPane("b", true, TierShort),
@@ -46,6 +48,7 @@ func TestSingleColumnFocusesRingSelection(t *testing.T) {
 }
 
 func TestSingleColumnHidesPanesBelowTier(t *testing.T) {
+	t.Parallel()
 	scr := Screen{Panes: []Pane{
 		markerPane("always", false, TierShort),
 		markerPane("tallonly", false, TierTall),

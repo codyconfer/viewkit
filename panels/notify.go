@@ -9,8 +9,7 @@ import (
 	"github.com/codyconfer/viewkit/theme"
 )
 
-func severityStyle(sev glyph.Severity) lipgloss.Style {
-	t := theme.Cur()
+func severityStyle(t theme.Theme, sev glyph.Severity) lipgloss.Style {
 	switch sev {
 	case glyph.SeverityPositive:
 		return t.NotifPositive
@@ -27,11 +26,11 @@ func severityStyle(sev glyph.Severity) lipgloss.Style {
 // glyph, title, and " — message" when the message is non-empty — truncated to
 // the frame body width.
 func NotificationToast(f layout.Frame, n notify.Notification) string {
-	line := glyph.GlyphFor(n.Severity) + " " + n.Title
+	line := f.Glyphs().GlyphFor(n.Severity) + " " + n.Title
 	if n.Message != "" {
 		line += " — " + n.Message
 	}
-	return severityStyle(n.Severity).Render(f.Fit(line))
+	return severityStyle(f.Theme(), n.Severity).Render(f.Fit(line))
 }
 
 // NotificationPanel renders a panel listing ns, one severity-glyph-plus-title
@@ -40,15 +39,16 @@ func NotificationToast(f layout.Frame, n notify.Notification) string {
 // severity style's foreground. With no notifications the panel shows a dim
 // "no notifications".
 func NotificationPanel(f layout.Frame, title string, ns []notify.Notification) string {
+	t := f.Theme()
 	if len(ns) == 0 {
-		return f.Panel(title, theme.Cur().Dim.Render("no notifications"))
+		return f.Panel(title, t.Dim.Render("no notifications"))
 	}
-	t := theme.Cur()
+	g := f.Glyphs()
 	lines := make([]string, 0, len(ns))
 	for _, n := range ns {
-		sty := severityStyle(n.Severity)
+		sty := severityStyle(t, n.Severity)
 		head := sty.GetForeground()
-		marker := lipgloss.NewStyle().Foreground(head).Render(glyph.GlyphFor(n.Severity) + " ")
+		marker := lipgloss.NewStyle().Foreground(head).Render(g.GlyphFor(n.Severity) + " ")
 		lines = append(lines, f.Fit(marker+t.NotifTitle.Render(n.Title)))
 		if n.Message != "" {
 			lines = append(lines, f.Fit(t.Dim.Render("  "+n.Message)))

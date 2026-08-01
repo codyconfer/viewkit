@@ -9,6 +9,7 @@ import (
 var tbAnsi = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 func TestTitledBoxShowsTitleAndBody(t *testing.T) {
+	t.Parallel()
 	out := tbAnsi.ReplaceAllString(NewFrame(40).TitledBox("STATUS", "line one", "line two"), "")
 	for _, want := range []string{"STATUS", "line one", "line two", "╭", "╰"} {
 		if !strings.Contains(out, want) {
@@ -18,6 +19,7 @@ func TestTitledBoxShowsTitleAndBody(t *testing.T) {
 }
 
 func TestTitledBoxIconRendersIcon(t *testing.T) {
+	t.Parallel()
 	out := tbAnsi.ReplaceAllString(NewFrame(40).TitledBoxIcon("»", "AUTH"), "")
 	if !strings.Contains(out, "»") || !strings.Contains(out, "AUTH") {
 		t.Errorf("titled box icon missing icon/title:\n%s", out)

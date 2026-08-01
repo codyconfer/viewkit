@@ -195,14 +195,14 @@ func (fm *Form) render(f layout.Frame, title string, maxLines int) string {
 		lines = append(lines, block...)
 	}
 	if maxLines > 0 && len(lines) > maxLines {
-		lines = windowAround(lines, focusStart, focusEnd, maxLines)
+		lines = windowAround(f.Theme(), lines, focusStart, focusEnd, maxLines)
 	}
 	return f.Panel(title, lines...)
 }
 
 const moreMarker = "⋯"
 
-func windowAround(lines []string, focusStart, focusEnd, maxLines int) []string {
+func windowAround(th theme.Theme, lines []string, focusStart, focusEnd, maxLines int) []string {
 	if maxLines < 3 {
 		maxLines = 3
 	}
@@ -221,7 +221,7 @@ func windowAround(lines []string, focusStart, focusEnd, maxLines int) []string {
 	}
 	out := make([]string, 0, end-start)
 	out = append(out, lines[start:end]...)
-	marker := theme.Cur().Dim.Render(moreMarker)
+	marker := th.Dim.Render(moreMarker)
 	if start > 0 {
 		out[0] = marker
 	}

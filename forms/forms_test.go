@@ -14,6 +14,7 @@ var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
 func TestConfirmSelectionAndResult(t *testing.T) {
+	t.Parallel()
 	c := Confirm{Title: "DELETE", Message: "Remove save?"}
 	if c.Yes {
 		t.Fatal("zero value should default to No")
@@ -43,6 +44,7 @@ func TestConfirmSelectionAndResult(t *testing.T) {
 }
 
 func TestConfirmOverlay(t *testing.T) {
+	t.Parallel()
 	bg := strings.TrimRight(strings.Repeat(strings.Repeat(".", 50)+"\n", 10), "\n")
 	c := Confirm{Title: "OK?", Message: "sure"}
 	out := stripANSI(c.Overlay(bg, layout.NewFrame(28)))
@@ -52,6 +54,7 @@ func TestConfirmOverlay(t *testing.T) {
 }
 
 func TestFormTextInput(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "name", Label: "Name", Kind: FieldText})
 	fm.Insert("Ada")
 	fm.Insert("\n")
@@ -65,6 +68,7 @@ func TestFormTextInput(t *testing.T) {
 }
 
 func TestFormMultilineKeepsNewlines(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "bio", Label: "Bio", Kind: FieldMultiline})
 	fm.Insert("line1\nline2")
 	if got := fm.Values()["bio"]; got != "line1\nline2" {
@@ -73,6 +77,7 @@ func TestFormMultilineKeepsNewlines(t *testing.T) {
 }
 
 func TestFormSelectAndToggle(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "risk", Label: "Risk", Kind: FieldSelect, Options: []string{"low", "med", "high"}},
 		Field{Key: "auto", Label: "Auto", Kind: FieldToggle},
@@ -99,6 +104,7 @@ func TestFormSelectAndToggle(t *testing.T) {
 }
 
 func TestFormMultiselectAndRadio(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "tags", Label: "Tags", Kind: FieldMultiselect, Options: []string{"a", "b", "c"}},
 		Field{Key: "tier", Label: "Tier", Kind: FieldRadio, Options: []string{"x", "y"}},
@@ -121,6 +127,7 @@ func TestFormMultiselectAndRadio(t *testing.T) {
 }
 
 func TestFormUnconsumedConfirmSignalsSubmit(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "name", Label: "Name", Kind: FieldText})
 	if fm.Handle(keys.Confirm) {
 		t.Error("Confirm on text field should be unconsumed (host treats as submit)")
@@ -128,6 +135,7 @@ func TestFormUnconsumedConfirmSignalsSubmit(t *testing.T) {
 }
 
 func TestFormRenderShowsAllFields(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "name", Label: "Name", Kind: FieldText, Text: "Grace"},
 		Field{Key: "tags", Label: "Tags", Kind: FieldMultiselect, Options: []string{"a", "b"}},
@@ -141,6 +149,7 @@ func TestFormRenderShowsAllFields(t *testing.T) {
 }
 
 func TestSecretFieldMasksButKeepsValue(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "secret", Label: "Secret", Kind: FieldText, Secret: true})
 	fm.Insert("hunter2")
 
@@ -158,6 +167,7 @@ func TestSecretFieldMasksButKeepsValue(t *testing.T) {
 }
 
 func TestFormRenderSeparatesTitleFromFirstField(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "first", Label: "First", Kind: FieldText},
 		Field{Key: "second", Label: "Second", Kind: FieldText},

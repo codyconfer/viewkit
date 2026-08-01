@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/codyconfer/viewkit/layout"
-	"github.com/codyconfer/viewkit/theme"
 )
 
 var vBlocks = [8]string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
@@ -39,8 +38,9 @@ func Spectrum(f layout.Frame, title string, levels []float64, height int, empty 
 			o.BarGap = 0
 		}
 	}
+	th := f.Theme()
 	if len(levels) == 0 || height < 1 {
-		return f.Panel(title, theme.Cur().Dim.Render(empty))
+		return f.Panel(title, th.Dim.Render(empty))
 	}
 
 	span := o.BarWide + o.BarGap
@@ -56,8 +56,7 @@ func Spectrum(f layout.Frame, title string, levels []float64, height int, empty 
 		peaks = peaks[:len(levels)]
 	}
 
-	series := theme.Cur().Series
-	dim := theme.Cur().Dim
+	dim := th.Dim
 	rows := make([]string, height)
 	for row := range height {
 		cell := height - 1 - row
@@ -69,7 +68,7 @@ func Spectrum(f layout.Frame, title string, levels []float64, height int, empty 
 			glyph := spectrumCell(lvl, cell, height)
 			switch {
 			case glyph != "":
-				b.WriteString(seriesAt(series, i).Render(strings.Repeat(glyph, o.BarWide)))
+				b.WriteString(seriesAt(th, i).Render(strings.Repeat(glyph, o.BarWide)))
 			case i < len(peaks) && peakCell(peaks[i], height) == cell:
 				b.WriteString(dim.Render(strings.Repeat("▔", o.BarWide)))
 			default:

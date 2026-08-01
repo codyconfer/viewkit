@@ -3,6 +3,7 @@ package forms
 import "testing"
 
 func TestSplitTail(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		text       string
@@ -28,6 +29,7 @@ func TestSplitTail(t *testing.T) {
 }
 
 func TestJoinTail(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name              string
 		head, pick, delim string
@@ -48,6 +50,7 @@ func TestJoinTail(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
+	t.Parallel()
 	vals := []string{"stale-prs", "standup", "Stalled", "review"}
 
 	got := Match(vals, "sta")
@@ -73,6 +76,7 @@ func TestMatch(t *testing.T) {
 }
 
 func TestGhostOf(t *testing.T) {
+	t.Parallel()
 	if got := ghostOf("stale-prs", "sta"); got != "le-prs" {
 		t.Fatalf("ghostOf = %q, want %q", got, "le-prs")
 	}

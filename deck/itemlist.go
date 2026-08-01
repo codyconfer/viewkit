@@ -5,8 +5,9 @@ import (
 
 	"github.com/codyconfer/viewkit/browser"
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
-	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 // ItemListSpec configures an ItemList, following the FormSpec pattern: every
@@ -67,9 +68,10 @@ type ItemList struct {
 	ready   bool
 	loaded  bool
 	fetched any
+	scope   *ui.Scope
 
-	boundGen uint64
-	bound    bool
+	boundUI *ui.Scope
+	bound   bool
 }
 
 // NewItemList builds an ItemList from spec.
@@ -105,7 +107,7 @@ func (m itemListLoadedMsg) recipient() View { return m.own }
 func (r *ItemList) Title() string { return r.title }
 
 // Context implements View.
-func (r *ItemList) Context() []keys.Hint { return r.ctx }
+func (r *ItemList) Context(scope *ui.Scope) []keys.Hint { return r.ctx }
 
 // Selected returns the highlighted row, if any. Hosts that decorate an
 // ItemList with their own row commands need it to know what the command
@@ -113,8 +115,8 @@ func (r *ItemList) Context() []keys.Hint { return r.ctx }
 func (r *ItemList) Selected() (list.Item, bool) { return r.lst.Selected() }
 
 // Hints implements View; the legend adapts to OnSelect and Fetch being set.
-func (r *ItemList) Hints() []keys.Hint {
-	km := navMap()
+func (r *ItemList) Hints(scope *ui.Scope) []keys.Hint {
+	km := navMapFor(schemeOf(scope))
 	hints := []keys.Hint{km.HintLabeled(keys.Up, "move")}
 	if r.OnSelect != nil {
 		hints = append(hints,
@@ -165,9 +167,10 @@ func (r *ItemList) fetchCmd() tea.Cmd {
 // Update implements View, handling resize, load completion, ReloadMsg and
 // navigation keys.
 func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
+	r.scope = h.UI()
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
-		if r.ready && m.Width == r.width && r.bound && r.boundGen == theme.Generation() {
+		if r.ready && m.Width == r.width && r.bound && r.boundUI == r.scope {
 			return nil
 		}
 		r.width, r.ready = m.Width, true
@@ -186,7 +189,7 @@ func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 }
 
 func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
-	act, ok := r.action(m.String())
+	act, ok := r.action(schemeOf(h.UI()), m.String())
 	if !ok {
 		return nil
 	}
@@ -222,7 +225,7 @@ func (r *ItemList) confirmSelected(h *Model) tea.Cmd {
 	return r.OnSelect(h, it)
 }
 
-func (r *ItemList) action(key string) (keys.Action, bool) {
+func (r *ItemList) action(sc keys.Scheme, key string) (keys.Action, bool) {
 	if r.isCancel != nil && r.isCancel(key) {
 		return keys.Cancel, true
 	}
@@ -231,7 +234,7 @@ func (r *ItemList) action(key string) (keys.Action, bool) {
 			return act, true
 		}
 	}
-	return navMap().Action(key)
+	return navMapFor(sc).Action(key)
 }
 
 func (r *ItemList) openSelected() tea.Cmd {
@@ -254,7 +257,7 @@ func (r *ItemList) refresh() {
 	if !r.ready || !r.loaded {
 		return
 	}
-	r.boundGen, r.bound = theme.Generation(), true
+	r.boundUI, r.bound = r.scope, true
 	if r.bind != nil {
 		r.lst.SetItemsKeepingCursor(r.bind(r.width, r.fetched))
 		return
@@ -265,13 +268,15 @@ func (r *ItemList) refresh() {
 }
 
 // Body implements View, rendering the loading text until Fetch lands.
-func (r *ItemList) Body(width, height int) string {
+func (r *ItemList) Body(f layout.Frame) string {
+	width, height := f.Width, f.Height
+	r.lst.SetTheme(f.Theme())
 	if !r.loaded {
 		txt := r.loadingText
 		if txt == "" {
 			txt = "░▒▓ loading…"
 		}
-		return theme.Cur().Dim.Render(txt)
+		return f.Theme().Dim.Render(txt)
 	}
 	if height > 0 {
 		changed := height != r.height

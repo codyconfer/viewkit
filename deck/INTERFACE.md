@@ -18,21 +18,25 @@
 | `ItemList` | Lazy Fetch+Bind selectable list (domain → `list.Item` in Bind) |
 | `HomeShell` | Dual-pane menu + optional side list (Fetch+Bind; no app domain types) |
 
-## Model + singleton contract
+## Model + scope contract
 
 **Stateful session model:** `deck.Model` is the
 only tea.Model for a deck session. Views implement `Update(m *Model, msg)` and
 navigate with `m.Push` / `m.Pop`. Domain/plugin state stays in the View (or an
 app kit), never inside Model fields beyond chrome/stack/size/status.
 
-**Process-global singletons** (install once before `deck.Run`):
+**Rendering scope:** a `ui.Scope` (theme + key scheme + glyph set) is passed
+to `deck.New` via `WithScope` and swapped at runtime with `Model.SetScope`.
+There is no process-global active theme or scheme.
 
-| Singleton | API | Notes |
+**Process-level registries** (register once before `deck.Run`):
+
+| Registry | API | Notes |
 |---|---|---|
-| Theme | `theme.Use` / `theme.Cur` | Active palette; `theme.Register` for named palettes |
-| Keys | `keys.Use` / `keys.Cur` | Active scheme; `keys.Register` for named schemes |
+| Themes | `theme.Register` / `theme.Named` | Named palettes; build a `Theme` per scope |
+| Keys | `keys.Register` / `keys.Named` | Named schemes; build a `Scheme` per scope |
 | Views | `deck.RegisterView` / `NamedView` | Plugin/app screen constructors |
-| Glyphs | `glyph.Register` | Nerd/Uni/ASCII variants (core) |
+| Glyphs | `glyph.Register`, `glyph.SetMode` | Variants + the write-once default mode (deliberate residue) |
 
 Overlays and plugins must not invent a second tea root — register Views/themes
 and let the host `Model` own the program.
@@ -58,10 +62,10 @@ return `Content`; apps render domain → string/`Content` before
 
 ## Key bindings
 
-Apps may install a scheme (`keys.Use` / `keys.Register`) before `deck.Run`.
+Apps register schemes (`keys.Register`) and pass the chosen one in the scope.
 
 **Single source:** generic views resolve input *and* render their footer legend
-through the active scheme (`navMap` over `keys.Cur()`). No view matches raw key
+through the scope's scheme (`navMap` over `scope.Keys`). No view matches raw key
 literals, so a hint can never advertise a binding the view does not honour.
 Paging is `keys.PageUp`/`PageDown`; pane switching is `keys.FocusNext`/`FocusPrev`.
 `Scroll` drives the viewport from the scheme rather than the bubbles keymap for
@@ -83,7 +87,7 @@ A view's `IsAction` hook *replaces* the scheme map rather than extending it: map
 - [ ] Content boundary keeps domain types out of deck
 - [ ] DualHost panels usable from inline shells
 - [ ] No tea leakage into viewkit core imports
-- [ ] No raw key literals in views; hints derived from `keys.Cur()`
+- [ ] No raw key literals in views; hints derived from the scope's scheme
 
 ## Package consolidation
 

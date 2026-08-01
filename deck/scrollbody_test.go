@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
 )
 
 func scrollBodyLines(n int) string {
@@ -20,7 +21,7 @@ func TestScrollBodyHandlesNavAndWindows(t *testing.T) {
 	var s ScrollBody
 	body := scrollBodyLines(50)
 
-	if got := s.View(body, 10); !strings.Contains(got, "line-000") {
+	if got := s.View(layout.Frame{Width: 80}, body, 10); !strings.Contains(got, "line-000") {
 		t.Fatalf("initial window missing top line:\n%s", got)
 	}
 	if s.Handle(keys.Confirm) {
@@ -35,13 +36,13 @@ func TestScrollBodyHandlesNavAndWindows(t *testing.T) {
 	if !s.Handle(keys.PageDown) {
 		t.Fatal("Handle did not claim PageDown")
 	}
-	if got := s.View(body, 10); strings.Contains(got, "line-000") {
+	if got := s.View(layout.Frame{Width: 80}, body, 10); strings.Contains(got, "line-000") {
 		t.Fatalf("window did not advance after PageDown:\n%s", got)
 	}
 	for range 20 {
 		s.Handle(keys.PageDown)
 	}
-	if got := s.View(body, 10); !strings.Contains(got, "line-049") {
+	if got := s.View(layout.Frame{Width: 80}, body, 10); !strings.Contains(got, "line-049") {
 		t.Fatalf("clamped window missing last line:\n%s", got)
 	}
 	for range 30 {
@@ -55,7 +56,7 @@ func TestScrollBodyHandlesNavAndWindows(t *testing.T) {
 func TestScrollBodyShortContentIsUntouched(t *testing.T) {
 	var s ScrollBody
 	body := scrollBodyLines(3)
-	if got := s.View(body, 10); got != body {
+	if got := s.View(layout.Frame{Width: 80}, body, 10); got != body {
 		t.Fatalf("short content was windowed:\n%s", got)
 	}
 	if s.Handle(keys.Down); s.Offset != 0 {

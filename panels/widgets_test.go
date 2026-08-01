@@ -10,16 +10,19 @@ import (
 
 	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/theme"
+	"github.com/codyconfer/viewkit/ui"
 )
 
 func TestMeterClampsToWidth(t *testing.T) {
-	out := stripANSI(Meter(2, 4))
+	t.Parallel()
+	out := stripANSI(Meter(theme.Default(), 2, 4))
 	if got := strings.Count(out, "█"); got != 4 {
 		t.Fatalf("Meter filled cells = %d, want 4", got)
 	}
 }
 
 func TestProgressBarNonFiniteFraction(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		frac float64
@@ -29,7 +32,7 @@ func TestProgressBarNonFiniteFraction(t *testing.T) {
 		{"neginf", math.Inf(-1)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			out := stripANSI(ProgressBar(tc.frac, 20))
+			out := stripANSI(ProgressBar(theme.Default(), tc.frac, 20))
 			if got := utf8.RuneCountInString(out); got != 20 {
 				t.Fatalf("ProgressBar(%v, 20) rendered %d cells (%d bytes), want 20", tc.frac, got, len(out))
 			}
@@ -41,19 +44,21 @@ func TestProgressBarNonFiniteFraction(t *testing.T) {
 }
 
 func TestProgressBarZeroTotalDivision(t *testing.T) {
+	t.Parallel()
 	done, total := 0, 0
-	out := stripANSI(ProgressBar(float64(done)/float64(total), 20))
+	out := stripANSI(ProgressBar(theme.Default(), float64(done)/float64(total), 20))
 	if got := utf8.RuneCountInString(out); got != 20 {
-		t.Fatalf("ProgressBar(0/0, 20) rendered %d cells (%d bytes), want 20", got, len(out))
+		t.Fatalf("ProgressBar(theme.Default(), 0/0, 20) rendered %d cells (%d bytes), want 20", got, len(out))
 	}
 	if got := strings.Count(out, "░"); got != 20 {
-		t.Errorf("ProgressBar(0/0, 20) empty cells = %d, want 20", got)
+		t.Errorf("ProgressBar(theme.Default(), 0/0, 20) empty cells = %d, want 20", got)
 	}
 }
 
 func TestMeterNonFiniteFraction(t *testing.T) {
+	t.Parallel()
 	for _, frac := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		out := stripANSI(Meter(frac, 20))
+		out := stripANSI(Meter(theme.Default(), frac, 20))
 		if got := utf8.RuneCountInString(out); got != 22 {
 			t.Fatalf("Meter(%v, 20) rendered %d cells (%d bytes), want 22", frac, got, len(out))
 		}
@@ -64,6 +69,7 @@ func TestMeterNonFiniteFraction(t *testing.T) {
 }
 
 func TestProgressBarWellFormed(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		frac   float64
 		width  int
@@ -80,7 +86,7 @@ func TestProgressBarWellFormed(t *testing.T) {
 		{0.5, -5, 0},
 	} {
 		want := strings.Repeat("█", tc.filled) + strings.Repeat("░", max(tc.width-tc.filled, 0))
-		if got := stripANSI(ProgressBar(tc.frac, tc.width)); got != want {
+		if got := stripANSI(ProgressBar(theme.Default(), tc.frac, tc.width)); got != want {
 			t.Errorf("ProgressBar(%v, %d) = %q, want %q", tc.frac, tc.width, got, want)
 		}
 	}
@@ -99,14 +105,13 @@ func styleSGR(tb testing.TB, sty lipgloss.Style) string {
 }
 
 // TestSeriesPanelsSurviveThemeWithoutSeries covers a hand-built Theme literal:
-// theme.New always fills Series, but theme.Use accepts any Theme, and indexing
+// theme.New always fills Series, but a Scope accepts any Theme, and indexing
 // i%len(Series) on an empty slice is an integer divide by zero.
 func TestSeriesPanelsSurviveThemeWithoutSeries(t *testing.T) {
-	prev := theme.Cur()
-	t.Cleanup(func() { theme.Use(prev) })
-	theme.Use(theme.Theme{})
-
-	f := layout.NewFrame(40)
+	t.Parallel()
+	scope := ui.Default()
+	scope.Theme = theme.Theme{}
+	f := layout.NewFrame(40).WithUI(scope)
 	data := []Datum{{"a", 3}, {"b", 1}}
 	if out := Pie(f, "Mix", data, 10, fnum, "none"); !strings.Contains(stripANSI(out), "a") {
 		t.Errorf("Pie dropped its data under a Series-less theme:\n%s", stripANSI(out))
@@ -121,7 +126,8 @@ func TestSeriesPanelsSurviveThemeWithoutSeries(t *testing.T) {
 // raw value for both the sign (colour) and the printed label, so -Inf drew a
 // zero-length bar in the negative colour and NaN printed "NaN" next to it.
 func TestBarNonFiniteSignAndLabelMatchTheBar(t *testing.T) {
-	cant := styleSGR(t, theme.Cur().Cant)
+	t.Parallel()
+	cant := styleSGR(t, theme.Default().Cant)
 	data := []Datum{{"nan", math.NaN()}, {"neginf", math.Inf(-1)}, {"posinf", math.Inf(1)}, {"ok", 5}}
 	out := Bar(layout.NewFrame(60), "Flow", data, 20, fnum, "")
 
@@ -151,6 +157,7 @@ func TestBarNonFiniteSignAndLabelMatchTheBar(t *testing.T) {
 // is math.MinInt64, and eighths-cell*8 wraps back to a large positive number, so a
 // NaN level used to render as a near-full-height bar.
 func TestSpectrumNaNIsSilenceNotFullScale(t *testing.T) {
+	t.Parallel()
 	out := stripANSI(Spectrum(layout.NewFrame(40), "EQ", []float64{math.NaN()}, 6, "silent"))
 	for _, g := range append([]string{}, vBlocks[:]...) {
 		if strings.Contains(out, g) {

@@ -63,16 +63,11 @@ func TestScreenPaintsEveryCell(t *testing.T) {
 	prev := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(prev)
-	orig := Cur()
-	defer Use(orig)
 
-	light, _ := Named("solarized-light")
-	Use(light)
-
-	th := Cur()
+	th, _ := Named("solarized-light")
 	line := "AAA" + th.Val.Render("BBB") + "   " + th.Accent.Render("CCC") + "  plain tail"
 	body := th.AppFrame.Render(line + "\n" + th.Dim.Render("second") + "   gap")
-	out := Screen(body, 40, 8)
+	out := th.Screen(body, 40, 8)
 
 	if bad, ok := bgActiveEverywhere(out); !ok {
 		t.Fatalf("found unpainted cell %q in:\n%q", string(bad), out)
@@ -80,6 +75,7 @@ func TestScreenPaintsEveryCell(t *testing.T) {
 }
 
 func TestAppMarginEvenInset(t *testing.T) {
+	t.Parallel()
 	const contentW = 20
 	body := strings.Join([]string{
 		strings.Repeat("A", contentW),
@@ -101,12 +97,10 @@ func TestAppMarginEvenInset(t *testing.T) {
 }
 
 func TestScreenNoBgReturnsBodyUnchanged(t *testing.T) {
-	orig := Cur()
-	defer Use(orig)
-
-	Use(New(Palette{Text: lipgloss.Color("#ffffff")}))
+	t.Parallel()
+	th := New(Palette{Text: lipgloss.Color("#ffffff")})
 	body := "hello\nworld"
-	if got := Screen(body, 40, 8); got != body {
+	if got := th.Screen(body, 40, 8); got != body {
 		t.Fatalf("Screen with empty Bg = %q, want unchanged", got)
 	}
 }

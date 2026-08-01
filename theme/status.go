@@ -8,89 +8,82 @@ import (
 	"github.com/codyconfer/viewkit/glyph"
 )
 
-// SeverityStyle maps glyph.Severity to the active theme's style for that
-// severity. Use it when rendering text; use SeverityColor when only the
-// foreground color is needed.
-func SeverityStyle(s glyph.Severity) lipgloss.Style {
-	th := Cur()
+// SeverityStyle maps glyph.Severity to this theme's style for it.
+func (t Theme) SeverityStyle(s glyph.Severity) lipgloss.Style {
 	switch s {
 	case glyph.SeverityPositive:
-		return th.Can
+		return t.Can
 	case glyph.SeverityNegative:
-		return th.Cant
+		return t.Cant
 	case glyph.SeverityWarning:
-		if len(th.Series) > 2 {
-			return th.Series[2]
+		if len(t.Series) > 2 {
+			return t.Series[2]
 		}
-		return th.Cant
+		return t.Cant
 	default:
-		return th.Dim
+		return t.Dim
 	}
 }
 
-// SeverityColor maps glyph.Severity to the active theme's terminal color.
-// glyph.Severity is the sole severity vocabulary; theme only supplies color.
-func SeverityColor(s glyph.Severity) lipgloss.TerminalColor {
-	return SeverityStyle(s).GetForeground()
+// SeverityColor maps glyph.Severity to this theme's terminal color.
+func (t Theme) SeverityColor(s glyph.Severity) lipgloss.TerminalColor {
+	return t.SeverityStyle(s).GetForeground()
 }
 
 func stripBgOf(t Theme) lipgloss.TerminalColor {
 	return t.Panel.GetBorderTopForeground()
 }
 
-// StripBg returns the background color for status strips: the active theme's
-// panel border color, cached when the theme is installed.
-func StripBg() lipgloss.TerminalColor {
-	return Cur().stripBg
+// strip returns the cached strip styles, computing them when the theme was
+// built as a struct literal that never passed through New.
+func (t Theme) strip() (lipgloss.TerminalColor, lipgloss.Style, lipgloss.Style) {
+	if t.stripBg == nil {
+		bg := stripBgOf(t)
+		text := lipgloss.NewStyle().Background(bg)
+		return bg, text, text.Bold(true)
+	}
+	return t.stripBg, t.stripText, t.stripBold
+}
+
+// StripBg returns this theme's status-strip background color.
+func (t Theme) StripBg() lipgloss.TerminalColor {
+	bg, _, _ := t.strip()
+	return bg
 }
 
 // StripText renders s in foreground fg on the strip background.
-func StripText(fg lipgloss.TerminalColor, s string) string {
-	return Cur().stripText.Foreground(fg).Render(s)
+func (t Theme) StripText(fg lipgloss.TerminalColor, s string) string {
+	_, text, _ := t.strip()
+	return text.Foreground(fg).Render(s)
 }
 
 // StripBold renders s bold in foreground fg on the strip background.
-func StripBold(fg lipgloss.TerminalColor, s string) string {
-	return Cur().stripBold.Foreground(fg).Render(s)
+func (t Theme) StripBold(fg lipgloss.TerminalColor, s string) string {
+	_, _, bold := t.strip()
+	return bold.Foreground(fg).Render(s)
 }
 
 // StripBlock wraps lines in one strip-background filler line above and below,
 // each width columns wide.
-func StripBlock(width int, lines ...string) string {
-	return PadBlock(StripBg(), width, 1, lines...)
+func (t Theme) StripBlock(width int, lines ...string) string {
+	return PadBlock(t.StripBg(), width, 1, lines...)
+}
+
+// Icon renders icon as a fixed-width lead colored by Series[hue], falling
+// back to Accent when hue is out of range. Empty icon yields "".
+func (t Theme) Icon(icon string, hue int) string {
+	if icon == "" {
+		return ""
+	}
+	sty := t.Accent
+	if hue >= 0 && hue < len(t.Series) {
+		sty = t.Series[hue]
+	}
+	return sty.Render(glyph.Lead(icon))
 }
 
 // IconBlank returns glyph.LeadWidth spaces, aligning rows that have no icon
 // with rows rendered by Icon.
 func IconBlank() string {
 	return strings.Repeat(" ", glyph.LeadWidth)
-}
-
-// Icon renders icon as a fixed-width lead colored by the theme's Series style
-// at index hue, falling back to Accent when hue is out of range. An empty
-// icon yields an empty string.
-func Icon(icon string, hue int) string {
-	if icon == "" {
-		return ""
-	}
-	th := Cur()
-	sty := th.Accent
-	if hue >= 0 && hue < len(th.Series) {
-		sty = th.Series[hue]
-	}
-	return sty.Render(glyph.Lead(icon))
-}
-
-// Success renders a success-colored check mark followed by msg in the body
-// text style.
-func Success(msg string) string {
-	th := Cur()
-	return th.Can.Render(glyph.Check()) + " " + th.Val.Render(msg)
-}
-
-// Bullet renders an accent-colored bullet followed by msg in the body text
-// style.
-func Bullet(msg string) string {
-	th := Cur()
-	return th.Accent.Render(glyph.Bullet()) + " " + th.Val.Render(msg)
 }

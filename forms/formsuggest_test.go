@@ -15,6 +15,7 @@ func typeInto(fm *Form, s string) {
 }
 
 func TestAcceptSuggestionCompletesTypedToken(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{
 		Key:     "filters",
 		Kind:    FieldText,
@@ -35,6 +36,7 @@ func TestAcceptSuggestionCompletesTypedToken(t *testing.T) {
 }
 
 func TestAcceptSuggestionCompletesSecondEntry(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{
 		Key:     "queries",
 		Kind:    FieldText,
@@ -52,6 +54,7 @@ func TestAcceptSuggestionCompletesSecondEntry(t *testing.T) {
 }
 
 func TestAcceptSuggestionChainsSpaceDelimitedTerms(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{
 		Key:     "query",
 		Kind:    FieldText,
@@ -76,6 +79,7 @@ func TestAcceptSuggestionChainsSpaceDelimitedTerms(t *testing.T) {
 }
 
 func TestAcceptSuggestionFalseWithoutCandidates(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "include", Kind: FieldText},
 		Field{Key: "name", Kind: FieldText, Suggest: Static("alpha")},
@@ -94,6 +98,7 @@ func TestAcceptSuggestionFalseWithoutCandidates(t *testing.T) {
 }
 
 func TestCycleSuggestionWraps(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{
 		Key:     "filters",
 		Kind:    FieldText,
@@ -121,6 +126,7 @@ func TestCycleSuggestionWraps(t *testing.T) {
 }
 
 func TestSuggestionsResetOnEraseAndFieldMove(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(
 		Field{Key: "filters", Kind: FieldText, Suggest: Static("stale-prs")},
 		Field{Key: "name", Kind: FieldText},
@@ -147,6 +153,7 @@ func TestSuggestionsResetOnEraseAndFieldMove(t *testing.T) {
 }
 
 func TestHandleCyclesThroughKeyActions(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "f", Kind: FieldText, Suggest: Static("alpha", "amber")})
 	typeInto(fm, "a")
 
@@ -162,6 +169,7 @@ func TestHandleCyclesThroughKeyActions(t *testing.T) {
 }
 
 func TestSecretFieldNeverSuggests(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{Key: "token", Kind: FieldText, Secret: true, Suggest: Static("hunter2")})
 	typeInto(fm, "hun")
 	if got := fm.Suggestions(); len(got) != 0 {
@@ -170,6 +178,7 @@ func TestSecretFieldNeverSuggests(t *testing.T) {
 }
 
 func TestRenderShowsGhostAndCandidates(t *testing.T) {
+	t.Parallel()
 	fm := NewForm(Field{
 		Key:     "filters",
 		Label:   "filters",
