@@ -2,6 +2,7 @@ package deck
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -20,6 +21,14 @@ type Results interface {
 	Items(f layout.Frame) []list.Item
 	// Count reports how many underlying records the rows represent.
 	Count() int
+}
+
+// AnimatedResults is an optional Results extension for result rows whose
+// presentation changes over time. Advance moves to the next frame and reports
+// whether the Editor should keep scheduling animation ticks.
+type AnimatedResults interface {
+	Results
+	Advance() bool
 }
 
 // ErrorCounter is an optional Results extension: error records are
@@ -119,6 +128,10 @@ type editorRanMsg struct {
 	results Results
 }
 
+type editorAnimationMsg struct{ generation int }
+
+const editorAnimationInterval = 80 * time.Millisecond
+
 // Editor is a two-pane View: an editable form above a scrollable result
 // list. When the terminal is too short it collapses the results, then the
 // form, to a one-line summary rather than overflowing.
@@ -150,6 +163,8 @@ type Editor struct {
 	bound      bool
 	boundWidth int
 	boundUI    *ui.Scope
+
+	animationGeneration int
 }
 
 // NewEditor builds an Editor over doc. seed pre-fills the form and is
@@ -295,7 +310,21 @@ func (e *Editor) Update(a *Model, msg tea.Msg) tea.Cmd {
 		e.resultLabel = m.label
 		e.rebindResults()
 		e.setFocus(true)
+		e.animationGeneration++
+		if _, ok := e.set.(AnimatedResults); ok {
+			return editorAnimationTick(e.animationGeneration)
+		}
 		return nil
+	case editorAnimationMsg:
+		if m.generation != e.animationGeneration {
+			return nil
+		}
+		animated, ok := e.set.(AnimatedResults)
+		if !ok || !animated.Advance() {
+			return nil
+		}
+		e.bindResults(e.results.SetItemsKeepingCursor)
+		return editorAnimationTick(e.animationGeneration)
 	case ReloadMsg:
 		if !e.hasResults || e.running {
 			return nil
@@ -495,9 +524,16 @@ func (e *Editor) run() tea.Cmd {
 	e.running = true
 	e.onResults = false
 	e.results.SetFocused(false)
+	e.animationGeneration++
 	return func() tea.Msg {
 		return editorRanMsg{label: label, results: fetch()}
 	}
+}
+
+func editorAnimationTick(generation int) tea.Cmd {
+	return tea.Tick(editorAnimationInterval, func(time.Time) tea.Msg {
+		return editorAnimationMsg{generation: generation}
+	})
 }
 
 func (e *Editor) save(a *Model) tea.Cmd {

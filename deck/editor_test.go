@@ -32,6 +32,25 @@ func (r stubResults) Items(layout.Frame) []list.Item {
 
 func (r stubResults) Count() int { return r.n }
 
+type animatedStubResults struct {
+	frame   int
+	running bool
+}
+
+func (r *animatedStubResults) Items(layout.Frame) []list.Item {
+	return []list.Item{{Block: string(rune('0' + r.frame)), Selectable: true}}
+}
+
+func (r *animatedStubResults) Count() int { return 1 }
+
+func (r *animatedStubResults) Advance() bool {
+	if !r.running {
+		return false
+	}
+	r.frame++
+	return true
+}
+
 type erroredResults struct {
 	stubResults
 	errored int
@@ -213,5 +232,32 @@ func TestEditorDeleteFailureLandsInStatus(t *testing.T) {
 	}
 	if a.Top() != View(e) {
 		t.Fatal("a failed delete must not pop or push a deleted message")
+	}
+}
+
+func TestEditorAnimatesResultsAndKeepsTheTickAlive(t *testing.T) {
+	set := &animatedStubResults{running: true}
+	e := NewEditor(&stubDoc{}, editorTestKeys(), nil)
+	h := New(e)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	e.hasResults = true
+
+	cmd := e.Update(h, editorRanMsg{label: "draft", results: set})
+	if cmd == nil {
+		t.Fatal("animated results did not start a tick")
+	}
+	first := ansi.Strip(h.View())
+	cmd = e.Update(h, editorAnimationMsg{generation: e.animationGeneration})
+	if cmd == nil {
+		t.Fatal("animated results did not continue the tick")
+	}
+	second := ansi.Strip(h.View())
+	if first == second {
+		t.Fatalf("animated result stayed frozen:\n%s", second)
+	}
+
+	set.running = false
+	if cmd := e.Update(h, editorAnimationMsg{generation: e.animationGeneration}); cmd != nil {
+		t.Fatal("settled results kept the animation tick alive")
 	}
 }
