@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/forms"
 	"github.com/codyconfer/viewkit/keys"
@@ -29,6 +30,13 @@ func (r stubResults) Items(layout.Frame) []list.Item {
 }
 
 func (r stubResults) Count() int { return r.n }
+
+type erroredResults struct {
+	stubResults
+	errored int
+}
+
+func (r erroredResults) Errored() int { return r.errored }
 
 type stubDoc struct {
 	saved    string
@@ -138,6 +146,34 @@ func TestEditorOutputErrorBecomesStatus(t *testing.T) {
 	}
 	if !hasHint(e.Hints(), "ctrl+g") {
 		t.Errorf("hints should offer copy: %v", e.Hints())
+	}
+}
+
+func TestEditorCollapsedResultsSummary(t *testing.T) {
+	cases := []struct {
+		name    string
+		set     Results
+		want    string
+		wantNot string
+	}{
+		{"empty success", stubResults{n: 0}, "no items", "item(s)"},
+		{"plain items", stubResults{n: 3}, "3 item(s)  ·  tab to view", ""},
+		{"errors only", erroredResults{stubResults{n: 2}, 2}, "errors  ·  tab to view", "item(s)"},
+		{"mixed", erroredResults{stubResults{n: 5}, 2}, "3 item(s)  ·  tab to view", "5 item(s)"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			e := NewEditor(&stubDoc{}, editorTestKeys(), nil)
+			e.hasResults = true
+			e.set = c.set
+			got := ansi.Strip(e.collapsedResults(layout.NewFrame(60)))
+			if !strings.Contains(got, c.want) {
+				t.Errorf("collapsed summary missing %q:\n%s", c.want, got)
+			}
+			if c.wantNot != "" && strings.Contains(got, c.wantNot) {
+				t.Errorf("collapsed summary should not contain %q:\n%s", c.wantNot, got)
+			}
+		})
 	}
 }
 

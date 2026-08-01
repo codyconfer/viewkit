@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/codyconfer/viewkit/keys"
+	"github.com/codyconfer/viewkit/layout"
 	"github.com/codyconfer/viewkit/list"
 )
 
@@ -117,6 +118,33 @@ func TestItemListSameSizeResizeKeepsCursor(t *testing.T) {
 	}
 	if it, ok := il.Selected(); !ok || it.Key != "u2" {
 		t.Fatalf("cursor = %q (%v), want u2 preserved across a real resize", it.Key, ok)
+	}
+}
+
+func TestItemListHeightShrinkKeepsSelectionVisible(t *testing.T) {
+	il := NewItemList("results", nil, nil, func(int, any) []list.Item {
+		rows := make([]list.Item, 12)
+		for i := range rows {
+			rows[i] = list.Item{Block: fmt.Sprintf("row-%03d", i), Key: fmt.Sprintf("u%d", i), Selectable: true}
+		}
+		return rows
+	})
+	h := loadedItemList(t, il)
+	h.View()
+	for range 11 {
+		h = driveHost(h, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if it, ok := il.Selected(); !ok || it.Key != "u11" {
+		t.Fatalf("cursor = %q (%v), want u11 before the shrink", it.Key, ok)
+	}
+
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 10})
+	view := ansi.Strip(h.View())
+	if !strings.Contains(view, "row-011") {
+		t.Fatalf("selected row scrolled out of view after a height-only shrink:\n%s", view)
+	}
+	if it, ok := il.Selected(); !ok || it.Key != "u11" {
+		t.Fatalf("cursor = %q (%v), want u11 after the shrink", it.Key, ok)
 	}
 }
 
@@ -245,6 +273,70 @@ func TestItemListReloadRefetches(t *testing.T) {
 	}
 	if got := ansi.Strip(h.View()); !strings.Contains(got, "body third") {
 		t.Fatalf("ReloadMsg did not refetch:\n%s", got)
+	}
+}
+
+func firstRowLine(t *testing.T, view string) string {
+	t.Helper()
+	for ln := range strings.SplitSeq(view, "\n") {
+		if i := strings.Index(ln, "row-"); i >= 0 {
+			return strings.TrimSpace(ln[i:])
+		}
+	}
+	t.Fatalf("no body row found in view:\n%s", view)
+	return ""
+}
+
+func TestItemListOversizedContentStaysInTheHostFrame(t *testing.T) {
+	il := NewItemList("results", nil, nil, func(int, any) []list.Item {
+		rows := make([]list.Item, 100)
+		for i := range rows {
+			rows[i] = list.Item{Block: fmt.Sprintf("row-%03d", i), Key: fmt.Sprintf("u%d", i), Selectable: true}
+		}
+		return rows
+	})
+	h := loadedItemList(t, il)
+
+	view := ansi.Strip(h.View())
+	if got := layout.CountLines(view); got > 24 {
+		t.Fatalf("frame is %d lines, want <= 24:\n%s", got, view)
+	}
+	slot := 24 - layout.CountLines(h.header(il)) - layout.CountLines(h.footer(il)) - 2
+	if il.height != slot {
+		t.Fatalf("list height = %d, want the host body slot %d", il.height, slot)
+	}
+
+	h = driveHost(h, tea.KeyMsg{Type: tea.KeyPgDown})
+	got := firstRowLine(t, ansi.Strip(h.View()))
+	if want := fmt.Sprintf("row-%03d", (slot+1)/2); got != want {
+		t.Fatalf("after one page the top row is %q, want %q", got, want)
+	}
+}
+
+func TestScrollOversizedContentStaysInTheHostFrame(t *testing.T) {
+	lines := make([]string, 200)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line-%03d", i)
+	}
+	sc := NewScroll("log", nil, nil, func() string { return strings.Join(lines, "\n") })
+	h := New(sc)
+	h = driveHost(h, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if cmd := sc.Init(); cmd != nil {
+		h = driveHost(h, cmd())
+	}
+
+	view := ansi.Strip(h.View())
+	if got := layout.CountLines(view); got > 24 {
+		t.Fatalf("frame is %d lines, want <= 24:\n%s", got, view)
+	}
+	slot := 24 - layout.CountLines(h.header(sc)) - layout.CountLines(h.footer(sc)) - 2
+	if sc.vp.Height != slot {
+		t.Fatalf("viewport height = %d, want the host body slot %d", sc.vp.Height, slot)
+	}
+
+	h = driveHost(h, tea.KeyMsg{Type: tea.KeyPgDown})
+	if got, want := firstContentLine(t, ansi.Strip(h.View())), fmt.Sprintf("line-%03d", slot); got != want {
+		t.Fatalf("after one page the top line is %q, want %q", got, want)
 	}
 }
 

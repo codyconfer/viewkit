@@ -528,6 +528,13 @@ func (e *Editor) itemCount() int {
 	return e.set.Count()
 }
 
+func (e *Editor) erroredCount() int {
+	if set, ok := e.set.(interface{ Errored() int }); ok {
+		return set.Errored()
+	}
+	return 0
+}
+
 func (e *Editor) setFocus(onResults bool) {
 	if onResults && (!e.hasResults || e.running) {
 		return
@@ -628,9 +635,14 @@ func (e *Editor) collapsedResults(f layout.Frame) string {
 	if e.running {
 		return f.Panel(e.resultsTitle(), th.Dim.Render("running…"))
 	}
-	summary := fmt.Sprintf("%d item(s)  ·  tab to view", e.itemCount())
-	if e.itemCount() == 0 {
+	count := e.itemCount()
+	items := count - e.erroredCount()
+	summary := fmt.Sprintf("%d item(s)  ·  tab to view", items)
+	switch {
+	case count == 0:
 		summary = "no items"
+	case items <= 0:
+		summary = "errors  ·  tab to view"
 	}
 	return f.Panel(e.resultsTitle(), th.Dim.Render(summary))
 }

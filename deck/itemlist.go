@@ -21,8 +21,6 @@ type ItemList struct {
 	// Bind turns fetched data into list rows. Called on each refresh after load.
 	Bind func(width int, fetched any) []list.Item
 
-	// ChromeReserve is subtracted from window height for title/status chrome.
-	ChromeReserve int
 	// IsCancel reports whether a key string should pop the view.
 	IsCancel func(string) bool
 	// IsAction maps a key string to a keys.Action, fully replacing the active
@@ -49,13 +47,12 @@ type ItemList struct {
 // NewItemList builds an ItemList with Fetch+Bind.
 func NewItemList(title string, ctx [][2]string, fetch func() any, bind func(width int, fetched any) []list.Item) *ItemList {
 	r := &ItemList{
-		title:         title,
-		ctx:           ctx,
-		Fetch:         fetch,
-		Bind:          bind,
-		ChromeReserve: 7,
-		LoadingText:   "░▒▓ loading…",
-		lst:           list.New(),
+		title:       title,
+		ctx:         ctx,
+		Fetch:       fetch,
+		Bind:        bind,
+		LoadingText: "░▒▓ loading…",
+		lst:         list.New(),
 	}
 	r.lst.SetFocused(true)
 	return r
@@ -125,11 +122,10 @@ func (r *ItemList) fetchCmd() tea.Cmd {
 func (r *ItemList) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
-		w, ht := m.Width, max(m.Height-r.ChromeReserve, 1)
-		if r.ready && w == r.width && ht == r.height && r.boundTheme == theme.Cur() {
+		if r.ready && m.Width == r.width && r.boundTheme == theme.Cur() {
 			return nil
 		}
-		r.width, r.height, r.ready = w, ht, true
+		r.width, r.ready = m.Width, true
 		r.refresh()
 		return nil
 	case itemListLoadedMsg:
@@ -155,9 +151,9 @@ func (r *ItemList) handleKey(h *Model, m tea.KeyMsg) tea.Cmd {
 	case keys.Down:
 		r.lst.Move(1)
 	case keys.PageUp:
-		r.lst.Scroll(-r.height)
+		r.lst.Scroll(-max(r.height, 1))
 	case keys.PageDown:
-		r.lst.Scroll(r.height)
+		r.lst.Scroll(max(r.height, 1))
 	case keys.Confirm:
 		return r.confirmSelected(h)
 	case keys.Open:
@@ -212,7 +208,6 @@ func (r *ItemList) refresh() {
 		return
 	}
 	r.boundTheme = theme.Cur()
-	r.lst.SetSize(r.width, r.height)
 	if r.Bind != nil {
 		r.lst.SetItemsKeepingCursor(r.Bind(r.width, r.fetched))
 		return
@@ -229,6 +224,14 @@ func (r *ItemList) Body(width, height int) string {
 			txt = "░▒▓ loading…"
 		}
 		return theme.Cur().Dim.Render(txt)
+	}
+	if height > 0 {
+		changed := height != r.height
+		r.height = height
+		r.lst.SetSize(width, height)
+		if changed {
+			r.lst.EnsureVisible()
+		}
 	}
 	return r.lst.View()
 }

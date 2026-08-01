@@ -16,8 +16,6 @@ type Scroll struct {
 	hints [][2]string
 	ctx   [][2]string
 
-	// ChromeReserve is subtracted from window height for title/status chrome.
-	ChromeReserve int
 	// IsCancel reports whether a key string should pop the view.
 	IsCancel func(string) bool
 	// ReloadHint is the footer label for the reload key (default "reload").
@@ -32,11 +30,10 @@ type Scroll struct {
 // NewScroll builds a Scroll view. load is invoked once on Init.
 func NewScroll(title string, ctx, hints [][2]string, load func() string) *Scroll {
 	return &Scroll{
-		title:         title,
-		load:          load,
-		ctx:           ctx,
-		hints:         hints,
-		ChromeReserve: 7,
+		title: title,
+		load:  load,
+		ctx:   ctx,
+		hints: hints,
 	}
 }
 
@@ -94,16 +91,11 @@ func (c *Scroll) loadCmd() tea.Cmd {
 func (c *Scroll) Update(h *Model, msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
-		reserve := c.ChromeReserve
-		if reserve <= 0 {
-			reserve = 7
-		}
-		height := max(m.Height-reserve, 1)
 		if !c.ready {
-			c.vp = viewport.New(m.Width, height)
+			c.vp = viewport.New(m.Width, m.Height)
 			c.ready = true
 		} else {
-			c.vp.Width, c.vp.Height = m.Width, height
+			c.vp.Width = m.Width
 		}
 		c.refresh()
 		return nil
@@ -158,6 +150,10 @@ func (c *Scroll) refresh() {
 func (c *Scroll) Body(width, height int) string {
 	if !c.ready {
 		return theme.Cur().Dim.Render("loading…")
+	}
+	c.vp.Width = width
+	if height > 0 {
+		c.vp.Height = height
 	}
 	return c.vp.View()
 }

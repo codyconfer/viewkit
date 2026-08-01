@@ -77,6 +77,8 @@ func (m *Model) indexOfSelectable(key string) int {
 
 func (m *Model) SetSize(w, h int) { m.width, m.height = w, h }
 
+func (m *Model) EnsureVisible() { m.ensureVisible() }
+
 func (m *Model) Height() int { return m.height }
 
 func (m *Model) SetFocused(f bool) { m.focused = f }
