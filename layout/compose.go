@@ -16,14 +16,21 @@ type Pane struct {
 	Render      func(Frame) string
 }
 
+// Focused reports whether name selects this pane for focus.
+func (p Pane) Focused(name string) bool {
+	return p.Interactive && p.Name != "" && p.Name == name
+}
+
 // PaneRing builds the focus Ring for a pane set: only interactive panes are
 // included, in declaration order.
 func PaneRing(panes []Pane) Ring {
-	fs := make([]Focusable, len(panes))
-	for i, p := range panes {
-		fs[i] = Focusable{Name: p.Name, Interactive: p.Interactive}
+	out := make(Ring, 0, len(panes))
+	for _, p := range panes {
+		if p.Interactive {
+			out = append(out, p.Name)
+		}
 	}
-	return NewRing(fs...)
+	return out
 }
 
 // Arranger positions and renders a set of panes into a single block. f is the
@@ -45,13 +52,13 @@ type Screen struct {
 func (s Screen) Ring() Ring { return PaneRing(s.Panes) }
 
 // Render arranges the screen's panes for the given frame and tier, focusing
-// the interactive pane at ring index focus. A nil Layout uses SingleColumn.
-func (s Screen) Render(f Frame, tier Tier, focus int) string {
+// the interactive pane named focused. A nil Layout uses SingleColumn.
+func (s Screen) Render(f Frame, tier Tier, focused string) string {
 	l := s.Layout
 	if l == nil {
 		l = SingleColumn{}
 	}
-	return l.Arrange(f, tier, s.Panes, s.Ring().At(focus))
+	return l.Arrange(f, tier, s.Panes, focused)
 }
 
 // SingleColumn is the simplest Arranger: every visible pane renders at the
@@ -64,7 +71,7 @@ func (SingleColumn) Arrange(f Frame, tier Tier, panes []Pane, focusedName string
 	sections := make([]Section, 0, len(panes))
 	for _, p := range panes {
 		pf := f
-		if p.Interactive && p.Name != "" && p.Name == focusedName {
+		if p.Focused(focusedName) {
 			pf = f.Focus()
 		}
 		sections = append(sections, Section{Content: p.Render(pf), MinTier: p.MinTier})

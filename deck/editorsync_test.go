@@ -13,14 +13,14 @@ import (
 
 type syncDoc struct{}
 
-func (d *syncDoc) Kind() string           { return "query" }
-func (d *syncDoc) Title() string          { return "new query" }
-func (d *syncDoc) Context() []keys.Hint   { return nil }
-func (d *syncDoc) SavedName() string      { return "" }
-func (d *syncDoc) Sync() bool             { return true }
-func (d *syncDoc) Summary() string        { return "draft" }
-func (d *syncDoc) PreviewLines() []string { return []string{"kind: query"} }
-func (d *syncDoc) Remove() string         { return "removed" }
+func (d *syncDoc) Kind() string            { return "query" }
+func (d *syncDoc) Title() string           { return "new query" }
+func (d *syncDoc) Context() []keys.Hint    { return nil }
+func (d *syncDoc) SavedName() string       { return "" }
+func (d *syncDoc) Sync() bool              { return true }
+func (d *syncDoc) Summary() string         { return "draft" }
+func (d *syncDoc) PreviewLines() []string  { return []string{"kind: query"} }
+func (d *syncDoc) Remove() (string, error) { return "removed", nil }
 func (d *syncDoc) ValidateLines() ([]string, error) {
 	return []string{"ok"}, nil
 }
@@ -132,7 +132,7 @@ func TestSyncFieldsDropsFocusWhenFieldDisappears(t *testing.T) {
 	}
 
 	doc.hide = true
-	e.SyncFields()
+	e.syncFields()
 	if got := focusedKey(t, e); got != "type" {
 		t.Fatalf("a vanished field should fall back to the first, got %q", got)
 	}
@@ -191,7 +191,7 @@ func TestRememberedKeepsHiddenFieldValues(t *testing.T) {
 	}
 
 	doc.hide = true
-	e.SyncFields()
+	e.syncFields()
 
 	if _, ok := e.Form().Values()["extra"]; ok {
 		t.Fatal("the hidden field should be gone from the live form")

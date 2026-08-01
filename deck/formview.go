@@ -83,9 +83,6 @@ func NewFormView(spec FormSpec) *FormView {
 	return &FormView{spec: spec, form: forms.NewForm(spec.Fields...)}
 }
 
-// Form exposes the live form so hosts can read or seed entered values.
-func (v *FormView) Form() *forms.Form { return v.form }
-
 // Values returns the form's current values, the same map OnSubmit receives.
 func (v *FormView) Values() map[string]any { return v.form.Values() }
 

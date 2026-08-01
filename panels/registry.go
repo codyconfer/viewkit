@@ -1,7 +1,6 @@
 package panels
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -11,17 +10,19 @@ var (
 	panels = map[string]func() DualHost{}
 )
 
-// Register associates id with a DualHost panel constructor.
-func Register(id string, ctor func() DualHost) {
+// Register registers ctor under id. First registration wins; duplicate,
+// empty, or nil registrations change nothing and return false.
+func Register(id string, ctor func() DualHost) bool {
 	if id == "" || ctor == nil {
-		return
+		return false
 	}
 	regMu.Lock()
 	defer regMu.Unlock()
 	if _, ok := panels[id]; ok {
-		panic(fmt.Sprintf("panels: duplicate id %q", id))
+		return false
 	}
 	panels[id] = ctor
+	return true
 }
 
 // Named returns a fresh DualHost for id.

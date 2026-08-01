@@ -143,7 +143,7 @@ func TestGridNeverBuildsColumnNarrowerThanMinTrack(t *testing.T) {
 func TestFlexRowsNarrowTracksKeepBordersIntact(t *testing.T) {
 	panes := []Pane{cellBoxPane("a"), cellBoxPane("b"), cellBoxPane("c"), cellBoxPane("d")}
 	for _, width := range []int{28, 40, 60, 81, 120} {
-		out := FlexRows{MinWidth: 20, MaxCols: 4}.Arrange(Frame{Width: width}, TierTall, panes, "")
+		out := FlexRows{FlexBounds: FlexBounds{MinWidth: 20, MaxCols: 4}}.Arrange(Frame{Width: width}, TierTall, panes, "")
 		for _, r := range strings.Split(out, "\n") {
 			if r == "" {
 				continue
@@ -164,7 +164,7 @@ func TestFlexRowsNarrowTracksKeepBordersIntact(t *testing.T) {
 func TestFlexColumnsNarrowTracksKeepBordersIntact(t *testing.T) {
 	panes := []Pane{cellBoxPane("a"), cellBoxPane("b"), cellBoxPane("c"), cellBoxPane("d")}
 	for _, width := range []int{28, 40, 60, 81, 120} {
-		out := FlexColumns{MinWidth: 20, MaxCols: 4}.Arrange(Frame{Width: width}, TierTall, panes, "")
+		out := FlexColumns{FlexBounds: FlexBounds{MinWidth: 20, MaxCols: 4}}.Arrange(Frame{Width: width}, TierTall, panes, "")
 		for _, r := range strings.Split(out, "\n") {
 			if w := ansi.StringWidth(r); w != width {
 				t.Fatalf("FlexColumns width %d: row width %d:\n%s", width, w, stripANSI(out))

@@ -34,12 +34,12 @@ func TestBuildScreenMatchesHandBuilt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildScreen: %v", err)
 	}
-	got := scr.Render(Frame{Width: 80, Height: 6}, TierTall, 0)
+	got := scr.Render(Frame{Width: 80, Height: 6}, TierTall, "")
 
 	want := Screen{
 		Layout: FlexColumns{},
 		Panes:  []Pane{fixedPane("status", false, nil), fixedPane("feed", true, nil)},
-	}.Render(Frame{Width: 80, Height: 6}, TierTall, 0)
+	}.Render(Frame{Width: 80, Height: 6}, TierTall, "")
 
 	if got != want {
 		t.Fatalf("built screen render mismatch:\n got:\n%s\nwant:\n%s", got, want)
@@ -60,7 +60,7 @@ func TestBuildScreenSkipsUnavailablePanes(t *testing.T) {
 	if len(off.Panes) != 2 {
 		t.Fatalf("bonus off: got %d panes, want 2", len(off.Panes))
 	}
-	if strings.Contains(off.Render(Frame{Width: 40}, TierTall, 0), "bonus") {
+	if strings.Contains(off.Render(Frame{Width: 40}, TierTall, ""), "bonus") {
 		t.Fatalf("unavailable bonus pane should not render")
 	}
 

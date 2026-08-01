@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codyconfer/viewkit/term"
+	"github.com/charmbracelet/x/term"
+
 	"github.com/codyconfer/viewkit/theme"
 )
 
@@ -114,7 +115,7 @@ func Start(opts Options) *Spinner {
 		stopCh:    make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}
-	if !opts.Force && !term.IsTerminal(w) {
+	if !opts.Force && !isTerminal(w) {
 		s.stopped = true
 		close(s.doneCh)
 		return s
@@ -157,6 +158,14 @@ func (s *Spinner) finish(settle bool) {
 	th := theme.Cur()
 	_, _ = fmt.Fprintf(s.w, "\r\033[K%s%s %s\n",
 		s.renderPrefix(), th.Can.Render(s.doneGlyph), th.Dim.Render(s.doneMsg))
+}
+
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(f.Fd())
 }
 
 func (s *Spinner) loop() {

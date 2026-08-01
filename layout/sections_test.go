@@ -14,14 +14,14 @@ func groupPane(name, group string, tier Tier) Pane {
 
 func TestFlexSectionsGroupsWithHeaders(t *testing.T) {
 	scr := Screen{
-		Layout: FlexSections{MinWidth: 40, MaxCols: 3},
+		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			groupPane("alpha", "SPOTDESK", 0),
 			groupPane("bravo", "SPOTDESK", 0),
 			groupPane("charlie", "DERIVATIVES", 0),
 		},
 	}
-	out := stripANSI(scr.Render(NewFrame(120), TierTall, 0))
+	out := stripANSI(scr.Render(NewFrame(120), TierTall, ""))
 
 	spot := strings.Index(out, "SPOTDESK")
 	deriv := strings.Index(out, "DERIVATIVES")
@@ -38,13 +38,13 @@ func TestFlexSectionsGroupsWithHeaders(t *testing.T) {
 
 func TestFlexSectionsUngroupedLeadsWithoutHeader(t *testing.T) {
 	scr := Screen{
-		Layout: FlexSections{MinWidth: 40, MaxCols: 3},
+		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			groupPane("loose", "", 0),
 			groupPane("charlie", "DERIVATIVES", 0),
 		},
 	}
-	out := stripANSI(scr.Render(NewFrame(120), TierTall, 0))
+	out := stripANSI(scr.Render(NewFrame(120), TierTall, ""))
 
 	loose := strings.Index(out, "loose")
 	deriv := strings.Index(out, "DERIVATIVES")
@@ -61,13 +61,13 @@ func TestFlexSectionsUngroupedLeadsWithoutHeader(t *testing.T) {
 
 func TestFlexSectionsSkipsGroupWithNoVisiblePanes(t *testing.T) {
 	scr := Screen{
-		Layout: FlexSections{MinWidth: 40, MaxCols: 3},
+		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			groupPane("alpha", "SPOTDESK", 0),
 			groupPane("charlie", "DERIVATIVES", TierTall),
 		},
 	}
-	out := stripANSI(scr.Render(NewFrame(120), TierShort, 0))
+	out := stripANSI(scr.Render(NewFrame(120), TierShort, ""))
 
 	if strings.Contains(out, "DERIVATIVES") {
 		t.Fatalf("group with no visible panes must not render a header:\n%s", out)
@@ -92,18 +92,18 @@ func maxTopBorders(out string) int {
 
 func TestFlexSectionsReflowsColumnsWithinGroup(t *testing.T) {
 	scr := Screen{
-		Layout: FlexSections{MinWidth: 40, MaxCols: 3},
+		Layout: FlexSections{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			groupPane("alpha", "SPOTDESK", 0),
 			groupPane("bravo", "SPOTDESK", 0),
 			groupPane("charlie", "SPOTDESK", 0),
 		},
 	}
-	wide := scr.Render(NewFrame(120), TierTall, 0)
+	wide := scr.Render(NewFrame(120), TierTall, "")
 	if got := maxTopBorders(wide); got != 3 {
 		t.Fatalf("wide group should flow into 3 columns, got %d:\n%s", got, wide)
 	}
-	narrow := scr.Render(NewFrame(50), TierTall, 0)
+	narrow := scr.Render(NewFrame(50), TierTall, "")
 	if got := maxTopBorders(narrow); got != 1 {
 		t.Fatalf("narrow group should collapse to 1 column, got %d:\n%s", got, narrow)
 	}

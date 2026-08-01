@@ -39,21 +39,22 @@ type erroredResults struct {
 func (r erroredResults) Errored() int { return r.errored }
 
 type stubDoc struct {
-	saved    string
-	copies   int
-	writes   int
-	copyErr  error
-	writeErr error
+	saved     string
+	copies    int
+	writes    int
+	copyErr   error
+	writeErr  error
+	removeErr error
 }
 
-func (d *stubDoc) Kind() string           { return "report" }
-func (d *stubDoc) Title() string          { return "build report" }
-func (d *stubDoc) Context() []keys.Hint   { return nil }
-func (d *stubDoc) SavedName() string      { return d.saved }
-func (d *stubDoc) Sync() bool             { return false }
-func (d *stubDoc) Summary() string        { return "draft" }
-func (d *stubDoc) PreviewLines() []string { return []string{"name: draft"} }
-func (d *stubDoc) Remove() string         { return "removed" }
+func (d *stubDoc) Kind() string            { return "report" }
+func (d *stubDoc) Title() string           { return "build report" }
+func (d *stubDoc) Context() []keys.Hint    { return nil }
+func (d *stubDoc) SavedName() string       { return d.saved }
+func (d *stubDoc) Sync() bool              { return false }
+func (d *stubDoc) Summary() string         { return "draft" }
+func (d *stubDoc) PreviewLines() []string  { return []string{"name: draft"} }
+func (d *stubDoc) Remove() (string, error) { return "removed", d.removeErr }
 
 func (d *stubDoc) Fields(prev map[string]any) []forms.Field {
 	return []forms.Field{{Key: "name", Label: "name", Kind: forms.FieldText, Text: forms.Raw(prev, "name")}}
@@ -190,5 +191,26 @@ func TestEditorWithoutOutputIgnoresCopyAndWrite(t *testing.T) {
 		if hasHint(e.Hints(), glyph) {
 			t.Errorf("plain doc should not offer %s: %v", glyph, e.Hints())
 		}
+	}
+}
+
+func TestEditorDeleteFailureLandsInStatus(t *testing.T) {
+	doc := &stubDoc{saved: "r1", removeErr: errors.New("store on fire")}
+	e := NewEditor(doc, editorTestKeys(), nil)
+	a := New(e)
+	e.askDelete()
+	if !e.Confirming() {
+		t.Fatal("askDelete did not open the confirm dialog")
+	}
+	e.confirm.Yes = true
+	e.updateConfirm(a, tea.KeyMsg{Type: tea.KeyEnter})
+	if e.Confirming() {
+		t.Fatal("confirm dialog should close")
+	}
+	if e.Status() != "store on fire" {
+		t.Fatalf("status = %q, want the delete error", e.Status())
+	}
+	if a.Top() != View(e) {
+		t.Fatal("a failed delete must not pop or push a deleted message")
 	}
 }

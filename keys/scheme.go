@@ -131,7 +131,9 @@ var (
 
 // Register adds scheme s to the registry under key with the given display
 // name. A later call with the same key replaces the earlier name and scheme
-// in place, so apps can override the built-in entry. Safe for concurrent use.
+// in place, so apps can override the built-in entry — deliberately unlike the
+// first-wins glyph/panels/deck registries, where overriding is a collision.
+// Safe for concurrent use.
 func Register(key, name string, s Scheme) {
 	registryMu.Lock()
 	defer registryMu.Unlock()

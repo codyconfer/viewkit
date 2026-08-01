@@ -16,27 +16,30 @@ func init() {
 	Register("google", google)
 }
 
-// NormalizeID lowercases and trims a registry id.
-func NormalizeID(id string) string {
+// normalizeID lowercases and trims a registry id.
+func normalizeID(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
 }
 
-// Register associates id with glyph variants for Nerd/Uni/ASCII modes.
-// Built-in helpers (GitHub, Slack, …) remain; plugins use Register for
-// contribution glyphs. Ids are normalized (trim + lowercase).
-func Register(id string, v Variants) {
-	id = NormalizeID(id)
+// Register registers v under the normalized id. First registration wins
+// (built-ins included); duplicates and empty ids return false.
+func Register(id string, v Variants) bool {
+	id = normalizeID(id)
 	if id == "" {
-		return
+		return false
 	}
 	regMu.Lock()
+	defer regMu.Unlock()
+	if _, ok := reg[id]; ok {
+		return false
+	}
 	reg[id] = v
-	regMu.Unlock()
+	return true
 }
 
 // Named returns registered variants for id (normalized).
 func Named(id string) (Variants, bool) {
-	id = NormalizeID(id)
+	id = normalizeID(id)
 	if id == "" {
 		return Variants{}, false
 	}

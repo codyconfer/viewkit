@@ -49,27 +49,24 @@ func TestRegisterComponent(t *testing.T) {
 	}
 }
 
-func TestRegisterRejectsDuplicateIDs(t *testing.T) {
+func TestRegisterKeepsIncumbentOnDuplicateID(t *testing.T) {
 	registryScope(t)
-	RegisterView("test.dupe", func() View { return stubView{title: "First"} })
-	RegisterComponent("test.dupe", func() Component { return stubComp{} })
+	if !RegisterView("test.dupe", func() View { return stubView{title: "First"} }) {
+		t.Fatal("first view registration should take")
+	}
+	if !RegisterComponent("test.dupe", func() Component { return stubComp{} }) {
+		t.Fatal("first component registration should take")
+	}
 
-	for name, register := range map[string]func(){
-		"view":      func() { RegisterView("test.dupe", func() View { return stubView{} }) },
-		"component": func() { RegisterComponent("test.dupe", func() Component { return stubComp{} }) },
-	} {
-		t.Run(name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if r == nil {
-					t.Fatalf("re-registering a %s id did not panic", name)
-				}
-				if msg, ok := r.(string); !ok || !strings.Contains(msg, "test.dupe") {
-					t.Fatalf("panic = %v, want a message naming the duplicate id", r)
-				}
-			}()
-			register()
-		})
+	if RegisterView("test.dupe", func() View { return stubView{title: "Second"} }) {
+		t.Fatal("re-registering a view id should report false")
+	}
+	if RegisterComponent("test.dupe", func() Component { return stubComp{} }) {
+		t.Fatal("re-registering a component id should report false")
+	}
+	v, ok := NamedView("test.dupe")
+	if !ok || v.Title() != "First" {
+		t.Fatalf("incumbent view lost: %v ok=%v", v, ok)
 	}
 }
 

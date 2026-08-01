@@ -8,9 +8,21 @@ import (
 	"github.com/codyconfer/viewkit/layout"
 )
 
+// ConfirmSpec configures a one-shot yes/no prompt.
+type ConfirmSpec struct {
+	Title    string
+	Message  string
+	YesLabel string
+	NoLabel  string
+}
+
 // Confirm runs a yes/no tea prompt and returns whether the user confirmed.
-func Confirm(title, message, yesLabel, noLabel string) (bool, error) {
-	m := &confirmModel{c: forms.Confirm{Title: title, Message: message, YesLabel: yesLabel, NoLabel: noLabel}}
+// Besides the active scheme, y/Y and n/N always answer directly.
+func Confirm(spec ConfirmSpec) (bool, error) {
+	m := &confirmModel{
+		c:  forms.Confirm{Title: spec.Title, Message: spec.Message, YesLabel: spec.YesLabel, NoLabel: spec.NoLabel},
+		km: confirmMap(),
+	}
 	out, err := tea.NewProgram(m).Run()
 	if err != nil {
 		return false, err
@@ -19,8 +31,22 @@ func Confirm(title, message, yesLabel, noLabel string) (bool, error) {
 	return fm.confirmed && fm.c.Yes, nil
 }
 
+func confirmMap() *keys.Map {
+	sc := keys.Cur()
+	return keys.NewMap(
+		sc.Binding(keys.Left),
+		sc.Binding(keys.Right),
+		sc.Binding(keys.Confirm),
+		sc.Binding(keys.Cancel),
+		sc.Binding(keys.Quit),
+		keys.Binding{Keys: []string{"y", "Y"}, Action: "confirm.yes", Glyph: "y", Label: "yes"},
+		keys.Binding{Keys: []string{"n", "N"}, Action: "confirm.no", Glyph: "n", Label: "no"},
+	)
+}
+
 type confirmModel struct {
 	c         forms.Confirm
+	km        *keys.Map
 	confirmed bool
 }
 
@@ -31,17 +57,7 @@ func (m *confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	sc := keys.Cur()
-	km := keys.NewMap(
-		sc.Binding(keys.Left),
-		sc.Binding(keys.Right),
-		sc.Binding(keys.Confirm),
-		sc.Binding(keys.Cancel),
-		sc.Binding(keys.Quit),
-		keys.Binding{Keys: []string{"y", "Y"}, Action: "confirm.yes", Glyph: "y", Label: "yes"},
-		keys.Binding{Keys: []string{"n", "N"}, Action: "confirm.no", Glyph: "n", Label: "no"},
-	)
-	act, ok := km.Action(key.String())
+	act, ok := m.km.Action(key.String())
 	if !ok {
 		return m, nil
 	}

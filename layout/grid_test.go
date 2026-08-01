@@ -43,7 +43,7 @@ func TestGridTilesTwoColumnsGapFree(t *testing.T) {
 			fixedPane("right", false, &GridPos{Col: 1, Row: 0}),
 		},
 	}
-	out := scr.Render(Frame{Width: 81, Height: 4}, TierTall, 0)
+	out := scr.Render(Frame{Width: 81, Height: 4}, TierTall, "")
 	rows := strings.Split(out, "\n")
 	if len(rows) != 4 {
 		t.Fatalf("grid height = %d rows, want 4:\n%s", len(rows), out)
@@ -87,7 +87,7 @@ func TestGridRowSpanStacksVertically(t *testing.T) {
 			fixedPane("bot", false, &GridPos{Col: 1, Row: 1}),
 		},
 	}
-	out := scr.Render(Frame{Width: 40, Height: 2}, TierTall, 0)
+	out := scr.Render(Frame{Width: 40, Height: 2}, TierTall, "")
 	if !strings.Contains(lineAt(out, 0), "tall") || !strings.Contains(lineAt(out, 1), "tall") {
 		t.Fatalf("row-spanning pane should appear on both rows:\n%s", out)
 	}
@@ -111,7 +111,7 @@ func TestGridAutoFlowFillsFreeCells(t *testing.T) {
 			fixedPane("c", false, nil),
 		},
 	}
-	out := scr.Render(Frame{Width: 40, Height: 2}, TierTall, 0)
+	out := scr.Render(Frame{Width: 40, Height: 2}, TierTall, "")
 	if !strings.Contains(lineAt(out, 0), "a") || !strings.Contains(lineAt(out, 0), "b") {
 		t.Fatalf("a and b should auto-flow into row 0:\n%s", out)
 	}
@@ -305,7 +305,7 @@ func TestGridFocusesRingSelection(t *testing.T) {
 			fixedPane("b", true, &GridPos{Col: 1}),
 		},
 	}
-	out := scr.Render(Frame{Width: 40, Height: 1}, TierTall, 1)
+	out := scr.Render(Frame{Width: 40, Height: 1}, TierTall, "b")
 	if !strings.Contains(out, "b*") {
 		t.Fatalf("focused pane b should render focused:\n%s", out)
 	}
@@ -322,7 +322,7 @@ func TestGridFallsBackToStackWithoutHeight(t *testing.T) {
 			fixedPane("b", false, &GridPos{Col: 1}),
 		},
 	}
-	out := scr.Render(NewFrame(40), TierTall, 0)
+	out := scr.Render(NewFrame(40), TierTall, "")
 	if !strings.Contains(out, "a") || !strings.Contains(out, "b") {
 		t.Fatalf("fallback should still render both panes:\n%s", out)
 	}
@@ -354,7 +354,7 @@ func TestGridRendersBorderedDashboard(t *testing.T) {
 			},
 		},
 	}
-	out := scr.Render(Frame{Width: 64, Height: 14}, TierTall, 0)
+	out := scr.Render(Frame{Width: 64, Height: 14}, TierTall, "")
 	rows := strings.Split(out, "\n")
 	if len(rows) != 14 {
 		t.Fatalf("dashboard height = %d rows, want 14", len(rows))
@@ -399,7 +399,7 @@ func TestGridSlimNarrowsAndDonates(t *testing.T) {
 			fixedPane("wide", false, &GridPos{Col: 1, Row: 0}),
 		},
 	}
-	out := scr.Render(Frame{Width: 80, Height: 1}, TierTall, 0)
+	out := scr.Render(Frame{Width: 80, Height: 1}, TierTall, "")
 	row := lineAt(out, 0)
 	if w := ansiWidth(row); w != 80 {
 		t.Fatalf("slim row width = %d, want gap-free 80:\n%q", w, row)
@@ -439,7 +439,7 @@ func TestGridSoleAutoPaneFillsWidth(t *testing.T) {
 			fixedPane("b", false, nil),
 		},
 	}
-	out := scr.Render(Frame{Width: 60, Height: 2}, TierTall, 0)
+	out := scr.Render(Frame{Width: 60, Height: 2}, TierTall, "")
 	if w := ansiWidth(lineAt(out, 1)); w != 60 {
 		t.Fatalf("sole auto pane row width = %d, want 60:\n%s", w, out)
 	}

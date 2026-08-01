@@ -1,7 +1,6 @@
 package deck
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -11,17 +10,19 @@ var (
 	views = map[string]func() View{}
 )
 
-// RegisterView associates id with a view constructor.
-func RegisterView(id string, ctor func() View) {
+// RegisterView registers ctor under id. First registration wins; duplicate,
+// empty, or nil registrations change nothing and return false.
+func RegisterView(id string, ctor func() View) bool {
 	if id == "" || ctor == nil {
-		return
+		return false
 	}
 	regMu.Lock()
 	defer regMu.Unlock()
 	if _, ok := views[id]; ok {
-		panic(fmt.Sprintf("deck: duplicate view id %q", id))
+		return false
 	}
 	views[id] = ctor
+	return true
 }
 
 // NamedView returns a fresh View for id.

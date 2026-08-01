@@ -13,24 +13,13 @@ import (
 // labeled with the group name), sections stacked in first-appearance order.
 // Panes with an empty Group render without a header.
 type FlexSections struct {
-	MinWidth int
-	MaxCols  int
+	FlexBounds
 }
 
 // Arrange implements Arranger by grouping tier-visible panes by Group and
 // laying each group out with FlexColumns.
 func (g FlexSections) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
-	width := f.Width
-	if width < 1 {
-		width = theme.BodyWidth
-	}
-
-	visible := make([]Pane, 0, len(panes))
-	for _, p := range panes {
-		if tier >= p.MinTier {
-			visible = append(visible, p)
-		}
-	}
+	width, visible := flexVisible(f, tier, panes)
 	if len(visible) == 0 {
 		return ""
 	}
@@ -44,7 +33,7 @@ func (g FlexSections) Arrange(f Frame, tier Tier, panes []Pane, focusedName stri
 		groups[p.Group] = append(groups[p.Group], p)
 	}
 
-	inner := FlexColumns(g)
+	inner := FlexColumns{FlexBounds: g.FlexBounds} //nolint:staticcheck // explicit over conversion
 	blocks := make([]string, 0, len(order))
 	for _, name := range order {
 		body := inner.Arrange(f, tier, groups[name], focusedName)

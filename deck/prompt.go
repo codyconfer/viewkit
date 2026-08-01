@@ -1,6 +1,7 @@
 package deck
 
 import (
+	"errors"
 	"maps"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,11 +35,14 @@ type PromptSpec struct {
 	Keys *keys.Map
 }
 
+// ErrCancelled reports that the user dismissed a prompt without submitting.
+var ErrCancelled = errors.New("prompt cancelled")
+
 // Prompt runs spec as a standalone tea program and returns the entered
-// values. ok is false when the user cancelled.
-func Prompt(spec PromptSpec) (vals map[string]any, ok bool, err error) {
+// values. A user cancel returns ErrCancelled; a nil Fields is an error.
+func Prompt(spec PromptSpec) (map[string]any, error) {
 	if spec.Fields == nil {
-		return nil, false, nil
+		return nil, errors.New("deck: PromptSpec.Fields is nil")
 	}
 	seed := spec.Seed
 	if seed == nil {
@@ -49,13 +53,13 @@ func Prompt(spec PromptSpec) (vals map[string]any, ok bool, err error) {
 
 	out, runErr := tea.NewProgram(m).Run()
 	if runErr != nil {
-		return nil, false, runErr
+		return nil, runErr
 	}
 	pm := out.(*promptModel)
 	if !pm.submitted {
-		return nil, false, nil
+		return nil, ErrCancelled
 	}
-	return pm.form.Values(), true, nil
+	return pm.form.Values(), nil
 }
 
 type promptModel struct {

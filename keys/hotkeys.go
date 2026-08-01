@@ -33,10 +33,9 @@ func Resolve(binds map[string]string, key string) (target string, ok bool) {
 	return "", false
 }
 
-// ControlKeys filters a binding's keys down to the multi-rune ones ("tab",
-// "ctrl+s", "esc"), dropping single characters. Text-entry contexts use it so
-// ordinary typing is not swallowed by navigation bindings.
-func ControlKeys(in []string) []string {
+// controlKeys keeps only multi-rune keys ("tab", "ctrl+s"), dropping single
+// characters so text entry is not swallowed by navigation bindings.
+func controlKeys(in []string) []string {
 	out := make([]string, 0, len(in))
 	for _, k := range in {
 		if len([]rune(k)) > 1 {
@@ -53,7 +52,7 @@ func (s Scheme) EditorBindings(actions ...Action) []Binding {
 	out := make([]Binding, 0, len(actions))
 	for _, a := range actions {
 		b := s.Binding(a)
-		b.Keys = ControlKeys(b.Keys)
+		b.Keys = controlKeys(b.Keys)
 		if len(b.Keys) > 0 {
 			out = append(out, b)
 		}

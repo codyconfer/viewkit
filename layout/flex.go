@@ -33,18 +33,38 @@ func FlexColCount(width, minWidth, maxCols int) int {
 	return cols
 }
 
-// FlexColumns is a responsive column-masonry layout: panes are distributed
-// round-robin into N equal-width vertical stacks, where N grows with width.
-// Columns keep a fixed width, so a pane never expands into an empty neighbour.
-type FlexColumns struct {
+// FlexBounds is the shared track sizing for flex layouts: minimum track width
+// and maximum column count. Zero values fall back to the Default* constants.
+type FlexBounds struct {
 	MinWidth int
 	MaxCols  int
 }
 
-// Columns reports how many column tracks the layout would use at the given
-// width.
-func (g FlexColumns) Columns(width int) int {
-	return FlexColCount(width, g.MinWidth, g.MaxCols)
+// Columns reports how many tracks fit at the given width.
+func (b FlexBounds) Columns(width int) int {
+	return FlexColCount(width, b.MinWidth, b.MaxCols)
+}
+
+// flexVisible applies the width fallback and filters panes by tier.
+func flexVisible(f Frame, tier Tier, panes []Pane) (width int, visible []Pane) {
+	width = f.Width
+	if width < 1 {
+		width = theme.BodyWidth
+	}
+	visible = make([]Pane, 0, len(panes))
+	for _, p := range panes {
+		if tier >= p.MinTier {
+			visible = append(visible, p)
+		}
+	}
+	return width, visible
+}
+
+// FlexColumns is a responsive column-masonry layout: panes are distributed
+// round-robin into N equal-width vertical stacks, where N grows with width.
+// Columns keep a fixed width, so a pane never expands into an empty neighbour.
+type FlexColumns struct {
+	FlexBounds
 }
 
 // Arrange implements Arranger: tier-visible panes are dealt round-robin into
@@ -52,17 +72,7 @@ func (g FlexColumns) Columns(width int) int {
 // composited side by side padded to the tallest column's height. It ignores
 // Frame.Height and grows to content height.
 func (g FlexColumns) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
-	width := f.Width
-	if width < 1 {
-		width = theme.BodyWidth
-	}
-
-	visible := make([]Pane, 0, len(panes))
-	for _, p := range panes {
-		if tier >= p.MinTier {
-			visible = append(visible, p)
-		}
-	}
+	width, visible := flexVisible(f, tier, panes)
 	if len(visible) == 0 {
 		return ""
 	}
@@ -85,10 +95,7 @@ func (g FlexColumns) Arrange(f Frame, tier Tier, panes []Pane, focusedName strin
 		cw := xEnd - x
 		sections := make([]Section, 0, len(columns[c]))
 		for _, p := range columns[c] {
-			pf := Frame{Width: cw}
-			if p.Interactive && p.Name != "" && p.Name == focusedName {
-				pf.Focused = true
-			}
+			pf := Frame{Width: cw, Focused: p.Focused(focusedName)}
 			sections = append(sections, Section{Content: p.Render(pf), MinTier: p.MinTier})
 		}
 		colStr[c] = StackTightFit(tier, sections...)
@@ -115,31 +122,14 @@ func (g FlexColumns) Arrange(f Frame, tier Tier, panes []Pane, focusedName strin
 // panes present, so a pane with no neighbour expands to fill the row. Each row
 // is as tall as its tallest pane; shorter panes are padded to match.
 type FlexRows struct {
-	MinWidth int
-	MaxCols  int
-}
-
-// Columns reports how many tracks per row the layout would use at the given
-// width.
-func (g FlexRows) Columns(width int) int {
-	return FlexColCount(width, g.MinWidth, g.MaxCols)
+	FlexBounds
 }
 
 // Arrange implements Arranger: tier-visible panes fill rows left to right,
 // each row's width is split evenly among the panes actually in that row, and
 // rows are stacked with blank lines between them. It ignores Frame.Height.
 func (g FlexRows) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) string {
-	width := f.Width
-	if width < 1 {
-		width = theme.BodyWidth
-	}
-
-	visible := make([]Pane, 0, len(panes))
-	for _, p := range panes {
-		if tier >= p.MinTier {
-			visible = append(visible, p)
-		}
-	}
+	width, visible := flexVisible(f, tier, panes)
 	if len(visible) == 0 {
 		return ""
 	}
@@ -164,10 +154,7 @@ func (g FlexRows) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) 
 		for j, p := range row {
 			x := j * width / k
 			xEnd := (j + 1) * width / k
-			pf := Frame{Width: xEnd - x}
-			if p.Interactive && p.Name != "" && p.Name == focusedName {
-				pf.Focused = true
-			}
+			pf := Frame{Width: xEnd - x, Focused: p.Focused(focusedName)}
 			blocks[j] = p.Render(pf)
 			rects[j] = rect{x: x, y: 0, w: xEnd - x}
 			if n := CountLines(blocks[j]); n > rowH {

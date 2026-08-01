@@ -21,6 +21,12 @@ type Results interface {
 	Count() int
 }
 
+// ErrorCounter is an optional Results extension: error records are
+// excluded from the collapsed item count.
+type ErrorCounter interface {
+	Errored() int
+}
+
 // EditorDoc is the document an Editor edits. Implementations own all
 // domain concerns — parsing, validation, persistence — and hand the Editor
 // only strings, form fields and Results.
@@ -52,8 +58,9 @@ type EditorDoc interface {
 	Run() (label string, load func() Results, err error)
 	// Persist saves the document and returns a confirmation summary.
 	Persist() (summary string, err error)
-	// Remove deletes the saved document and returns a summary.
-	Remove() string
+	// Remove deletes the saved document. A non-nil error lands in the
+	// status line, like Persist.
+	Remove() (summary string, err error)
 }
 
 // EditorOutput is an optional EditorDoc extension for documents whose run
@@ -154,7 +161,8 @@ func NewEditor(doc EditorDoc, km EditorKeys, seed map[string]any) *Editor {
 	return e
 }
 
-// Form exposes the live form so hosts can read entered values.
+// Form exposes the live form. Its Values() covers only currently rendered
+// fields; use Remembered when Sync() rebuilds may have dropped some.
 func (e *Editor) Form() *forms.Form { return e.form }
 
 // Value returns the trimmed text currently entered under key.
@@ -188,11 +196,10 @@ func (e *Editor) SelectedOf(key string) int {
 	return -1
 }
 
+// Read-only accessors below exist for host tests in other modules.
+
 // Status is the error line shown beneath the form, or "" when clear.
 func (e *Editor) Status() string { return e.status }
-
-// SetStatus sets the error line shown beneath the form.
-func (e *Editor) SetStatus(msg string) { e.status = msg }
 
 // Notice is the current contents of the validation panel.
 func (e *Editor) Notice() []string { return e.notice }
@@ -208,10 +215,6 @@ func (e *Editor) OnResults() bool { return e.onResults }
 
 // Selected returns the highlighted result row, if any.
 func (e *Editor) Selected() (list.Item, bool) { return e.results.Selected() }
-
-// SyncFields rebuilds the form from the document, preserving entered
-// values, when the document reports that its field set is value-dependent.
-func (e *Editor) SyncFields() { e.syncFields() }
 
 // Title implements View, delegating to the document.
 func (e *Editor) Title() string { return e.doc.Title() }
@@ -417,7 +420,12 @@ func (e *Editor) updateConfirm(a *Model, key tea.KeyMsg) tea.Cmd {
 		if !yes {
 			return nil
 		}
-		summary := e.doc.Remove()
+		summary, err := e.doc.Remove()
+		if err != nil {
+			e.status = err.Error()
+			return nil
+		}
+		e.status = ""
 		pop := a.Pop()
 		push := a.Push(NewMessage("deleted", summary, e.doc.Context()))
 		return tea.Batch(pop, push)
@@ -539,7 +547,7 @@ func (e *Editor) itemCount() int {
 }
 
 func (e *Editor) erroredCount() int {
-	if set, ok := e.set.(interface{ Errored() int }); ok {
+	if set, ok := e.set.(ErrorCounter); ok {
 		return set.Errored()
 	}
 	return 0

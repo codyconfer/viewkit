@@ -34,8 +34,8 @@ func TestBuiltinBrandIDs(t *testing.T) {
 }
 
 func TestNormalizeID(t *testing.T) {
-	if got := NormalizeID("  GitHub "); got != "github" {
-		t.Fatalf("NormalizeID = %q", got)
+	if got := normalizeID("  GitHub "); got != "github" {
+		t.Fatalf("normalizeID = %q", got)
 	}
 	Register("MiXeD.ID", Variants{Nerd: "X", Uni: "x", ASCII: "x"})
 	if _, ok := Named("mixed.id"); !ok {
@@ -57,5 +57,24 @@ func TestBuildStatusStripKeepsSeverity(t *testing.T) {
 	}
 	if strip.Right[0].Severity != SeverityPositive || strip.Right[1].Severity != SeverityWarning || strip.Right[2].Severity != SeverityNegative {
 		t.Fatalf("severities = %+v", strip.Right)
+	}
+}
+
+func TestRegisterFirstWinsIncludingBuiltins(t *testing.T) {
+	if Register("github", Variants{Nerd: "hijack", Uni: "hijack", ASCII: "hijack"}) {
+		t.Fatal("re-registering the github built-in should report false")
+	}
+	v, ok := Named("github")
+	if !ok || v.Nerd == "hijack" {
+		t.Fatalf("built-in glyph was clobbered: %+v ok=%v", v, ok)
+	}
+	if !Register("firstwins.test", Variants{Uni: "1"}) {
+		t.Fatal("fresh id should register")
+	}
+	if Register("firstwins.test", Variants{Uni: "2"}) {
+		t.Fatal("duplicate id should report false")
+	}
+	if v, _ := Named("firstwins.test"); v.Uni != "1" {
+		t.Fatalf("incumbent lost: %+v", v)
 	}
 }

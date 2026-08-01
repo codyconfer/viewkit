@@ -2,6 +2,7 @@ package layout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -41,6 +42,13 @@ type PaneRef struct {
 	Slim    bool     `json:"slim,omitempty"`
 }
 
+// ErrUnknownLayout and ErrUnknownPane report spec keys missing from the
+// registry; match with errors.Is.
+var (
+	ErrUnknownLayout = errors.New("layout: unknown layout")
+	ErrUnknownPane   = errors.New("layout: unknown pane")
+)
+
 // ScreenSpec is the declarative, serializable description of a Screen: a
 // layout key with its params plus the panes to place. BuildScreen resolves it
 // against a Registry.
@@ -61,7 +69,7 @@ func BuildScreen[Ctx any](s ScreenSpec, ctx Ctx, r *Registry[Ctx]) (Screen, erro
 
 	lf, ok := r.layouts[s.Layout]
 	if !ok {
-		return Screen{}, fmt.Errorf("layout: unknown layout %q", s.Layout)
+		return Screen{}, fmt.Errorf("%w: %q", ErrUnknownLayout, s.Layout)
 	}
 	l, err := lf(s.LayoutParams)
 	if err != nil {
@@ -75,7 +83,7 @@ func BuildScreen[Ctx any](s ScreenSpec, ctx Ctx, r *Registry[Ctx]) (Screen, erro
 	for _, ref := range s.Panes {
 		pf, ok := r.panes[ref.Key]
 		if !ok {
-			return Screen{}, fmt.Errorf("layout: unknown pane %q", ref.Key)
+			return Screen{}, fmt.Errorf("%w: %q", ErrUnknownPane, ref.Key)
 		}
 		p, ok := pf(ctx)
 		if !ok {

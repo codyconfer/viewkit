@@ -63,7 +63,7 @@ func TestToasterPruneTickExpiresTheToast(t *testing.T) {
 	if got := tst.Body(toastBody(), 80); strings.Contains(got, "Installed") {
 		t.Fatalf("the toast outlived its TTL:\n%s", got)
 	}
-	if tst.Queue().Active() {
+	if tst.Active() {
 		t.Error("queue should be empty after the TTL elapsed")
 	}
 }
@@ -109,7 +109,7 @@ func TestToastersDoNotConsumeEachOthersTicks(t *testing.T) {
 	if cmd, handled := b.Update(tick(a, late)); handled || cmd != nil {
 		t.Fatalf("b claimed a's tick: cmd=%v handled=%v", cmd, handled)
 	}
-	if !b.Queue().Active() {
+	if !b.Active() {
 		t.Fatal("b's queue was pruned by a's tick")
 	}
 	if !strings.Contains(b.Body(toastBody(), 80), "beta") {
@@ -119,7 +119,7 @@ func TestToastersDoNotConsumeEachOthersTicks(t *testing.T) {
 	if _, handled := a.Update(tick(a, late)); !handled {
 		t.Fatal("a should still claim its own tick")
 	}
-	if a.Queue().Active() {
+	if a.Active() {
 		t.Error("a's own tick should have pruned a's queue")
 	}
 }
@@ -135,17 +135,19 @@ func TestToasterExpiresOnRenderWhenATickWasLost(t *testing.T) {
 	}
 }
 
-func TestToasterPruneClearsTheSnapshotForPanelViews(t *testing.T) {
+func TestToasterSnapshotPrunesForPanelViews(t *testing.T) {
 	now := toastEpoch
 	tst := fixedToaster(3*time.Second, &now)
 	tst.Push(notify.Neutral("one", ""))
 	tst.PushFor(notify.Neutral("two", ""), time.Hour)
 
 	now = toastEpoch.Add(10 * time.Second)
-	tst.Prune()
-	snap := tst.Queue().Snapshot()
+	snap := tst.Snapshot()
 	if len(snap) != 1 || snap[0].Title != "two" {
-		t.Fatalf("snapshot after Prune = %v, want only the long-lived toast", snap)
+		t.Fatalf("snapshot = %v, want only the long-lived toast", snap)
+	}
+	if tst.Len() != 1 || !tst.Active() {
+		t.Fatalf("Len/Active disagree with snapshot: len=%d active=%v", tst.Len(), tst.Active())
 	}
 }
 

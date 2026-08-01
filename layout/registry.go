@@ -36,23 +36,20 @@ func NewRegistry[Ctx any]() *Registry[Ctx] {
 		layouts:  map[string]LayoutFactory{},
 	}
 	r.LayoutFn("single", func(Params) (Arranger, error) { return SingleColumn{}, nil })
-	r.LayoutFn("flex-columns", func(p Params) (Arranger, error) {
-		return FlexColumns{
+	flexBounds := func(p Params) FlexBounds {
+		return FlexBounds{
 			MinWidth: p.Int("minWidth", DefaultFlexMinWidth),
 			MaxCols:  p.Int("maxCols", DefaultFlexMaxCols),
-		}, nil
+		}
+	}
+	r.LayoutFn("flex-columns", func(p Params) (Arranger, error) {
+		return FlexColumns{FlexBounds: flexBounds(p)}, nil
 	})
 	r.LayoutFn("flex-rows", func(p Params) (Arranger, error) {
-		return FlexRows{
-			MinWidth: p.Int("minWidth", DefaultFlexMinWidth),
-			MaxCols:  p.Int("maxCols", DefaultFlexMaxCols),
-		}, nil
+		return FlexRows{FlexBounds: flexBounds(p)}, nil
 	})
 	r.LayoutFn("sections", func(p Params) (Arranger, error) {
-		return FlexSections{
-			MinWidth: p.Int("minWidth", DefaultFlexMinWidth),
-			MaxCols:  p.Int("maxCols", DefaultFlexMaxCols),
-		}, nil
+		return FlexSections{FlexBounds: flexBounds(p)}, nil
 	})
 	r.LayoutFn("grid", func(p Params) (Arranger, error) {
 		return Grid{Cols: p.Int("cols", 1), Rows: p.Int("rows", 0)}, nil

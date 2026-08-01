@@ -46,7 +46,7 @@ func topBorderCount(out string) int {
 
 func TestFlexGridReactiveColumnCount(t *testing.T) {
 	scr := Screen{
-		Layout: FlexColumns{MinWidth: 40, MaxCols: 3},
+		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			flexBoxPane("one"),
 			flexBoxPane("two"),
@@ -62,7 +62,7 @@ func TestFlexGridReactiveColumnCount(t *testing.T) {
 		{60, 1},
 	}
 	for _, c := range cases {
-		out := scr.Render(NewFrame(c.width), TierTall, 0)
+		out := scr.Render(NewFrame(c.width), TierTall, "")
 		if got := topBorderCount(out); got != c.wantCols {
 			t.Fatalf("width %d: rendered %d columns, want %d:\n%s", c.width, got, c.wantCols, out)
 		}
@@ -76,7 +76,7 @@ func TestFlexGridReactiveColumnCount(t *testing.T) {
 
 func TestFlexGridReflowDemo(t *testing.T) {
 	scr := Screen{
-		Layout: FlexColumns{MinWidth: 40, MaxCols: 3},
+		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			{Name: "status", Render: func(f Frame) string { return f.CellBox("STATUS", "tokens 1.2M", "Lv.7") }},
 			{Name: "market", Render: func(f Frame) string { return f.CellBox("MARKET", "price 12.4", "trend up") }},
@@ -84,16 +84,16 @@ func TestFlexGridReflowDemo(t *testing.T) {
 		},
 	}
 	for _, w := range []int{126, 100, 60} {
-		t.Logf("\n--- width %d (%d cols) ---\n%s", w, FlexColCount(w, 40, 3), scr.Render(NewFrame(w), TierTall, 0))
+		t.Logf("\n--- width %d (%d cols) ---\n%s", w, FlexColCount(w, 40, 3), scr.Render(NewFrame(w), TierTall, ""))
 	}
 }
 
 func TestFlexGridNeverExceedsPaneCount(t *testing.T) {
 	scr := Screen{
-		Layout: FlexColumns{MinWidth: 40, MaxCols: 3},
+		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes:  []Pane{flexBoxPane("solo")},
 	}
-	out := scr.Render(NewFrame(200), TierTall, 0)
+	out := scr.Render(NewFrame(200), TierTall, "")
 	if topBorderCount(out) != 1 {
 		t.Fatalf("single pane must occupy 1 column even on a wide screen:\n%s", out)
 	}
@@ -106,13 +106,13 @@ func TestFlexGridNeverExceedsPaneCount(t *testing.T) {
 
 func TestFlexGridStacksAllPanesWhenSingleColumn(t *testing.T) {
 	scr := Screen{
-		Layout: FlexColumns{MinWidth: 40, MaxCols: 3},
+		Layout: FlexColumns{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			flexBoxPane("alpha"),
 			flexBoxPane("beta"),
 		},
 	}
-	out := scr.Render(NewFrame(50), TierTall, 0)
+	out := scr.Render(NewFrame(50), TierTall, "")
 	if !strings.Contains(out, "alpha") || !strings.Contains(out, "beta") {
 		t.Fatalf("single-column flex should stack all panes:\n%s", out)
 	}
@@ -123,11 +123,11 @@ func TestFlexGridStacksAllPanesWhenSingleColumn(t *testing.T) {
 
 func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
 	scr := Screen{
-		Layout: FlexRows{MinWidth: 40, MaxCols: 2},
+		Layout: FlexRows{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 2}},
 		Panes:  []Pane{flexBoxPane("a"), flexBoxPane("b"), flexBoxPane("c")},
 	}
 	const w = 120
-	out := scr.Render(NewFrame(w), TierTall, 0)
+	out := scr.Render(NewFrame(w), TierTall, "")
 	lines := strings.Split(out, "\n")
 
 	for _, ln := range lines {
@@ -159,7 +159,7 @@ func TestFlexRowsExpandsLoneLastRow(t *testing.T) {
 
 func TestFlexRowsReflowDemo(t *testing.T) {
 	scr := Screen{
-		Layout: FlexRows{MinWidth: 40, MaxCols: 3},
+		Layout: FlexRows{FlexBounds: FlexBounds{MinWidth: 40, MaxCols: 3}},
 		Panes: []Pane{
 			{Name: "status", Render: func(f Frame) string { return f.CellBox("STATUS", "tokens 1.2M", "Lv.7") }},
 			{Name: "market", Render: func(f Frame) string { return f.CellBox("MARKET", "price 12.4") }},
@@ -168,7 +168,7 @@ func TestFlexRowsReflowDemo(t *testing.T) {
 		},
 	}
 	for _, w := range []int{126, 100, 60} {
-		t.Logf("\n--- width %d (%d across) ---\n%s", w, FlexColCount(w, 40, 3), scr.Render(NewFrame(w), TierTall, 0))
+		t.Logf("\n--- width %d (%d across) ---\n%s", w, FlexColCount(w, 40, 3), scr.Render(NewFrame(w), TierTall, ""))
 	}
 }
 

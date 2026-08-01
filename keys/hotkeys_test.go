@@ -127,28 +127,28 @@ func TestControlKeysDropsSingleRunes(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := ControlKeys(c.in)
+			got := controlKeys(c.in)
 			if !slices.Equal(got, c.want) {
-				t.Errorf("ControlKeys(%q) = %q, want %q", c.in, got, c.want)
+				t.Errorf("controlKeys(%q) = %q, want %q", c.in, got, c.want)
 			}
 		})
 	}
 }
 
 func TestControlKeysCountsRunesNotBytes(t *testing.T) {
-	if got := ControlKeys([]string{"é"}); len(got) != 0 {
-		t.Errorf("ControlKeys([é]) = %q, want empty (é is one rune, two bytes)", got)
+	if got := controlKeys([]string{"é"}); len(got) != 0 {
+		t.Errorf("controlKeys([é]) = %q, want empty (é is one rune, two bytes)", got)
 	}
 }
 
 func TestControlKeysEmptyInputReturnsNonNilSlice(t *testing.T) {
 	for _, in := range [][]string{nil, {}} {
-		got := ControlKeys(in)
+		got := controlKeys(in)
 		if got == nil {
-			t.Errorf("ControlKeys(%#v) = nil, want empty non-nil slice", in)
+			t.Errorf("controlKeys(%#v) = nil, want empty non-nil slice", in)
 		}
 		if len(got) != 0 {
-			t.Errorf("ControlKeys(%#v) = %q, want empty", in, got)
+			t.Errorf("controlKeys(%#v) = %q, want empty", in, got)
 		}
 	}
 }
@@ -156,7 +156,7 @@ func TestControlKeysEmptyInputReturnsNonNilSlice(t *testing.T) {
 func TestControlKeysDoesNotMutateInput(t *testing.T) {
 	in := []string{"tab", "q", "esc"}
 	before := slices.Clone(in)
-	ControlKeys(in)
+	controlKeys(in)
 	if !slices.Equal(in, before) {
 		t.Errorf("input mutated: %q, want %q", in, before)
 	}

@@ -323,11 +323,3 @@ func TestFormViewWithoutAKeyMapStillNavigatesAndCancels(t *testing.T) {
 		t.Error("the default map should still bind cancel")
 	}
 }
-
-func TestFormViewFormExposesTheLiveForm(t *testing.T) {
-	v := NewFormView(FormSpec{Title: "edit", Fields: nameFields(), Keys: testFormKeys()})
-	v.Form().Insert("seed")
-	if got := v.Values()["name"]; got != "seed" {
-		t.Fatalf("value = %q, want seed", got)
-	}
-}

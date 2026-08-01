@@ -36,7 +36,7 @@ func TestSingleColumnFocusesRingSelection(t *testing.T) {
 		markerPane("a", true, TierShort),
 		markerPane("b", true, TierShort),
 	}}
-	out := scr.Render(NewFrame(80), TierTall, 1)
+	out := scr.Render(NewFrame(80), TierTall, "b")
 	if !strings.Contains(out, "b:focused") {
 		t.Fatalf("focused pane b not rendered focused:\n%s", out)
 	}
@@ -50,14 +50,14 @@ func TestSingleColumnHidesPanesBelowTier(t *testing.T) {
 		markerPane("always", false, TierShort),
 		markerPane("tallonly", false, TierTall),
 	}}
-	short := scr.Render(NewFrame(80), TierShort, 0)
+	short := scr.Render(NewFrame(80), TierShort, "")
 	if strings.Contains(short, "tallonly") {
 		t.Fatalf("tall-only pane leaked into short tier:\n%s", short)
 	}
 	if !strings.Contains(short, "always") {
 		t.Fatalf("always pane missing at short tier:\n%s", short)
 	}
-	tall := scr.Render(NewFrame(80), TierTall, 0)
+	tall := scr.Render(NewFrame(80), TierTall, "")
 	if !strings.Contains(tall, "tallonly") {
 		t.Fatalf("tall-only pane missing at tall tier:\n%s", tall)
 	}

@@ -91,10 +91,7 @@ func (g Grid) Arrange(f Frame, tier Tier, panes []Pane, focusedName string) stri
 	blocks := make([]string, len(visible))
 	for i, p := range visible {
 		r := rects[i]
-		pf := Frame{Width: r.w, Height: r.h}
-		if p.Interactive && p.Name != "" && p.Name == focusedName {
-			pf.Focused = true
-		}
+		pf := Frame{Width: r.w, Height: r.h, Focused: p.Focused(focusedName)}
 		blocks[i] = p.Render(pf)
 	}
 	return composite(width, height, rects, blocks)

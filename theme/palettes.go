@@ -149,7 +149,9 @@ var registry = []registryEntry{
 
 // Register adds palette p to the registry under key with the given display
 // name. A later call with the same key replaces the earlier name and palette
-// in place, so apps can override the built-ins. Safe for concurrent use.
+// in place, so apps can override the built-ins — deliberately unlike the
+// first-wins glyph/panels/deck registries, where overriding is a collision.
+// Safe for concurrent use.
 func Register(key, name string, p Palette) {
 	registryMu.Lock()
 	defer registryMu.Unlock()

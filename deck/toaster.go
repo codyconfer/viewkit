@@ -52,10 +52,6 @@ func NewToaster(capacity int, ttl time.Duration) *Toaster {
 // SetOverlayPos moves the toast card. It defaults to top centre.
 func (t *Toaster) SetOverlayPos(pos layout.OverlayPos) { t.pos = pos }
 
-// Queue exposes the underlying queue for views that render notifications
-// themselves (a panel of recent items, say) instead of as an overlay.
-func (t *Toaster) Queue() *notify.Queue { return t.queue }
-
 // Push shows n for the Toaster's default TTL and returns the command that
 // keeps the prune loop running. Return it from the view's Update.
 func (t *Toaster) Push(n notify.Notification) tea.Cmd {
@@ -97,9 +93,33 @@ func (t *Toaster) Update(msg tea.Msg) (cmd tea.Cmd, handled bool) {
 	return t.Tick(), true
 }
 
-// Prune expires everything past its TTL. Body does this already; call it
-// directly before reading Queue in a view that renders notifications itself.
+// Prune expires everything past its TTL. Body and the read accessors below
+// already do this.
 func (t *Toaster) Prune() { t.queue.Prune(t.now()) }
+
+// Snapshot prunes expired toasts and returns the rest, oldest first.
+func (t *Toaster) Snapshot() []notify.Notification {
+	t.Prune()
+	return t.queue.Snapshot()
+}
+
+// Len prunes expired toasts and returns how many remain.
+func (t *Toaster) Len() int {
+	t.Prune()
+	return t.queue.Len()
+}
+
+// Current prunes expired toasts and returns the one showing now, if any.
+func (t *Toaster) Current() (notify.Notification, bool) {
+	t.Prune()
+	return t.queue.Current()
+}
+
+// Active prunes expired toasts and reports whether any remain.
+func (t *Toaster) Active() bool {
+	t.Prune()
+	return t.queue.Active()
+}
 
 // Body overlays the current notification on an already-rendered body, sized
 // for the same screen width the body was rendered at. It returns body

@@ -1,7 +1,6 @@
 package deck
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -17,17 +16,19 @@ var (
 	components = map[string]func() Component{}
 )
 
-// RegisterComponent associates id with a component constructor.
-func RegisterComponent(id string, ctor func() Component) {
+// RegisterComponent registers ctor under id. First registration wins; duplicate,
+// empty, or nil registrations change nothing and return false.
+func RegisterComponent(id string, ctor func() Component) bool {
 	if id == "" || ctor == nil {
-		return
+		return false
 	}
 	compMu.Lock()
 	defer compMu.Unlock()
 	if _, ok := components[id]; ok {
-		panic(fmt.Sprintf("deck: duplicate component id %q", id))
+		return false
 	}
 	components[id] = ctor
+	return true
 }
 
 // NamedComponent returns a fresh Component for id.
