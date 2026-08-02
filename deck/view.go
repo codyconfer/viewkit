@@ -26,3 +26,10 @@ type View interface {
 	// Context lists key/label cues for the header context strip.
 	Context(scope *ui.Scope) []keys.Hint
 }
+
+// Resumer is an optional View extension. Model calls Resume on the view a Pop
+// uncovers, before the resize that rebinds it.
+type Resumer interface {
+	// Resume returns the command to run when navigation returns to this view.
+	Resume(m *Model) tea.Cmd
+}

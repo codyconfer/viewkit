@@ -205,13 +205,18 @@ func (h *Model) Push(v View) tea.Cmd {
 	return tea.Batch(v.Init(), h.resizeCmd())
 }
 
-// Pop leaves the current view (quits on root).
+// Pop leaves the current view (quits on root). The view it uncovers gets
+// Resume when it implements Resumer, so stale data can be refetched.
 func (h *Model) Pop() tea.Cmd {
 	if len(h.stack) <= 1 {
 		return tea.Quit
 	}
 	h.stack = h.stack[:len(h.stack)-1]
-	return h.resizeCmd()
+	cmd := h.resizeCmd()
+	if r, ok := h.top().(Resumer); ok {
+		return tea.Batch(cmd, r.Resume(h))
+	}
+	return cmd
 }
 
 func (h *Model) resizeCmd() tea.Cmd {
