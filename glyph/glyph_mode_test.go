@@ -1,11 +1,28 @@
 package glyph
 
 import (
+	"bytes"
 	"sync"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
 )
+
+func TestDetectModeOverridesAndFallback(t *testing.T) {
+	prev := CurrentMode()
+	t.Cleanup(func() { SetMode(prev) })
+	t.Setenv("TERM", "dumb")
+	t.Setenv("VIEWKIT_NERD_FONT", "true")
+	for override, want := range map[string]Mode{
+		"": ModeNone, "invalid": ModeNone, "nerd": ModeNerd,
+		"unicode": ModeUnicode, "ascii": ModeNone,
+	} {
+		DetectMode(&bytes.Buffer{}, override)
+		if got := CurrentMode(); got != want {
+			t.Errorf("DetectMode(buffer, %q) = %v, want %v", override, got, want)
+		}
+	}
+}
 
 func TestSetModeIsRaceFreeWhileResolving(t *testing.T) {
 	prev := CurrentMode()
