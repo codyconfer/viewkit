@@ -2,12 +2,12 @@ package glyph
 
 import (
 	"io"
-	"os"
 	"strings"
 	"sync/atomic"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/term"
+
+	"github.com/codyconfer/viewkit/console"
 )
 
 // Mode selects which Variants field glyphs render as.
@@ -45,26 +45,22 @@ func ParseMode(s string) (Mode, bool) {
 
 // DetectMode sets the process-wide glyph mode: an explicit override wins
 // (pass the value of the app's own env var, e.g. os.Getenv("MYAPP_ICONS")),
-// otherwise dumb or non-TTY output falls back to ASCII and everything else
-// gets nerd glyphs.
+// otherwise console.Detect selects ASCII, Unicode, or explicitly enabled Nerd
+// Font glyphs. Unknown font support never enables private-use icons.
 func DetectMode(w io.Writer, override string) {
 	if m, ok := ParseMode(override); ok {
 		SetMode(m)
 		return
 	}
-	if strings.EqualFold(os.Getenv("TERM"), "dumb") || !isTerminal(w) {
+	c := console.Detect(w)
+	switch {
+	case c.NerdFont == console.Supported:
+		SetMode(ModeNerd)
+	case c.Unicode:
+		SetMode(ModeUnicode)
+	default:
 		SetMode(ModeNone)
-		return
 	}
-	SetMode(ModeNerd)
-}
-
-func isTerminal(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	return term.IsTerminal(f.Fd())
 }
 
 // Variants holds one glyph's rendering per mode: nerd-font, unicode, and

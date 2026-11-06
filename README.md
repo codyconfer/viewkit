@@ -18,6 +18,7 @@ core + deck.
 | `panels` | Charts/widgets from neutral structs (`Bar`, `Line`, `Meter`, …) |
 | `theme` | `Theme` + `Use` / `Cur` palettes and status helpers |
 | `glyph` | Nerd/Uni/ASCII variants, status strip, severity vocabulary |
+| `console` | Output capability detection: TTY, ANSI, Unicode, Powerline/Nerd Fonts |
 | `keys` | Keybinding tables |
 | `forms` | Field builders |
 | `list` / `browser` | List/browser helpers |
@@ -82,6 +83,34 @@ frame := layout.NewFrame(80).WithUI(scope)
 
 Structural dimensions (`theme.BodyWidth`, …) are exported constants — set
 per-view width via `layout.NewFrame(width)`.
+
+### Console capabilities
+
+```go
+caps := console.Detect(os.Stdout)
+if caps.Powerline == console.Supported {
+    // Use Powerline separators; otherwise use a plain-text fallback.
+}
+glyph.DetectMode(os.Stdout, os.Getenv("MYAPP_ICONS"))
+```
+
+Import `github.com/codyconfer/viewkit/console` (and `glyph` for the mode helper).
+Detection is passive: it never prints probes or reads input. Non-TTY and
+`TERM=dumb` output falls back to ASCII. Unicode is estimated from the first
+non-empty locale variable (`LC_ALL`, `LC_CTYPE`, `LANG`) containing UTF-8.
+Terminal names and character widths cannot prove that a font contains a glyph,
+so font support defaults to `console.Unknown`, not a claim of support.
+
+Set `VIEWKIT_POWERLINE=true` and/or `VIEWKIT_NERD_FONT=true` to declare installed
+font support, or `false` to disable it; unset/`auto` keeps it unknown. Nerd Fonts
+imply Powerline support unless explicitly disabled; Powerline alone does not
+imply Nerd Font icons. Font overrides do not enable fancy output in pipes.
+
+`glyph.DetectMode` now chooses Unicode for UTF-8 terminals with unknown fonts,
+rather than assuming Nerd Fonts. Its explicit `nerd`/`unicode`/`ascii` override
+still wins, including for redirected output. `glyph.SetMode` and the default
+mode for applications that never call `DetectMode` are unchanged. Call detection
+before constructing a `ui.Scope` so it captures the selected glyph mode.
 
 ### Deck Model + scope
 
