@@ -306,7 +306,18 @@ type InlineSpec struct {
     UI *ui.Scope                     // nil = ui.Default()
     Width int                        // preferred body width, zero = document width
     Plain bool                       // no panels, editing, or cursor movement
+    AppendOnly bool                  // retain completed panels; still edit active prompt
+    Render func(InlinePanel) string  // pure bounded renderer; bypassed in plain mode
+    AllowANSI bool                   // permit forced-color styles, not cursor movement
     Keys *keys.Map                   // nil = text-safe scoped editor map
+}
+type InlineState uint8
+const (InlineContent InlineState = iota; InlineEditing; InlineSubmitted; InlineCancelled; InlineError)
+type InlinePanel struct {
+    Title string                     // sanitized
+    Lines []string                   // sanitized and wrapped
+    Width int                        // total width including chrome
+    State InlineState
 }
 const InlineClear keys.Action = "inline.clear" // default ctrl+u
 func NewInline(spec InlineSpec) *Inline
