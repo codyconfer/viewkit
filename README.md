@@ -19,6 +19,7 @@ core + deck.
 | `theme` | `Theme` + `Use` / `Cur` palettes and status helpers |
 | `glyph` | Nerd/Uni/ASCII variants, status strip, severity vocabulary |
 | `console` | Output capability detection: TTY, ANSI, Unicode, Powerline/Nerd Fonts |
+| `outputbox` | Borderless, status-shaded command output blocks for scrollback |
 | `keys` | Keybinding tables |
 | `forms` | Field builders |
 | `list` / `browser` | List/browser helpers |
@@ -118,6 +119,28 @@ Interactive apps use `deck.Model` as the session tea root. Pass the scope with
 `deck.WithScope` (swap at runtime via `Model.SetScope`) and register named
 themes/keys/views before `deck.Run`. Full contract:
 [`deck/INTERFACE.md`](deck/INTERFACE.md).
+
+### Command output boxes
+
+`outputbox.Render` renders borderless command output blocks with full-width
+status backgrounds: neutral running, green success, yellow review, red failure.
+Explicit status labels remain readable with color disabled. Rendering is pure:
+append each returned box to keep earlier actions in scrollback; no cursor moves,
+terminal detection, or global renderer changes are performed.
+
+```go
+import "github.com/codyconfer/viewkit/outputbox"
+
+box := outputbox.Render("go test ./...", []string{"ok example/package"},
+    80, true, outputbox.Success)
+fmt.Fprintln(os.Stdout, box)
+```
+
+Width includes padding and clamps to at least eight cells. Long text wraps without
+truncation, including wide Unicode. Pass the color capability resolved by your
+application (for example from `console.Detect`); use `false` for plain transcripts.
+Content may include trusted ANSI styles; sanitize untrusted terminal controls
+before rendering. The package has no Bubble Tea dependency.
 
 ### Inline CLI workflows
 
