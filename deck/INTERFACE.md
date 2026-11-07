@@ -14,6 +14,7 @@
 | `Content` / `Text` | Domain-agnostic job body (apps adapt before crossing) |
 | `Job` + `Work.Collect` / `Work.RunInteractive` | A set of concurrent jobs: errgroup headless + tea progressive UI |
 | `Confirm` | Yes/no tea prompt |
+| `Inline` / `InlineSpec` | Sequential CLI panels, inline text prompts, reported errors, transcript fallback |
 | `Menu` / `Message` / `Scroll` | Generic views (optional; apps may roll their own) |
 | `ItemList` | Lazy Fetch+Bind selectable list (domain → `list.Item` in Bind) |
 | `HomeShell` | Dual-pane menu + optional side list (Fetch+Bind; no app domain types) |
@@ -40,6 +41,28 @@ There is no process-global active theme or scheme.
 
 Overlays and plugins must not invent a second tea root — register Views/themes
 and let the host `Model` own the program.
+
+## Standalone CLI workflows
+
+`Prompt`, `Confirm`, and `Inline.Ask` are standalone prompt hosts, not deck
+Views. They may own a short-lived tea program **outside** a deck session, never
+nested within `Model`. `Inline` stays in normal scrollback and replaces only its
+owned region; it never uses the alternate screen. `Panel` and `Report` are
+synchronous writes, and each `Ask` relinquishes raw mode before returning.
+
+Apps supply domain checks and sequencing through normal Go control flow; no
+setup commands, paths, service names, or step counts belong in the library.
+`InlineSpec.UI` carries the rendering scope. The default text-safe key map is
+derived from that scope, with `InlineClear` bound to ctrl+u; an explicit
+`InlineSpec.Keys` replaces it. Input dispatch and hints share the same map.
+
+Only ANSI-capable input/output terminal pairs replace views. Plain, dumb, or
+redirected streams retain transcripts without ANSI, with a shared buffered input
+reader for successive prompts. `Release` must precede external writes;
+`Reader` hands buffered input to child processes. Callers own validation,
+secret redaction, and exit policy; `Report`/`ErrorReported` preserve error
+identity while avoiding duplicate error messages. The API is sequential, not
+concurrency-safe. Terminal-width changes preserve earlier reflowed output.
 
 ## Chrome contract
 
