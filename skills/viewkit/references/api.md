@@ -297,6 +297,36 @@ func (c Confirm) Render(f layout.Frame) string
 func (c Confirm) Overlay(bg string, f layout.Frame, pos ...layout.OverlayPos) string
 ```
 
+## deck — inline CLI workflows
+
+```go
+type InlineSpec struct {
+    Input io.Reader                  // nil = os.Stdin
+    Output io.Writer                 // nil = os.Stdout
+    UI *ui.Scope                     // nil = ui.Default()
+    Width int                        // preferred body width, zero = document width
+    Plain bool                       // no panels, editing, or cursor movement
+    Keys *keys.Map                   // nil = text-safe scoped editor map
+}
+const InlineClear keys.Action = "inline.clear" // default ctrl+u
+func NewInline(spec InlineSpec) *Inline
+func (u *Inline) Panel(title string, lines ...string) error
+func (u *Inline) Ask(ctx context.Context, title, label, value string) (string, error)
+func (u *Inline) Report(err error) error       // render inside current panel, preserve identity
+func ErrorReported(err error) bool           // suppress duplicate stderr, not exit failure
+func (u *Inline) Release()                    // before other output, forget owned region
+func (u *Inline) Reader() io.Reader           // buffered input handoff after Release
+var ErrCancelled error                       // cancelled standalone prompt
+```
+
+Use sequentially outside a running deck session. Panels replace only on ANSI
+terminal pairs; plain/dumb/redirected output is an append-only transcript.
+`Ask` keeps instructions from a preceding `Panel` with the same title. Input is
+visible text, not a secret field. Callers own checks, validation, redaction,
+external commands, and exit policy. Generic reader cancellation is only checked
+before/after reads; interactive prompts are interruptible. No global scope or
+alternate screen is installed. See README and `deck/INTERFACE.md` for lifecycle.
+
 ## notify — `github.com/codyconfer/viewkit/notify`
 ```go
 type Tone int

@@ -119,6 +119,52 @@ Interactive apps use `deck.Model` as the session tea root. Pass the scope with
 themes/keys/views before `deck.Run`. Full contract:
 [`deck/INTERFACE.md`](deck/INTERFACE.md).
 
+### Inline CLI workflows
+
+`deck.Inline` provides sequential setup/onboarding panels without entering a
+full-screen deck session. Each panel replaces the previous panel on an ANSI
+terminal; redirected streams, `TERM=dumb`, and `Plain: true` keep an append-only
+transcript. No step numbers or application-specific checks are imposed.
+
+```go
+func setup(ctx context.Context) error {
+    flow := deck.NewInline(deck.InlineSpec{
+        Input: os.Stdin, Output: os.Stdout, UI: ui.Default(),
+    })
+    if err := flow.Panel("Workspace", "Choose a local directory."); err != nil {
+        return err
+    }
+    path, err := flow.Ask(ctx, "Workspace", "Directory", ".")
+    if err != nil {
+        return flow.Report(err) // stays inside the current panel
+    }
+    if path == "" {
+        return flow.Report(errors.New("a directory is required"))
+    }
+    return flow.Panel("Ready", "Directory: "+path)
+}
+```
+
+A matching `Ask` retains the preceding panel's instructions alongside its text
+field and key hints. Defaults can be edited with typing, backspace, and clear;
+scoped key bindings drive both dispatch and hints. Cancel returns
+`deck.ErrCancelled`. Text responses are visible, not password prompts. Caller
+strings are treated as text, with terminal controls stripped; redact secrets
+before reporting errors.
+
+`Report` preserves error identity (`errors.Is`/`errors.As`) and marks successfully
+rendered errors. At the CLI boundary, use `deck.ErrorReported(err)` to suppress
+duplicate stderr output **without** suppressing a failing exit status. A render
+failure returns both errors and does not mark them reported.
+
+Call `flow.Release()` before any external command or other output. Pass
+`flow.Reader()` to a child command's stdin: it preserves scripted bytes already
+buffered by an earlier `Ask`. Never write concurrently or nest an `Inline` inside
+a running deck. A width change preserves the previous view as transcript rather
+than risking erasure of unrelated reflowed scrollback. Interactive prompts honor
+context cancellation; generic line readers can only check it before/after reads.
+See the executable `ExampleInline` and terminal tests in `deck/inline*_test.go`.
+
 ## Status
 
 API may still shift before a published `v1`.
