@@ -188,6 +188,22 @@ than risking erasure of unrelated reflowed scrollback. Interactive prompts honor
 context cancellation; generic line readers can only check it before/after reads.
 See the executable `ExampleInline` and terminal tests in `deck/inline*_test.go`.
 
+To keep completed actions in scrollback while editing the active prompt, set
+`InlineSpec.AppendOnly: true`. For application-specific presentation, supply a
+pure `Render func(deck.InlinePanel) string`: it receives sanitized text, the
+bounded total panel width, and `InlineContent`, `InlineEditing`,
+`InlineSubmitted`, `InlineCancelled`, or `InlineError`. For example, a renderer
+can map these states to `outputbox` status colors. Normal `Panel` calls have no
+implied success/failure status; applications own those semantics. Renderers must
+fit within the supplied width, must not write terminal commands, and must omit
+the trailing newline. Plain mode (and extremely narrow terminals) bypass custom
+renderers. Scoped keys and prompt behavior are unchanged.
+
+ANSI styles are normally stripped from redirected or dumb output. Applications
+with an explicit forced-color option may opt into `AllowANSI: true`; this does
+**not** enable cursor movement or interactive input on redirected streams.
+`Plain: true` still strips ANSI regardless of `AllowANSI`.
+
 ## Status
 
 API may still shift before a published `v1`.

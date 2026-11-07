@@ -270,6 +270,83 @@ func TestInlineScopedKeysAndHints(t *testing.T) {
 	}
 }
 
+func TestInlineCustomPresentation(t *testing.T) {
+	var out bytes.Buffer
+	var seen []InlinePanel
+	u := NewInline(InlineSpec{
+		Input: strings.NewReader("answer\n"), Output: &out, AppendOnly: true,
+		Render: func(p InlinePanel) string {
+			seen = append(seen, p)
+			return "custom " + p.Title + "\n" + strings.Join(p.Lines, "\n")
+		},
+	})
+	u.size = func() (int, int) { return 50, 20 }
+	u.interactive = true // exercise terminal replacement independently of a PTY
+	if err := u.Panel("First\x1b[2J", "body\x1b[2J"); err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Panel("Second", "instructions"); err != nil {
+		t.Fatal(err)
+	}
+	if seen[0].Title != "First" || seen[0].Lines[0] != "body" || seen[0].Width != 50 || seen[0].State != InlineContent {
+		t.Fatalf("renderer input not sanitized/sized: %#v", seen[0])
+	}
+	if strings.Contains(out.String(), "\x1b") || !u.interactive {
+		t.Fatal("append-only must not clear panels or disable interactive editing", out.String())
+	}
+	m := &inlineModel{owner: u, title: "Prompt", label: "Name", width: 50,
+		form: forms.NewForm(forms.Text("value", "Name"))}
+	m.View()
+	if seen[len(seen)-1].State != InlineEditing {
+		t.Fatal(seen)
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m.View()
+	if seen[len(seen)-1].State != InlineSubmitted {
+		t.Fatal(seen)
+	}
+	m.cancelled = true
+	m.View()
+	if seen[len(seen)-1].State != InlineCancelled {
+		t.Fatal(seen)
+	}
+	if err := u.Report(errors.New("failed")); !ErrorReported(err) || seen[len(seen)-1].State != InlineError {
+		t.Fatal(err, seen)
+	}
+	u.interactive = false
+	if _, err := u.Ask(context.Background(), "Transcript", "Name", ""); err != nil || seen[len(seen)-1].State != InlineEditing {
+		t.Fatal(err, seen)
+	}
+}
+
+func TestInlineCustomRendererColorAndPlain(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		plain, allowANSI bool
+	}{
+		{name: "redirected"}, {name: "forced color", allowANSI: true},
+		{name: "plain wins", plain: true, allowANSI: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			called := false
+			u := NewInline(InlineSpec{Input: strings.NewReader(""), Output: &out,
+				Plain: tc.plain, AllowANSI: tc.allowANSI,
+				Render: func(p InlinePanel) string {
+					called = true
+					return "\x1b[31m" + p.Title + "\x1b[0m"
+				},
+			})
+			if err := u.Panel("Title"); err != nil {
+				t.Fatal(err)
+			}
+			if called == tc.plain || strings.Contains(out.String(), "\x1b") != (tc.allowANSI && !tc.plain) || u.interactive {
+				t.Fatalf("called=%v interactive=%v output=%q", called, u.interactive, out.String())
+			}
+		})
+	}
+}
+
 func ExampleInline() {
 	var transcript bytes.Buffer
 	flow := NewInline(InlineSpec{

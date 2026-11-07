@@ -64,6 +64,16 @@ secret redaction, and exit policy; `Report`/`ErrorReported` preserve error
 identity while avoiding duplicate error messages. The API is sequential, not
 concurrency-safe. Terminal-width changes preserve earlier reflowed output.
 
+`InlineSpec.AppendOnly` retains completed panels even on interactive terminals;
+it does not disable active-prompt editing. `Render` is an optional pure
+presentation hook, receiving sanitized, wrapped `InlinePanel` text, bounded total
+width, and a neutral `InlineState`. The host still owns input, hints, lifecycle,
+newline accounting, and error reporting. Renderers own safe chrome/style only,
+must fit the supplied width, and must not emit terminal control commands.
+`Plain` and extremely narrow terminals bypass this hook. `AllowANSI` permits
+styles on redirected output without changing interaction/clearing capability;
+`Plain` takes precedence. Default behavior remains unchanged.
+
 ## Chrome contract
 
 Apps inject branding via `WithChrome(Chrome{Brand, BrandGlyph, Subtitle, ClockGlyph})`.
