@@ -26,6 +26,32 @@ import (
 // it through InlineSpec.Keys.
 const InlineClear keys.Action = "inline.clear"
 
+// InlineState identifies the lifecycle of a rendered workflow panel.
+type InlineState uint8
+
+const (
+	// InlineContent is a caller-supplied panel, with no implied status.
+	InlineContent InlineState = iota
+	// InlineEditing is a text prompt awaiting a response.
+	InlineEditing
+	// InlineSubmitted is the final view of a submitted prompt.
+	InlineSubmitted
+	// InlineCancelled is the final view of a cancelled prompt.
+	InlineCancelled
+	// InlineError is an error displayed by Report.
+	InlineError
+)
+
+// InlinePanel is the neutral input to a custom workflow renderer. Title and
+// Lines contain sanitized text; Lines are wrapped to the preferred body width.
+// Width includes the four columns reserved for default panel chrome.
+type InlinePanel struct {
+	Title string
+	Lines []string
+	Width int
+	State InlineState
+}
+
 // InlineSpec configures a sequential, inline CLI workflow. Domain checks,
 // validation, persistence, and external commands belong to the caller.
 type InlineSpec struct {
@@ -39,6 +65,19 @@ type InlineSpec struct {
 	Width int
 	// Plain disables panels, cursor movement, and interactive editing.
 	Plain bool
+	// AppendOnly keeps completed panels in scrollback even on terminals.
+	// The active text prompt still edits and redraws interactively.
+	AppendOnly bool
+	// Render replaces the default panel presentation. It must be a pure
+	// renderer, fit within InlinePanel.Width, and return no trailing newline.
+	// It is not called in Plain mode or on terminals narrower than 5 cells.
+	// ANSI styles are allowed; terminal control commands are not. The host
+	// strips ANSI unless output supports it or AllowANSI is true.
+	Render func(InlinePanel) string
+	// AllowANSI preserves renderer styles even for redirected/dumb output
+	// (for example, an application's forced-color option). It never enables
+	// interaction or cursor movement, and Plain still strips all ANSI.
+	AllowANSI bool
 	// Keys overrides the text editor map, including submit and cancel. Nil
 	// uses text-safe scoped confirm/cancel/quit/erase and ctrl+u to clear.
 	Keys *keys.Map
@@ -60,6 +99,8 @@ type Inline struct {
 	keyMap      *keys.Map
 	width       int
 	plain       bool
+	appendOnly  bool
+	renderPanel func(InlinePanel) string
 	interactive bool
 	ansi        bool
 	title       string
@@ -86,7 +127,8 @@ func NewInline(spec InlineSpec) *Inline {
 	u := &Inline{
 		in: in, out: out, lines: bufio.NewReader(in), scope: scope,
 		keyMap: spec.Keys, width: layout.NewFrame(spec.Width).Width,
-		plain: spec.Plain, ansi: caps.ANSI && !spec.Plain,
+		plain: spec.Plain, ansi: (caps.ANSI || spec.AllowANSI) && !spec.Plain,
+		appendOnly: spec.AppendOnly, renderPanel: spec.Render,
 		interactive: inlineTerminal(in) && caps.ANSI && !spec.Plain,
 	}
 	u.size = func() (int, int) {
@@ -127,7 +169,7 @@ func (u *Inline) frame(width int) layout.Frame {
 	return layout.Frame{Width: bodyWidth + 4, UI: u.scope}
 }
 
-func (u *Inline) render(title string, body []string, width int) string {
+func (u *Inline) render(title string, body []string, width int, state InlineState) string {
 	f := u.frame(width)
 	bodyWidth := max(1, f.Width-4)
 	if width > 0 && width < 5 {
@@ -144,6 +186,8 @@ func (u *Inline) render(title string, body []string, width int) string {
 			titleWidth = min(titleWidth, width)
 		}
 		text = inlineWrap(inlineText(title), titleWidth) + "\n" + strings.Join(lines, "\n")
+	} else if u.renderPanel != nil {
+		text = u.renderPanel(InlinePanel{Title: inlineText(title), Lines: lines, Width: f.Width, State: state})
 	} else {
 		text = f.CellBox(inlineText(title), lines...)
 	}
@@ -165,7 +209,7 @@ func inlineWrap(text string, width int) string {
 }
 
 func (u *Inline) clear(width, height int) error {
-	if u.interactive && u.rows > 0 && width == u.lastWidth {
+	if u.interactive && !u.appendOnly && u.rows > 0 && width == u.lastWidth {
 		rows := u.rows
 		if height > 0 {
 			rows = min(rows, height-1)
@@ -186,8 +230,12 @@ func (u *Inline) clear(width, height int) error {
 // are untrusted text: terminal control sequences are stripped. A matching Ask
 // retains these instructions inside the same panel.
 func (u *Inline) Panel(title string, lines ...string) error {
+	return u.panel(InlineContent, title, lines...)
+}
+
+func (u *Inline) panel(state InlineState, title string, lines ...string) error {
 	width, height := u.size()
-	text := u.render(title, lines, width)
+	text := u.render(title, lines, width, state)
 	if err := u.clear(width, height); err != nil {
 		return err
 	}
@@ -241,7 +289,7 @@ func (u *Inline) Ask(ctx context.Context, title, label, value string) (string, e
 	}
 	// No Tea program or cursor escapes for transcripts. Reuse one buffered
 	// reader across prompts so read-ahead remains available to the next step.
-	if err := u.Panel(title, append(body, inlineText(label)+" ["+value+"]:")...); err != nil {
+	if err := u.panel(InlineEditing, title, append(body, inlineText(label)+" ["+value+"]:")...); err != nil {
 		return "", err
 	}
 	// A prompt is not an instruction for the following Ask/Report.
@@ -304,7 +352,7 @@ func (u *Inline) Report(err error) error {
 		title = "Error"
 	}
 	body := append(append([]string(nil), u.body...), err.Error())
-	if renderErr := u.Panel(title, body...); renderErr != nil {
+	if renderErr := u.panel(InlineError, title, body...); renderErr != nil {
 		return errors.Join(err, renderErr)
 	}
 	return inlineReportedError{err: err}
@@ -381,7 +429,7 @@ func (m *inlineModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *inlineModel) View() string {
 	if m.cancelled {
-		return m.owner.render(m.title, []string{"Cancelled."}, m.width) + "\n"
+		return m.owner.render(m.title, []string{"Cancelled."}, m.width, InlineCancelled) + "\n"
 	}
 	lines := append([]string(nil), m.body...)
 	lines = append(lines, "", inlineText(m.label)+": "+m.form.Focused().Text, "")
@@ -401,5 +449,9 @@ func (m *inlineModel) View() string {
 		}
 		lines = append(lines, strings.Join(hints, " · "))
 	}
-	return m.owner.render(m.title, lines, m.width) + "\n"
+	state := InlineEditing
+	if m.submitted {
+		state = InlineSubmitted
+	}
+	return m.owner.render(m.title, lines, m.width, state) + "\n"
 }
